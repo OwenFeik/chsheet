@@ -12,50 +12,76 @@ function set_up_sheet() {
     sheet.style.gridTemplateColumns = columnstring;
     sheet.style.gridTemplateRows = (NODESIZE + "px ").repeat(10).slice(0, -1);
 
-    document.body.appendChild(sheet);
-
-    sheet.appendChild(create_node(1, 2, "node 1"));    
-    sheet.appendChild(create_node(2, 1, "node 2"));
-    sheet.appendChild(create_node(1, 1, "node 3"));
-    sheet.appendChild(create_node(2, 2, "node 4"));
+    
+    create_node(1, 2);    
+    create_node(2, 1);
+    create_node(1, 1);
+    create_node(2, 2);
 }
 
-function create_node(w, h, name) {
+function set_up_toolbar() {
+    let add = document.createElement("button");
+    add.classList.add("tool");
+    
+    let img = document.createElement("img");
+    img.src = icon_path("add.png");
+    add.appendChild(img);
+
+    add.onclick = add_node_to_sheet;
+
+    document.getElementById("toolbar").appendChild(add);
+}
+
+function create_node(w, h) {
     let node = document.createElement("div");
     node.classList.add("node");
-    node.innerHTML = name;
     node.style.width = `${w * NODESIZE + (w - 1) * GAP}px`;
     node.style.height = `${h * NODESIZE + (h - 1) * GAP}px`;
     node.width = w;
     node.height = h;
 
     let handle = document.createElement("img");
-    handle.classList.add("handle");
+    handle.classList.add("handle", "icon");
     handle.src = icon_path("handle.png");
     node.appendChild(handle);
 
     make_draggable(node);
 
     let lock = document.createElement("img");
-    lock.classList.add("lock");
+    lock.classList.add("lock", "icon");
     lock.src = icon_path("unlock.png");
     lock.onclick = toggle_locked;
     node.appendChild(lock);
 
-    return node;
+    let cog = document.createElement("img");
+    cog.classList.add("cog", "icon");
+    cog.src = icon_path("cog.png");
+    node.appendChild(cog);
+
+    document.getElementById("sheet").appendChild(node);
+    if (w > 1 || h > 1) {
+        snap_to_grid(node);
+    }
+}
+
+function add_node_to_sheet(e) {
+    create_node(1, 1);
 }
 
 function toggle_locked(e) {
     let lock = e.target;
-    let handle = lock.parentNode.querySelector("img.handle")
+    let handle = lock.parentNode.querySelector("img.icon.handle");
+    let cog = lock.parentNode.querySelector("img.icon.cog");
     if (lock.classList.contains("locked")) {
         handle.classList.remove("hidden");
+        cog.classList.remove("hidden");
         lock.src = icon_path("unlock.png");
         lock.classList.remove("locked");
     }
     else {
         snap_to_grid(lock.parentNode);
         handle.classList.add("hidden");
+        cog.classList.add("hidden");
         lock.classList.add("locked");
         lock.src = icon_path("lock.png");
     }
@@ -115,7 +141,7 @@ function snap_to_grid(e, x = null, y = null) {
         y = Math.round(e.offsetTop / (NODESIZE + GAP)) + 1;
     }
 
-    while (x >= e.parentNode.width) {
+    while (x + e.width - 1> e.parentNode.width) {
         x--;
     }
 

@@ -1,9 +1,21 @@
-.container {
+#container {
     display: grid;
     grid-template-columns: 1fr 50px;
 }
 
-.sheet {
+#toolbar {
+    position: relative;
+    grid-column: "2/3";
+}
+
+.tool {
+    position: relative;
+    width: 50px;
+    height: 50px;
+    border-radius: 5px;
+}
+
+#sheet {
     display: grid;
     /* border: black 1px solid; */
 }
@@ -15,22 +27,28 @@
     text-align: center;
 }
 
-.handle {
+.icon {
     position: absolute;
+    width: 16px;
+    height: 16px;    
+}
+
+.handle {
     cursor: move;
     top: 5px;
     right: 5px;
-    width: 32px;
-    height: 32px;
 }
 
 .lock {
-    position: absolute;
     cursor: pointer;
     bottom: 5px;
     right: 5px;
-    width: 32px;
-    height: 32px;
+}
+
+.cog {
+    cursor: pointer;
+    top: 26px;
+    right: 5px;
 }
 
 .hidden {
