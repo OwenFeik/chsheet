@@ -2,31 +2,22 @@ var NODESIZE = 100;
 var GAP = 10; 
 
 function set_up_sheet() {    
-    let sheet = document.createElement("div");
-    sheet.classList = "sheet";
+    let sheet = document.getElementById("sheet");
 
-    let node_qty = Math.floor(window.innerWidth / (NODESIZE + GAP));
+    let node_qty = Math.floor(sheet.offsetWidth / (NODESIZE + GAP));
     sheet.style.width = node_qty * (NODESIZE + GAP) - GAP + "px";
+    sheet.width = node_qty;
     sheet.style.gridGap = GAP + "px";
     let columnstring = (NODESIZE + "px ").repeat(node_qty).slice(0, -1);
     sheet.style.gridTemplateColumns = columnstring;
-    sheet.style.gridTemplateRows = `minmax(${NODESIZE}, ${NODESIZE})`;
+    sheet.style.gridTemplateRows = (NODESIZE + "px ").repeat(10).slice(0, -1);
 
     document.body.appendChild(sheet);
 
-    n = create_node(1, 2, "node 1");
-    n.style.gridColumn = "2/3";
-    n.style.gridRow = "2/4";
-    sheet.appendChild(n);
-    n = create_node(2, 1, "node 2");
-    n.style.gridColumn = "1/3";
-    n.style.gridRow = "1/2";
-    sheet.appendChild(n);
+    sheet.appendChild(create_node(1, 2, "node 1"));    
+    sheet.appendChild(create_node(2, 1, "node 2"));
     sheet.appendChild(create_node(1, 1, "node 3"));
-    n = create_node(2, 2, "node 4");
-    n.style.gridColumn = "4/6";
-    n.style.gridRow = "1/3";
-    sheet.appendChild(n);
+    sheet.appendChild(create_node(2, 2, "node 4"));
 }
 
 function create_node(w, h, name) {
@@ -35,17 +26,19 @@ function create_node(w, h, name) {
     node.innerHTML = name;
     node.style.width = `${w * NODESIZE + (w - 1) * GAP}px`;
     node.style.height = `${h * NODESIZE + (h - 1) * GAP}px`;
+    node.width = w;
+    node.height = h;
 
     let handle = document.createElement("img");
     handle.classList.add("handle");
-    handle.src = "handle.png";
+    handle.src = icon_path("handle.png");
     node.appendChild(handle);
 
     make_draggable(node);
 
     let lock = document.createElement("img");
     lock.classList.add("lock");
-    lock.src = "unlock.png";
+    lock.src = icon_path("unlock.png");
     lock.onclick = toggle_locked;
     node.appendChild(lock);
 
@@ -54,14 +47,19 @@ function create_node(w, h, name) {
 
 function toggle_locked(e) {
     let lock = e.target;
+    let handle = lock.parentNode.querySelector("img.handle")
     if (lock.classList.contains("locked")) {
-        lock.src = "unlock.png";
+        handle.classList.remove("hidden");
+        lock.src = icon_path("unlock.png");
         lock.classList.remove("locked");
     }
     else {
+        snap_to_grid(lock.parentNode);
+        handle.classList.add("hidden");
         lock.classList.add("locked");
-        lock.src = "lock.png";
+        lock.src = icon_path("lock.png");
     }
+
 }
 
 function make_draggable(el) {
@@ -104,11 +102,31 @@ function make_draggable(el) {
         document.onmouseup = null;
         document.onmousemove = null;
 
-        el.style.position = "relative";
+        snap_to_grid(el);
     }
 
 }
 
-function snap_to_grid(e) {
-    
+function snap_to_grid(e, x = null, y = null) {
+    if (x == null) {
+        x = Math.round(e.offsetLeft / (NODESIZE + GAP)) + 1;
+    }
+    if (y == null) {
+        y = Math.round(e.offsetTop / (NODESIZE + GAP)) + 1;
+    }
+
+    while (x >= e.parentNode.width) {
+        x--;
+    }
+
+    e.style.top = "";
+    e.style.left = "";
+    e.style.position = "relative";
+
+    e.style.gridColumn = x + "/" + (x + e.width);
+    e.style.gridRow = y + "/" + (y + e.height);
+}
+
+function icon_path(name) {
+    return "icons/" + name;
 }
