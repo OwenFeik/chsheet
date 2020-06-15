@@ -90,8 +90,13 @@ function node_settings(node) {
         menu.appendChild(lock);
     }
 
-    let settings = create_menu_item("Settings", "cog.png");
-    menu.appendChild(settings);
+    menu.appendChild(create_menu_item("Settings", "cog.png"));
+    
+    let resize = create_menu_item("Resize", "resize.png");
+    resize.onclick = function (e) {
+        resize_node(node);
+    };
+    menu.appendChild(resize);
 
     document.body.appendChild(menu);
     
@@ -114,7 +119,25 @@ function node_settings(node) {
     window.addEventListener("mouseup", click_off_menu);
 }
 
-function create_menu_item (label, image) {
+function resize_node(node) {
+    let top = document.createElement("div");
+    top.classList.add("resize_handle", "top");
+    node.appendChild(top);
+
+    let bottom = document.createElement("div");
+    bottom.classList.add("resize_handle", "bottom");
+    node.appendChild(bottom);
+
+    let left = document.createElement("div");
+    left.classList.add("resize_handle", "left");
+    node.appendChild(left);
+
+    let right = document.createElement("div");
+    right.classList.add("resize_handle", "right");
+    node.appendChild(right);
+}
+
+function create_menu_item(label, image) {
     let item = document.createElement("div");
     item.classList.add("menuitem");
 
@@ -135,7 +158,7 @@ function add_node_to_sheet(e) {
     create_node(1, 1);    
 }
 
-function make_draggable(el) {
+function make_draggable(el, end_drag) {
     let x1 = 0, y1 = 0, x2 = 0, y2 = 0;
 
     let handle = el.querySelector("img.handle");
@@ -155,7 +178,7 @@ function make_draggable(el) {
         x2 = e.clientX;
         y2 = e.clientY;
         
-        document.onmouseup = end_drag;
+        document.onmouseup = end_drag || end_drag_default;
         document.onmousemove = drag;
     }
 
@@ -171,7 +194,7 @@ function make_draggable(el) {
         el.style.left = (el.offsetLeft - x1) + "px";
     }
 
-    function end_drag() {
+    function end_drag_default() {
         document.onmouseup = null;
         document.onmousemove = null;
 
