@@ -45,7 +45,7 @@ function create_node(w, h) {
     handle.src = icon_path("handle.png");
     node.appendChild(handle);
 
-    make_draggable(node);
+    make_node_draggable(node);
 
     node.oncontextmenu = function (e) {
         e.preventDefault();
@@ -120,21 +120,64 @@ function node_settings(node) {
 }
 
 function resize_node(node) {
-    let top = document.createElement("div");
-    top.classList.add("resize_handle", "top");
-    node.appendChild(top);
-
     let bottom = document.createElement("div");
     bottom.classList.add("resize_handle", "bottom");
+    make_resize_handle_draggable(bottom, node);
     node.appendChild(bottom);
-
-    let left = document.createElement("div");
-    left.classList.add("resize_handle", "left");
-    node.appendChild(left);
 
     let right = document.createElement("div");
     right.classList.add("resize_handle", "right");
+    make_resize_handle_draggable(right, node);
     node.appendChild(right);
+}
+
+function make_resize_handle_draggable(el, node) {
+    let v1 = 0, v2 = 0;
+    let x_direction = el.classList.contains("left") 
+        || el.classList.contains("right");
+
+    el.onmousedown = start_drag;
+
+    function start_drag(e) {
+        e.preventDefault();
+
+        let top = el.offsetTop;
+        let left = el.offsetLeft;
+
+        el.style.position = "absolute";
+
+        el.style.top = top + "px";
+        el.style.left = left + "px";
+
+        v2 = x_direction ? e.clientX : e.clienty;
+        
+        document.onmouseup = end_drag;
+        document.onmousemove = drag;
+    }
+
+    function drag(e) {
+        e.preventDefault();
+
+        v1 = v2 - (x_direction ? e.clientX : e.clientY);
+        v2 = x_direction ? e.clientX : e.clientY;
+
+        if (x_direction) {
+            el.style.left = (el.offsetLeft - v1) + "px";
+            node.style.width = (parseInt(node.style.width, 10) - v1) + "px";
+        }
+        else {
+            node.style.height = (parseInt(node.style.height, 10) - v1) + "px";
+            el.style.top = (el.offsetTop - v1) + "px";
+        }
+    }
+
+    function end_drag() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+
+        el.style.top = "";
+        el.style.left = "";
+    }
 }
 
 function create_menu_item(label, image) {
@@ -158,10 +201,10 @@ function add_node_to_sheet(e) {
     create_node(1, 1);    
 }
 
-function make_draggable(el, end_drag) {
+function make_node_draggable(el,) {
     let x1 = 0, y1 = 0, x2 = 0, y2 = 0;
 
-    let handle = el.querySelector("img.handle");
+    handle = el.querySelector("img.handle");
     handle.onmousedown = start_drag;
 
     function start_drag(e) {
@@ -178,7 +221,7 @@ function make_draggable(el, end_drag) {
         x2 = e.clientX;
         y2 = e.clientY;
         
-        document.onmouseup = end_drag || end_drag_default;
+        document.onmouseup = end_drag;
         document.onmousemove = drag;
     }
 
@@ -194,13 +237,12 @@ function make_draggable(el, end_drag) {
         el.style.left = (el.offsetLeft - x1) + "px";
     }
 
-    function end_drag_default() {
+    function end_drag() {
         document.onmouseup = null;
         document.onmousemove = null;
 
         snap_to_grid(el);
     }
-
 }
 
 function snap_to_grid(e, x = null, y = null) {

@@ -36,27 +36,27 @@
 
 .resize_handle.top {
     left: 50%;
-    bottom: 105%;
+    top: -20px;
     transform: translate(-50%, 0);
     cursor: n-resize;
 }
 
 .resize_handle.bottom {
     left: 50%;
-    top: 105%;
+    bottom: -20px;
     transform: translate(-50%, 0);
     cursor: n-resize;
 }
 
 .resize_handle.left {
-    right: 105%;
+    left: -20px;
     top: 50%;
     transform: translate(0, -50%);
     cursor: e-resize;
 }
 
 .resize_handle.right {
-    left: 105%;
+    right: -20px;
     top: 50%;
     transform: translate(0, -50%);
     cursor: e-resize;
