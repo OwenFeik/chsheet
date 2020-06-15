@@ -1,5 +1,5 @@
-var NODESIZE = 100;
-var GAP = 10; 
+const NODESIZE = 100;
+const GAP = 10; 
 
 function set_up_sheet() {    
     let sheet = document.getElementById("sheet");
@@ -35,8 +35,8 @@ function set_up_toolbar() {
 function create_node(w, h) {
     let node = document.createElement("div");
     node.classList.add("node");
-    node.style.width = `${w * NODESIZE + (w - 1) * GAP}px`;
-    node.style.height = `${h * NODESIZE + (h - 1) * GAP}px`;
+    node.style.width = `${node_size(w)}px`;
+    node.style.height = `${node_size(h)}px`;
     node.width = w;
     node.height = h;
 
@@ -47,45 +47,92 @@ function create_node(w, h) {
 
     make_draggable(node);
 
-    let lock = document.createElement("img");
-    lock.classList.add("lock", "icon");
-    lock.src = icon_path("unlock.png");
-    lock.onclick = toggle_locked;
-    node.appendChild(lock);
-
-    let cog = document.createElement("img");
-    cog.classList.add("cog", "icon");
-    cog.src = icon_path("cog.png");
-    node.appendChild(cog);
+    node.oncontextmenu = function (e) {
+        e.preventDefault();
+        node_settings(node);
+    };
 
     document.getElementById("sheet").appendChild(node);
-    if (w > 1 || h > 1) {
-        snap_to_grid(node);
+    snap_to_grid(node);
+}
+
+function node_size(k) {
+    return k * NODESIZE + (k - 1) * GAP;    
+}
+
+function node_settings(node) {
+    let menu = document.createElement("div");
+    menu.classList.add("menu");
+    menu.style.left = (node.offsetLeft + node_size(node.width) + 5) + "px";
+    menu.style.top = node.offsetTop + "px";
+
+    let unlock = create_menu_item("Unlock", "unlock.png");
+    let lock = create_menu_item("Lock", "lock.png");
+
+    toggle_locked = function (e) {
+        if (node.classList.contains("locked")) {
+            node.classList.remove("locked");
+            menu.replaceChild(lock, unlock);
+        }
+        else {
+            node.classList.add("locked");
+            menu.replaceChild(unlock, lock);
+        }
     }
+
+    unlock.onclick = toggle_locked;
+    lock.onclick = toggle_locked;
+
+    if (node.classList.contains("locked")) {
+        menu.appendChild(unlock); 
+    }
+    else {
+        menu.appendChild(lock);
+    }
+
+    let settings = create_menu_item("Settings", "cog.png");
+    menu.appendChild(settings);
+
+    document.body.appendChild(menu);
+    
+    close_menu = function () {
+        menu.remove();
+    };
+
+    click_off_menu = function (e) {
+        if (
+            e.target == menu ||
+            e.target.classList.contains("menuitem") ||
+            e.target.parentNode.classList.contains("menuitem")
+        ) {
+            return;
+        }
+        close_menu();
+        window.removeEventListener("mouseup", click_off_menu);
+    };
+
+    window.addEventListener("mouseup", click_off_menu);
+}
+
+function create_menu_item (label, image) {
+    let item = document.createElement("div");
+    item.classList.add("menuitem");
+
+    let img = document.createElement("img");
+    img.classList.add("icon");
+    img.src = icon_path(image);
+    item.appendChild(img);
+
+    let text = document.createElement("span");
+    text.classList.add("label");
+    text.innerHTML = label;
+    item.appendChild(text);
+
+    return item;
 }
 
 function add_node_to_sheet(e) {
-    create_node(1, 1);
-}
-
-function toggle_locked(e) {
-    let lock = e.target;
-    let handle = lock.parentNode.querySelector("img.icon.handle");
-    let cog = lock.parentNode.querySelector("img.icon.cog");
-    if (lock.classList.contains("locked")) {
-        handle.classList.remove("hidden");
-        cog.classList.remove("hidden");
-        lock.src = icon_path("unlock.png");
-        lock.classList.remove("locked");
-    }
-    else {
-        snap_to_grid(lock.parentNode);
-        handle.classList.add("hidden");
-        cog.classList.add("hidden");
-        lock.classList.add("locked");
-        lock.src = icon_path("lock.png");
-    }
-
+    create_node(1, 1);    
 }
 
 function make_draggable(el) {
