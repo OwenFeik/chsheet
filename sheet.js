@@ -1,4 +1,4 @@
-const NODESIZE = 100;
+const NODESIZE = 32;
 const GAP = 10; 
 
 function set_up_sheet() {    
@@ -61,10 +61,38 @@ function node_size(k) {
 }
 
 function node_settings(node) {
+    let menu = node.querySelector(".menu");
+    if (!menu) {
+        menu = create_menu(node);
+    }
+    else {
+        menu.style.visibility = "visible";
+    }
+
+    close_menu = function () {
+        menu.style.visibility = "hidden";
+        window.removeEventListener("mouseup", click_off_menu);
+    };
+
+    click_off_menu = function (e) {
+        if (
+            e.target == menu ||
+            e.target.classList.contains("menuitem") ||
+            e.target.parentNode.classList.contains("menuitem")
+        ) {
+            return;
+        }
+        close_menu();
+    };
+
+    menu.close = close_menu;
+    window.addEventListener("mouseup", click_off_menu);
+}
+
+function create_menu(node) {
     let menu = document.createElement("div");
     menu.classList.add("menu");
-    menu.style.left = (node.offsetLeft + node_size(node.width) + 5) + "px";
-    menu.style.top = node.offsetTop + "px";
+    node.appendChild(menu);
 
     let unlock = create_menu_item("Unlock", "unlock.png");
     let lock = create_menu_item("Lock", "lock.png");
@@ -91,44 +119,71 @@ function node_settings(node) {
     }
 
     menu.appendChild(create_menu_item("Settings", "cog.png"));
+    menu.appendChild(create_resize_menu_item(node));
     
-    let resize = create_menu_item("Resize", "resize.png");
-    resize.onclick = function (e) {
-        resize_node(node);
-    };
-    menu.appendChild(resize);
-
-    document.body.appendChild(menu);
-    
-    close_menu = function () {
-        menu.remove();
-    };
-
-    click_off_menu = function (e) {
-        if (
-            e.target == menu ||
-            e.target.classList.contains("menuitem") ||
-            e.target.parentNode.classList.contains("menuitem")
-        ) {
-            return;
-        }
-        close_menu();
-        window.removeEventListener("mouseup", click_off_menu);
-    };
-
-    window.addEventListener("mouseup", click_off_menu);
+    return menu;
 }
 
-function resize_node(node) {
-    let bottom = document.createElement("div");
-    bottom.classList.add("resize_handle", "bottom");
-    make_resize_handle_draggable(bottom, node);
-    node.appendChild(bottom);
+function create_menu_item(label, image) {
+    let item = document.createElement("div");
+    item.classList.add("menuitem");
 
-    let right = document.createElement("div");
-    right.classList.add("resize_handle", "right");
-    make_resize_handle_draggable(right, node);
-    node.appendChild(right);
+    let img = document.createElement("img");
+    img.classList.add("icon");
+    img.src = icon_path(image);
+    item.appendChild(img);
+
+    let text = document.createElement("span");
+    text.classList.add("label");
+    text.innerHTML = label;
+    item.appendChild(text);
+
+    return item;
+}
+
+function create_resize_menu_item(node) {
+    let menu = node.querySelector(".menu");
+    let bottom;
+    let right;
+    let resizing = false;
+
+    resize_node = function () {
+        resizing = true;
+        menu.close();
+
+        bottom = document.createElement("div");
+        bottom.classList.add("resize_handle", "bottom");
+        make_resize_handle_draggable(bottom, node);
+        node.appendChild(bottom);
+    
+        right = document.createElement("div");
+        right.classList.add("resize_handle", "right");
+        make_resize_handle_draggable(right, node);
+        node.appendChild(right);    
+    }
+
+    end_resize = function () {
+        resizing = false;
+
+        bottom.remove();
+        right.remove();
+        resize_to_grid(node);
+    }
+
+    let resize = create_menu_item("Resize", "resize.png");
+    let label = resize.querySelector(".label");
+    resize.onclick = function (e) {
+        if (resizing) {
+            end_resize();
+            label.innerHTML = "Resize";
+        }
+        else {
+            resize_node();
+            label.innerHTML = "Finish";
+        }
+    };
+
+    return resize;
 }
 
 function make_resize_handle_draggable(el, node) {
@@ -145,9 +200,10 @@ function make_resize_handle_draggable(el, node) {
         let left = el.offsetLeft;
 
         el.style.position = "absolute";
-
         el.style.top = top + "px";
         el.style.left = left + "px";
+        el.style.width = node_size(el.width) + "px";
+        el.style.height = node_size(el.height) + "px";
 
         v2 = x_direction ? e.clientX : e.clienty;
         
@@ -177,24 +233,20 @@ function make_resize_handle_draggable(el, node) {
 
         el.style.top = "";
         el.style.left = "";
+
+        resize_to_grid(node);
     }
 }
 
-function create_menu_item(label, image) {
-    let item = document.createElement("div");
-    item.classList.add("menuitem");
+function resize_to_grid(node) {
+    let current_width = parseInt(node.style.width, 10);
+    node.width = Math.max(Math.round(current_width / (NODESIZE + GAP)), 1);
+    node.style.width = node_size(node.width) + "px";
 
-    let img = document.createElement("img");
-    img.classList.add("icon");
-    img.src = icon_path(image);
-    item.appendChild(img);
-
-    let text = document.createElement("span");
-    text.classList.add("label");
-    text.innerHTML = label;
-    item.appendChild(text);
-
-    return item;
+    let current_height = parseInt(node.style.height, 10);
+    node.height = Math.max(Math.round(current_height / (NODESIZE + GAP)), 1);
+    node.style.height = node_size(node.height) + "px";
+    snap_to_grid(node);
 }
 
 function add_node_to_sheet(e) {
