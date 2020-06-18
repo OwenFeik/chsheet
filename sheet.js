@@ -142,45 +142,39 @@ function create_menu_item(label, image) {
 }
 
 function create_resize_menu_item(node) {
-    let menu = node.querySelector(".menu");
-    let bottom;
-    let right;
-    let resizing = false;
+    resize_node = function (node) {
+        node.querySelector(".menu").close();
 
-    resize_node = function () {
-        resizing = true;
-        menu.close();
-
-        bottom = document.createElement("div");
+        let bottom = document.createElement("div");
         bottom.classList.add("resize_handle", "bottom");
         make_resize_handle_draggable(bottom, node);
         node.appendChild(bottom);
     
-        right = document.createElement("div");
+        let right = document.createElement("div");
         right.classList.add("resize_handle", "right");
         make_resize_handle_draggable(right, node);
         node.appendChild(right);    
     }
 
-    end_resize = function () {
-        resizing = false;
-
-        bottom.remove();
-        right.remove();
+    end_resize = function (node) {
+        node.querySelector(".resize_handle.bottom").remove();
+        node.querySelector(".resize_handle.right").remove();
         resize_to_grid(node);
     }
 
     let resize = create_menu_item("Resize", "resize.png");
-    let label = resize.querySelector(".label");
+    resize.resizing = false;
     resize.onclick = function (e) {
-        if (resizing) {
-            end_resize();
+        let label = resize.querySelector(".label");
+        if (resize.resizing) {
+            end_resize(resize.parentNode.parentNode);
             label.innerHTML = "Resize";
         }
         else {
-            resize_node();
+            resize_node(resize.parentNode.parentNode);
             label.innerHTML = "Finish";
         }
+        resize.resizing = !resize.resizing;
     };
 
     return resize;
@@ -253,7 +247,7 @@ function add_node_to_sheet(e) {
     create_node(1, 1);    
 }
 
-function make_node_draggable(el,) {
+function make_node_draggable(el) {
     let x1 = 0, y1 = 0, x2 = 0, y2 = 0;
 
     handle = el.querySelector("img.handle");
