@@ -1,4 +1,4 @@
-const NODESIZE = 32;
+const NODESIZE = 100;
 const GAP = 10; 
 
 function set_up_sheet() {    
@@ -119,7 +119,7 @@ function create_menu(node) {
     }
 
     menu.appendChild(create_menu_item("Settings", "cog.png"));
-    menu.appendChild(create_resize_menu_item(node));
+    menu.appendChild(create_resize_menu_item());
     
     return menu;
 }
@@ -141,9 +141,15 @@ function create_menu_item(label, image) {
     return item;
 }
 
-function create_resize_menu_item(node) {
+function create_resize_menu_item() {
     resize_node = function (node) {
-        node.querySelector(".menu").close();
+        let ghost = document.createElement("div");
+        ghost.classList.add("node_ghost");
+        node.appendChild(ghost);
+        ghost.width = node.width;
+        ghost.height = node.height;
+        ghost.style.width = parseInt(node.style.width, 10) + 4 + "px";
+        ghost.style.height = parseInt(node.style.height, 10) + 4 + "px";
 
         let bottom = document.createElement("div");
         bottom.classList.add("resize_handle", "bottom");
@@ -153,10 +159,11 @@ function create_resize_menu_item(node) {
         let right = document.createElement("div");
         right.classList.add("resize_handle", "right");
         make_resize_handle_draggable(right, node);
-        node.appendChild(right);    
+        node.appendChild(right);
     }
 
     end_resize = function (node) {
+        node.querySelector(".node_ghost").remove();
         node.querySelector(".resize_handle.bottom").remove();
         node.querySelector(".resize_handle.right").remove();
         resize_to_grid(node);
@@ -164,7 +171,8 @@ function create_resize_menu_item(node) {
 
     let resize = create_menu_item("Resize", "resize.png");
     resize.resizing = false;
-    resize.onclick = function (e) {
+    resize.onclick = function () {
+        resize.parentNode.close();
         let label = resize.querySelector(".label");
         if (resize.resizing) {
             end_resize(resize.parentNode.parentNode);
@@ -184,6 +192,7 @@ function make_resize_handle_draggable(el, node) {
     let v1 = 0, v2 = 0;
     let x_direction = el.classList.contains("left") 
         || el.classList.contains("right");
+    let ghost = node.querySelector(".node_ghost");
 
     el.onmousedown = start_drag;
 
@@ -213,11 +222,19 @@ function make_resize_handle_draggable(el, node) {
 
         if (x_direction) {
             el.style.left = (el.offsetLeft - v1) + "px";
-            node.style.width = (parseInt(node.style.width, 10) - v1) + "px";
+            let new_width = parseInt(node.style.width, 10) - v1;
+            node.style.width = new_width + "px";
+            ghost.style.width = new_width + 4 + "px";
+            resize_to_grid(ghost, true, false);
+            ghost.style.width = parseInt(ghost.style.width, 10) + 4 + "px";
         }
         else {
-            node.style.height = (parseInt(node.style.height, 10) - v1) + "px";
             el.style.top = (el.offsetTop - v1) + "px";
+            let new_height = parseInt(node.style.height, 10) - v1;
+            node.style.height = new_height + "px";
+            ghost.style.height = new_height + 4 + "px";
+            resize_to_grid(ghost, false, true);
+            ghost.style.height = parseInt(ghost.style.height, 10) + 4 + "px";
         }
     }
 
@@ -229,18 +246,24 @@ function make_resize_handle_draggable(el, node) {
         el.style.left = "";
 
         resize_to_grid(node);
+        ghost.style.width = parseInt(node.style.width, 10) + 4 + "px";
+        ghost.style.height = parseInt(node.style.height, 10) + 4 + "px";
     }
 }
 
-function resize_to_grid(node) {
-    let current_width = parseInt(node.style.width, 10);
-    node.width = Math.max(Math.round(current_width / (NODESIZE + GAP)), 1);
-    node.style.width = node_size(node.width) + "px";
+function resize_to_grid(el, x=true, y=true) {
+    if (x) {
+        let current_width = parseInt(el.style.width, 10);
+        el.width = Math.max(Math.round(current_width / (NODESIZE + GAP)), 1);
+        el.style.width = node_size(el.width) + "px";    
+    }
 
-    let current_height = parseInt(node.style.height, 10);
-    node.height = Math.max(Math.round(current_height / (NODESIZE + GAP)), 1);
-    node.style.height = node_size(node.height) + "px";
-    snap_to_grid(node);
+    if (y) {
+        let current_height = parseInt(el.style.height, 10);
+        el.height = Math.max(Math.round(current_height / (NODESIZE + GAP)), 1);
+        el.style.height = node_size(el.height) + "px";    
+    }
+    snap_to_grid(el);
 }
 
 function add_node_to_sheet(e) {

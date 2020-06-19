@@ -22,16 +22,26 @@
 .node {
     border-radius: 5px;
     position: relative;
-    background: lightgrey;
+    background: var(--bg-primary);
     text-align: center;
+}
+
+.node_ghost {
+    border-radius: 5px;
+    border: dashed 2px var(--bg-secondary);
+    z-index: -100;
+    position: absolute;
+    top: -4px;
+    left: -4px;
 }
 
 .resize_handle {
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background-color: grey;
+    background-color: var(--bg-secondary);
     position: absolute;
+    z-index: 100;
 }
 
 .resize_handle.top {
@@ -95,7 +105,7 @@
 
 .menuitem {
     border-radius: 5px;
-    background: lightgrey;
+    background: var(--bg-primary);
     margin: 5px;
     display: grid;
     grid-template-columns: 26px 1fr;
@@ -114,6 +124,8 @@
     padding: 5px;
 }
 
-body {
-    font-family: Verdana, Geneva, Tahoma, sans-serif;
+:root {
+    font-family: 'Open Sans';
+    --bg-primary: lightgrey;
+    --bg-secondary: darkgrey;
 }
