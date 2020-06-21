@@ -76,6 +76,15 @@
     display: none;
 }
 
+.node.title {
+
+}
+
+.node.content {
+    color: grey;
+    color: darkgrey;
+}
+
 .icon {
     width: 16px;
     height: 16px;    
@@ -97,7 +106,7 @@
     width: 100px;
     border-radius: 5px;
     position: absolute;
-    background: grey;
+    background: var(--bg-secondary);
     right: -105px;
     top: 0px;
     z-index: 1000;
@@ -111,7 +120,7 @@
     grid-template-columns: 26px 1fr;
     position: relative;
     font-size: 12px;
-    color: grey;
+    color: var(--fg-secondary);
     user-select: none;
     text-align: left;
 }
@@ -125,7 +134,10 @@
 }
 
 :root {
+    background: white;
     font-family: 'Open Sans';
     --bg-primary: lightgrey;
     --bg-secondary: darkgrey;
+    --fg-primary: darkgrey;
+    --fg-secondary: grey;
 }

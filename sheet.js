@@ -86,7 +86,7 @@ function node_settings(node) {
     };
 
     menu.close = close_menu;
-    window.addEventListener("mouseup", click_off_menu);
+    window.addEventListener("click", click_off_menu);
 }
 
 function create_menu(node) {
