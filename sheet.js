@@ -40,15 +40,19 @@ function create_node(w, h) {
     node.width = w;
     node.height = h;
 
+    let header = document.createElement("div");
+    header.classList.add("header");
+    node.appendChild(header);
+
+    let title = document.createElement("span");
+    title.classList.add("title");
+    title.innerHTML = "Title";
+    header.appendChild(title);
+
     let handle = document.createElement("img");
     handle.classList.add("handle", "icon");
     handle.src = icon_path("handle.png");
-    node.appendChild(handle);
-
-    let title = document.createElement("div");
-    title.classList.add("title");
-    title.innerHTML = "Title";
-    node.appendChild(title);
+    header.appendChild(handle);
 
     let content = document.createElement("div");
     content.classList.add("content");
@@ -236,7 +240,8 @@ function make_resize_handle_draggable(el, node) {
 
         if (x_direction) {
             el.style.left = (el.offsetLeft - v1) + "px";
-            let new_width = parseInt(node.style.width, 10) - v1;
+            let new_width = 
+                Math.max(parseInt(node.style.width, 10) - v1, NODESIZE);
             node.style.width = new_width + "px";
             ghost.style.width = new_width + 4 + "px";
             resize_to_grid(ghost, true, false);
@@ -244,7 +249,8 @@ function make_resize_handle_draggable(el, node) {
         }
         else {
             el.style.top = (el.offsetTop - v1) + "px";
-            let new_height = parseInt(node.style.height, 10) - v1;
+            let new_height = 
+                Math.max(parseInt(node.style.height, 10) - v1, NODESIZE);
             node.style.height = new_height + "px";
             ghost.style.height = new_height + 4 + "px";
             resize_to_grid(ghost, false, true);
