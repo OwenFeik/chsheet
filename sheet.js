@@ -1,4 +1,4 @@
-const NODESIZE = 100;
+const NODESIZE = 50;
 const GAP = 10; 
 
 function set_up_sheet() {    
@@ -45,6 +45,19 @@ function create_node(w, h) {
     handle.src = icon_path("handle.png");
     node.appendChild(handle);
 
+    let title = document.createElement("div");
+    title.classList.add("title");
+    title.innerHTML = "Title";
+    node.appendChild(title);
+
+    let content = document.createElement("div");
+    content.classList.add("content");
+    content.innerHTML = "Lorem ipsum dolor sit amet";
+    content.contentEditable = true;
+    content.spellcheck = false;
+    node.appendChild(content);
+
+
     make_node_draggable(node);
 
     node.oncontextmenu = function (e) {
@@ -71,7 +84,7 @@ function node_settings(node) {
 
     close_menu = function () {
         menu.style.visibility = "hidden";
-        window.removeEventListener("mouseup", click_off_menu);
+        window.removeEventListener("click", click_off_menu);
     };
 
     click_off_menu = function (e) {
@@ -167,6 +180,7 @@ function create_resize_menu_item() {
         node.querySelector(".resize_handle.bottom").remove();
         node.querySelector(".resize_handle.right").remove();
         resize_to_grid(node);
+        snap_to_grid(node);
     }
 
     let resize = create_menu_item("Resize", "resize.png");
@@ -246,6 +260,7 @@ function make_resize_handle_draggable(el, node) {
         el.style.left = "";
 
         resize_to_grid(node);
+        snap_to_grid(node);
         ghost.style.width = parseInt(node.style.width, 10) + 4 + "px";
         ghost.style.height = parseInt(node.style.height, 10) + 4 + "px";
     }
@@ -263,7 +278,6 @@ function resize_to_grid(el, x=true, y=true) {
         el.height = Math.max(Math.round(current_height / (NODESIZE + GAP)), 1);
         el.style.height = node_size(el.height) + "px";    
     }
-    snap_to_grid(el);
 }
 
 function add_node_to_sheet(e) {
