@@ -86,7 +86,24 @@ function node_menu(node) {
         menu.style.visibility = "visible";
     }
 
- 
+    let click_off_menu = function (e) {
+        if (
+            e.target == menu ||
+            e.target.classList.contains("menuitem") ||
+            e.target.parentNode.classList.contains("menuitem")
+        ) {
+            return;
+        }
+        menu.close();
+    };
+
+    close_menu = function () {
+        menu.style.visibility = "hidden";
+        window.removeEventListener("click", click_off_menu);
+    };
+
+    menu.close = close_menu;
+
     window.addEventListener("click", click_off_menu);
 }
 
@@ -128,28 +145,28 @@ function create_menu(node) {
     menu.appendChild(settings);
     menu.appendChild(create_resize_menu_item());
     
-    close_menu = function () {
-        menu.style.visibility = "hidden";
-        window.removeEventListener("click", click_off_menu);
-    };
-
-    click_off_menu = function (e) {
-        if (
-            e.target == menu ||
-            e.target.classList.contains("menuitem") ||
-            e.target.parentNode.classList.contains("menuitem")
-        ) {
-            return;
-        }
-        close_menu();
-    };
-
-    menu.close = close_menu;
-
     return menu;
 }
 
 function node_settings(node) {
+    let settings = node.querySelector(".settings"); 
+    if (!settings) {
+        settings = create_settings(node); 
+    }
+
+    click_off_settings = function (e) {
+        if (e.target == settings || settings.contains(e.target)) {
+            return;
+        }
+        settings.style.visibility = "hidden";
+        window.removeEventListener("mousedown", click_off_settings);
+    };
+    window.addEventListener("mousedown", click_off_settings);
+
+    settings.style.visibility = "visible";
+}
+
+function create_settings(node) {
     let settings = document.createElement("div");
     settings.classList.add("settings");
 
@@ -238,6 +255,8 @@ function node_settings(node) {
     type.appendChild(type_dropdown);
 
     node.appendChild(settings);
+
+    return settings;
 }
 
 function create_menu_item(label, image) {
