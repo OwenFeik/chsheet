@@ -12,7 +12,10 @@
     position: relative;
     width: 50px;
     height: 50px;
+    border: 5px var(--bg-primary);
     border-radius: 5px;
+    background: var(--bg-primary);
+    user-select: none;
 }
 
 #sheet {
@@ -23,7 +26,6 @@
     border-radius: 5px;
     position: relative;
     background: var(--bg-primary);
-    text-align: center;
     font-size: 12px;
 }
 
@@ -36,7 +38,7 @@
     left: -4px;
 }
 
-.node.locked > .handle {
+.node.locked > .header > .handle {
     display: none;
 }
 
@@ -53,6 +55,7 @@
     font-weight: bolder;
     overflow: hidden;
     flex-grow: 1;
+    white-space: nowrap;
 }
 
 .header > .handle {
@@ -61,6 +64,7 @@
     padding-bottom: 0px;
     cursor: move;
     flex-grow: 0;
+    margin-left: auto;
 }
 
 .node > .content {
@@ -118,7 +122,43 @@
     display: none;
 }
 
-.menu {
+.node > .settings {
+    width: 200px;
+    border-radius: 5px;
+    position: absolute;
+    background: var(--bg-secondary);
+    right: -205px;
+    top: 0px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+}
+
+.node > .settings > .setting {
+    background: var(--bg-primary);
+    display: flex;
+    margin: 5px;
+    border-radius: 5px;
+    position: relative;
+    align-items: center;
+}
+
+.node > .settings > .setting > input, .node > .settings > .setting > select {
+    flex-shrink: 1;
+    min-width: 10px;
+    border: none;
+    height: 1.2em;
+    border-radius: 3px;
+    color: var(--fg-secondary);
+    margin: 5px;
+}
+
+.node > .settings > .setting > .label {
+    color: var(--fg-secondary);
+    padding: 5px;
+}
+
+.node > .menu {
     width: 100px;
     border-radius: 5px;
     position: absolute;
@@ -128,7 +168,7 @@
     z-index: 1000;
 }
 
-.menuitem {
+.node > .menu > .menuitem {
     border-radius: 5px;
     background: var(--bg-primary);
     margin: 5px;
@@ -154,8 +194,8 @@
     font-family: 'Open Sans';
     --bg-primary: lightgrey;
     --bg-secondary: darkgrey;
-    --fg-primary: grey;
-    --fg-secondary: darkgrey;
+    --fg-primary: black;
+    --fg-secondary: grey;
 }
 
 [contenteditable] {

@@ -66,7 +66,7 @@ function create_node(w, h) {
 
     node.oncontextmenu = function (e) {
         e.preventDefault();
-        node_settings(node);
+        node_menu(node);
     };
 
     document.getElementById("sheet").appendChild(node);
@@ -77,7 +77,7 @@ function node_size(k) {
     return k * NODESIZE + (k - 1) * GAP;    
 }
 
-function node_settings(node) {
+function node_menu(node) {
     let menu = node.querySelector(".menu");
     if (!menu) {
         menu = create_menu(node);
@@ -86,23 +86,7 @@ function node_settings(node) {
         menu.style.visibility = "visible";
     }
 
-    close_menu = function () {
-        menu.style.visibility = "hidden";
-        window.removeEventListener("click", click_off_menu);
-    };
-
-    click_off_menu = function (e) {
-        if (
-            e.target == menu ||
-            e.target.classList.contains("menuitem") ||
-            e.target.parentNode.classList.contains("menuitem")
-        ) {
-            return;
-        }
-        close_menu();
-    };
-
-    menu.close = close_menu;
+ 
     window.addEventListener("click", click_off_menu);
 }
 
@@ -135,10 +119,125 @@ function create_menu(node) {
         menu.appendChild(lock);
     }
 
-    menu.appendChild(create_menu_item("Settings", "cog.png"));
+    let settings = create_menu_item("Settings", "cog.png");
+    settings.onclick = function () {
+        node_settings(node);
+        menu.close();
+    }
+
+    menu.appendChild(settings);
     menu.appendChild(create_resize_menu_item());
     
+    close_menu = function () {
+        menu.style.visibility = "hidden";
+        window.removeEventListener("click", click_off_menu);
+    };
+
+    click_off_menu = function (e) {
+        if (
+            e.target == menu ||
+            e.target.classList.contains("menuitem") ||
+            e.target.parentNode.classList.contains("menuitem")
+        ) {
+            return;
+        }
+        close_menu();
+    };
+
+    menu.close = close_menu;
+
     return menu;
+}
+
+function node_settings(node) {
+    let settings = document.createElement("div");
+    settings.classList.add("settings");
+
+    let title = document.createElement("div");
+    title.classList.add("setting");
+    settings.appendChild(title);
+
+    let node_title = node.querySelector(".header").querySelector(".title");
+
+    let title_label = document.createElement("span");
+    title_label.classList.add("label");
+    title_label.innerHTML = "Title";
+    title.appendChild(title_label);
+
+    let title_input = document.createElement("input");
+    title_input.oninput = function () {
+        node_title.innerHTML = title_input.value;
+    };
+    title.appendChild(title_input);
+
+    let title_active = document.createElement("input");
+    title_active.type = "checkbox";
+    title_active.checked = node_title.style.display !== "none";
+    title_active.oninput = function () {
+        node_title.style.display 
+            = title_active.checked ? "inline" : "none";
+    }
+    title.appendChild(title_active);
+
+    let dimensions = document.createElement("div");
+    dimensions.classList.add("setting");
+    settings.appendChild(dimensions);
+
+    let width_label = document.createElement("span");
+    width_label.classList.add("label");
+    width_label.innerHTML = "Width";
+    dimensions.appendChild(width_label);
+
+    let width_input = document.createElement("input");
+    width_input.type = "number";
+    width_input.value = node.width.toString();
+    width_input.oninput = function () {
+        let new_width = parseInt(width_input.value, 10);
+        new_width = Math.min(new_width, node.parentNode.width);
+        if (new_width > 0) /* NaN > 0 === false */ {
+            node.width = new_width;
+            node.style.width = node_size(new_width) + "px";
+            snap_to_grid(node);
+        }
+    };
+    dimensions.appendChild(width_input);
+
+    let height_label = document.createElement("span");
+    height_label.classList.add("label");
+    height_label.innerHTML = "Height";
+    dimensions.appendChild(height_label);
+
+    let height_input = document.createElement("input");
+    height_input.type = "number";
+    height_input.value = node.height.toString();
+    height_input.oninput = function () {
+        let new_height = parseInt(height_input.value, 10);
+        if (new_height > 0) /* NaN > 0 === false */ {
+            node.height = new_height;
+            node.style.height = node_size(new_height) + "px";
+            snap_to_grid(node);
+        }
+    };
+    dimensions.appendChild(height_input);
+
+    let type = document.createElement("div");
+    type.classList.add("setting");
+    settings.appendChild(type);
+
+    let type_label = document.createElement("span");
+    type_label.classList.add("label");
+    type_label.innerHTML = "Type";
+    type.appendChild(type_label);
+
+    let type_dropdown = document.createElement("select");
+    [ "Text" ].forEach(t => {
+        let option = document.createElement("option");
+        option.innerHTML = t;
+        type_dropdown.appendChild(option);
+    });
+    type.appendChild(type_dropdown);
+
+    node.appendChild(settings);
 }
 
 function create_menu_item(label, image) {
