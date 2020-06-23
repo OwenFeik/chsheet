@@ -27,6 +27,8 @@
     position: relative;
     background: var(--bg-primary);
     font-size: 12px;
+    display: flex;
+    flex-direction: column;
 }
 
 .node_ghost {
@@ -45,6 +47,8 @@
 .node > .header {
     display: flex;
     flex-wrap: nowrap;
+    flex-grow: 0;
+    width: 100%;
 }
 
 .header > .title {
@@ -69,11 +73,21 @@
 
 .node > .content {
     color: var(--fg-primary);
+    margin: 5px;
+    width: calc(100% - 10px);
+    flex-grow: 1;
+}
+
+.node > .content.text {
     text-align: left;
-    padding: 5px;
-    max-width: 95%;
-    max-height: calc(100% - 35px);
     overflow: auto;
+    font-size: 10pt;
+}
+
+.node > .content.number {
+    text-align: center;
+    overflow: hidden;
+    font-size: 20pt;
 }
 
 .resize_handle {
@@ -147,7 +161,7 @@
     flex-shrink: 1;
     min-width: 10px;
     border: none;
-    height: 1.2em;
+    height: 1.5em;
     border-radius: 3px;
     color: var(--fg-secondary);
     margin: 5px;
@@ -156,6 +170,7 @@
 .node > .settings > .setting > .label {
     color: var(--fg-secondary);
     padding: 5px;
+    white-space: nowrap;
 }
 
 .node > .menu {

@@ -15,8 +15,8 @@ function set_up_sheet() {
     
     create_node(1, 2);    
     create_node(2, 1);
-    create_node(1, 1);
-    create_node(2, 2);
+    create_node(1, 1, "number");
+    create_node(2, 2, "number");
 }
 
 function set_up_toolbar() {
@@ -32,7 +32,7 @@ function set_up_toolbar() {
     document.getElementById("toolbar").appendChild(add);
 }
 
-function create_node(w, h) {
+function create_node(w, h, type = "text") {
     let node = document.createElement("div");
     node.classList.add("node");
     node.style.width = `${node_size(w)}px`;
@@ -56,11 +56,8 @@ function create_node(w, h) {
 
     let content = document.createElement("div");
     content.classList.add("content");
-    content.innerHTML = "Lorem ipsum dolor sit amet";
-    content.contentEditable = true;
-    content.spellcheck = false;
     node.appendChild(content);
-
+    set_content_type(node, type);
 
     make_node_draggable(node);
 
@@ -71,6 +68,50 @@ function create_node(w, h) {
 
     document.getElementById("sheet").appendChild(node);
     snap_to_grid(node);
+}
+
+function set_content_type(node, type = "text") {
+    if (node.type === type) {
+        return;
+    }
+
+    content = node.querySelector(".content");
+
+    content.onkeydown = null;
+    content.classList.remove("text", "number");
+    if (type === "text") {
+        content.classList.add("text");
+        content.innerHTML = "Lorem ipsum dolor sit amet";
+        content.contentEditable = true;
+        content.spellcheck = false;
+        content.style.fontSize = "10pt";
+        content.style.textAlign = "left";
+    }
+    else if (type === "number") {
+        content.classList.add("number");
+        content.innerHTML = "1";
+        content.contentEditable = true;
+        content.spellcheck = false;
+        content.style.fontSize = "20pt";
+        content.style.textAlign = "center";
+
+        function key_press_is_num(e) {
+            if (event.keyCode === 8 || event.keyCode === 9) {
+                return;
+            } /* Backspace and Tab */ 
+            else if (event.keyCode >= 48 && event.keyCode <= 57) {
+                return;
+            } /* 0-9 */
+            else if (event.keyCode >= 37 && event.keyCode <= 40) {
+                return;
+            } /* Arrow keys */
+            e.preventDefault();
+        }
+        
+        content.onkeydown = key_press_is_num;
+    }
+
+    node.type = type;
 }
 
 function node_size(k) {
@@ -86,21 +127,17 @@ function node_menu(node) {
         menu.style.visibility = "visible";
     }
 
-    let click_off_menu = function (e) {
-        if (
-            e.target == menu ||
-            e.target.classList.contains("menuitem") ||
-            e.target.parentNode.classList.contains("menuitem")
-        ) {
+    function click_off_menu(e) {
+        if (e.target == menu || menu.contains(e.target)) {
             return;
         }
         menu.close();
-    };
+    }
 
-    close_menu = function () {
+    function close_menu() {
         menu.style.visibility = "hidden";
         window.removeEventListener("click", click_off_menu);
-    };
+    }
 
     menu.close = close_menu;
 
@@ -115,7 +152,7 @@ function create_menu(node) {
     let unlock = create_menu_item("Unlock", "unlock.png");
     let lock = create_menu_item("Lock", "lock.png");
 
-    toggle_locked = function (e) {
+    function toggle_locked(e) {
         if (node.classList.contains("locked")) {
             node.classList.remove("locked");
             menu.replaceChild(lock, unlock);
@@ -154,19 +191,21 @@ function node_settings(node) {
         settings = create_settings(node); 
     }
 
-    click_off_settings = function (e) {
+    function click_off_settings (e) {
         if (e.target == settings || settings.contains(e.target)) {
             return;
         }
         settings.style.visibility = "hidden";
         window.removeEventListener("mousedown", click_off_settings);
-    };
+    }
     window.addEventListener("mousedown", click_off_settings);
 
     settings.style.visibility = "visible";
 }
 
 function create_settings(node) {
+    let content = node.querySelector(".content");
+
     let settings = document.createElement("div");
     settings.classList.add("settings");
 
@@ -193,7 +232,7 @@ function create_settings(node) {
     title_active.oninput = function () {
         node_title.style.display 
             = title_active.checked ? "inline" : "none";
-    }
+    };
     title.appendChild(title_active);
 
     let dimensions = document.createElement("div");
@@ -247,12 +286,36 @@ function create_settings(node) {
     type.appendChild(type_label);
 
     let type_dropdown = document.createElement("select");
-    [ "Text" ].forEach(t => {
+    [ "text", "number" ].forEach(t => {
         let option = document.createElement("option");
         option.innerHTML = t;
         type_dropdown.appendChild(option);
     });
+    type_dropdown.value = node.type;
+    type_dropdown.onchange = function () {
+        set_content_type(node, type_dropdown.value);
+    };
     type.appendChild(type_dropdown);
+
+    let font = document.createElement("div");
+    font.classList.add("setting");
+    settings.appendChild(font);
+
+    let font_label = document.createElement("span");
+    font_label.classList.add("label");
+    font_label.innerHTML = "Font size";
+    font.appendChild(font_label);
+
+    let font_input = document.createElement("input");
+    font_input.type = "number";
+    font_input.value = parseInt(content.style.fontSize, 10).toString();
+    font_input.oninput = function () {
+        let new_size = Math.max(0, font_input.value);
+        if (new_size >= 0) {
+            content.style.fontSize = new_size + "pt";
+        }
+    };
+    font.appendChild(font_input);
 
     node.appendChild(settings);
 
@@ -277,7 +340,7 @@ function create_menu_item(label, image) {
 }
 
 function create_resize_menu_item() {
-    resize_node = function (node) {
+    function resize_node (node) {
         let ghost = document.createElement("div");
         ghost.classList.add("node_ghost");
         node.appendChild(ghost);
@@ -297,7 +360,7 @@ function create_resize_menu_item() {
         node.appendChild(right);
     }
 
-    end_resize = function (node) {
+    function end_resize(node) {
         node.querySelector(".node_ghost").remove();
         node.querySelector(".resize_handle.bottom").remove();
         node.querySelector(".resize_handle.right").remove();
