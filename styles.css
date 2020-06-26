@@ -40,7 +40,7 @@
     left: -4px;
 }
 
-.node.locked > .header > .handle {
+.node.locked > .header > .control {
     display: none;
 }
 
@@ -60,15 +60,23 @@
     overflow: hidden;
     flex-grow: 1;
     white-space: nowrap;
+    order: 0;
+}
+
+.header > .control {
+    user-select: none;
+    padding-top: 5px;
+    padding-right: 5px;
+    padding-left: 0px;
+    padding-bottom: 0px;
+    flex-grow: 0;
+    margin-left: auto;
+    order: 1;
 }
 
 .header > .handle {
-    user-select: none;
-    padding: 5px;
-    padding-bottom: 0px;
     cursor: move;
-    flex-grow: 0;
-    margin-left: auto;
+    order: 2;
 }
 
 .node > .content {
@@ -88,6 +96,9 @@
     text-align: center;
     overflow: hidden;
     font-size: 20pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .resize_handle {

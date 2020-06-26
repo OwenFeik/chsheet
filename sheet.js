@@ -50,8 +50,9 @@ function create_node(w, h, type = "text") {
     header.appendChild(title);
 
     let handle = document.createElement("img");
-    handle.classList.add("handle", "icon");
+    handle.classList.add("handle", "icon", "control");
     handle.src = icon_path("handle.png");
+    handle.style.display = "none";
     header.appendChild(handle);
 
     let content = document.createElement("div");
@@ -75,7 +76,12 @@ function set_content_type(node, type = "text") {
         return;
     }
 
-    content = node.querySelector(".content");
+    let header = node.querySelector(".header");
+    let content = node.querySelector(".content");
+
+    header.querySelectorAll(".control.toggle").forEach(c => {
+        c.remove();        
+    });
 
     content.onkeydown = null;
     content.classList.remove("text", "number");
@@ -109,6 +115,24 @@ function set_content_type(node, type = "text") {
         }
         
         content.onkeydown = key_press_is_num;
+
+        increment_btn = document.createElement("img");
+        increment_btn.classList.add("icon", "control", "toggle");
+        increment_btn.src = icon_path("add.png");
+        increment_btn.onclick = function () {
+            content.innerHTML 
+                = (parseInt(content.innerHTML, 10) + 1).toString();
+        };
+        header.appendChild(increment_btn);
+
+        decrement_btn = document.createElement("img");
+        decrement_btn.classList.add("icon", "control", "toggle");
+        decrement_btn.src = icon_path("subtract.png");
+        decrement_btn.onclick = function () {
+            content.innerHTML
+                = (parseInt(content.innerHTML, 10) - 1).toString();
+        };
+        header.appendChild(decrement_btn);
     }
 
     node.type = type;
@@ -204,6 +228,7 @@ function node_settings(node) {
 }
 
 function create_settings(node) {
+    let header = node.querySelector(".header");
     let content = node.querySelector(".content");
 
     let settings = document.createElement("div");
@@ -297,6 +322,24 @@ function create_settings(node) {
     };
     type.appendChild(type_dropdown);
 
+    let controls_label = document.createElement("span");
+    controls_label.classList.add("label");
+    controls_label.innerHTML = "Controls";
+    type.appendChild(controls_label);
+
+    let controls_active = document.createElement("input");
+    controls_active.type = "checkbox";
+    controls_active.checked = true;
+    controls_active.oninput = function () {
+        let display = controls_active.checked ? "inline" : "none";
+        header.querySelectorAll(".control.toggle").forEach(
+            c => {
+                c.style.display = display;
+            }
+        );
+    };
+    type.appendChild(controls_active);
+
     let font = document.createElement("div");
     font.classList.add("setting");
     settings.appendChild(font);
@@ -349,6 +392,9 @@ function create_resize_menu_item() {
         ghost.style.width = parseInt(node.style.width, 10) + 4 + "px";
         ghost.style.height = parseInt(node.style.height, 10) + 4 + "px";
 
+        node.querySelector(".header")
+            .querySelector(".handle").style.display = "block";
+
         let bottom = document.createElement("div");
         bottom.classList.add("resize_handle", "bottom");
         make_resize_handle_draggable(bottom, node);
@@ -364,6 +410,8 @@ function create_resize_menu_item() {
         node.querySelector(".node_ghost").remove();
         node.querySelector(".resize_handle.bottom").remove();
         node.querySelector(".resize_handle.right").remove();
+        node.querySelector(".header")
+            .querySelector(".handle").style.display = "none";
         resize_to_grid(node);
         snap_to_grid(node);
     }
