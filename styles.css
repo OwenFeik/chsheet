@@ -90,6 +90,7 @@
     text-align: left;
     overflow: auto;
     font-size: 10pt;
+    scrollbar-width: none;
 }
 
 .node > .content.number {
