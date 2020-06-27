@@ -16,6 +16,7 @@
     border-radius: 5px;
     background: var(--bg-primary);
     user-select: none;
+    margin: 5px;
 }
 
 #sheet {
@@ -41,6 +42,10 @@
 }
 
 .node.locked > .header > .control {
+    display: none;
+}
+
+.node.controls_inactive > .header > .control {
     display: none;
 }
 

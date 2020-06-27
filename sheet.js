@@ -1,4 +1,4 @@
-const NODESIZE = 50;
+const NODESIZE = 64;
 const GAP = 10; 
 
 function set_up_sheet() {    
@@ -20,8 +20,11 @@ function set_up_sheet() {
 }
 
 function set_up_toolbar() {
+    let toolbar = document.getElementById("toolbar");
+
     let add = document.createElement("button");
     add.classList.add("tool");
+    toolbar.appendChild(add);
     
     let img = document.createElement("img");
     img.src = icon_path("add.png");
@@ -29,7 +32,29 @@ function set_up_toolbar() {
 
     add.onclick = add_node_to_sheet;
 
-    document.getElementById("toolbar").appendChild(add);
+    let save = document.createElement("button");
+    save.classList.add("tool");
+    toolbar.appendChild(save);
+
+    let save_label = document.createElement("span");
+    save_label.innerText = "Save";
+    save.appendChild(save_label);
+
+    save.onclick = function () {
+        save_sheet(document.querySelector("#sheet"));
+    }
+
+    let load = document.createElement("button");
+    load.classList.add("tool");
+    toolbar.appendChild(load);
+
+    let load_label = document.createElement("span");
+    load_label.innerText = "Load";
+    load.appendChild(load_label);
+
+    load.onclick = function () {
+        load_sheet(document.querySelector("#sheet"));
+    }
 }
 
 function create_node(w, h, type = "text") {
@@ -69,6 +94,8 @@ function create_node(w, h, type = "text") {
 
     document.getElementById("sheet").appendChild(node);
     snap_to_grid(node);
+
+    return node;
 }
 
 function set_content_type(node, type = "text") {
@@ -329,14 +356,9 @@ function create_settings(node) {
 
     let controls_active = document.createElement("input");
     controls_active.type = "checkbox";
-    controls_active.checked = true;
+    controls_active.checked = !node.classList.contains("controls_inactive");
     controls_active.oninput = function () {
-        let display = controls_active.checked ? "inline" : "none";
-        header.querySelectorAll(".control.toggle").forEach(
-            c => {
-                c.style.display = display;
-            }
-        );
+        node.classList.toggle("controls_inactive");
     };
     type.appendChild(controls_active);
 
