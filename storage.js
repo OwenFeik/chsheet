@@ -54,19 +54,13 @@ function save_sheet(sheet) {
             content: node_content.innerText
         }
 
-        let request = node_store.add(node_info);
-
-        request.onsuccess = function () {
-            console.log(node);
-        };
+        node_store.add(node_info);
     });
 
     transaction.oncomplete = function () {
-        console.log("All nodes saved.");
     };
 
     transaction.onerror = function () {
-        console.log("Failed to save nodes.");
     };
 }
 
