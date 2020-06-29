@@ -1,4 +1,4 @@
-const NODESIZE = 64;
+const NODESIZE = 32;
 const GAP = 10; 
 
 function set_up_sheet() {    
@@ -11,13 +11,6 @@ function set_up_sheet() {
     let columnstring = (NODESIZE + "px ").repeat(node_qty).slice(0, -1);
     sheet.style.gridTemplateColumns = columnstring;
     sheet.style.gridTemplateRows = (NODESIZE + "px ").repeat(10).slice(0, -1);
-
-    
-    create_node(1, 2);    
-    create_node(2, 1);
-    create_node(1, 1, "number");
-    create_node(2, 2, "number");
-    create_node(2, 3, "list");
 }
 
 function set_up_toolbar() {
@@ -182,6 +175,21 @@ function set_content_type(node, type = "text") {
     node.type = type;
 }
 
+function update_editable(node) {
+    let editable = !node.classList.contains("locked");
+
+    if (node.type == "text" || node.type == "number") {
+        node.querySelector(".content").contentEditable = editable;
+    }
+    else if (node.type == "list") {
+        node.querySelector(".content").querySelectorAll(".list_item")
+            .forEach(i => {
+            
+            i.querySelector(".list_item_content").contentEditable = editable;
+        });
+    }
+}
+
 function create_list_item(content="New item") {
     let new_item = document.createElement("div");
     new_item.classList.add("list_item");
@@ -246,10 +254,12 @@ function create_menu(node) {
         if (node.classList.contains("locked")) {
             node.classList.remove("locked");
             menu.replaceChild(lock, unlock);
+            update_editable(node);
         }
         else {
             node.classList.add("locked");
             menu.replaceChild(unlock, lock);
+            update_editable(node);
         }
     }
 
@@ -277,6 +287,16 @@ function create_menu(node) {
         node.remove();
     };
     menu.appendChild(remove);
+
+    let clone = create_menu_item("Clone", "clone.png");
+    clone.onclick = function () {
+        let new_node = node_from_dict(node_to_dict(node));
+        new_node.style.gridArea = "";
+        snap_to_grid(new_node);
+        document.getElementById("sheet").appendChild(new_node);
+        menu.close();
+    };
+    menu.appendChild(clone);
 
     return menu;
 }

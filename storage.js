@@ -72,6 +72,7 @@ function node_to_dict(node) {
     
     let node_info = {
         title: node_title.innerText,
+        title_active: node_title.style.display !== "none",
         type: node.type,
         width: node.width,
         height: node.height,
@@ -109,6 +110,7 @@ function node_from_dict(dict) {
     let content = node.querySelector(".content");
 
     title.innerText = dict.title;
+    title.style.display = dict.title_active ? "inline" : "none";
 
     if (!dict.controls_active) {
         node.classList.add("controls_inactive");
@@ -128,6 +130,8 @@ function node_from_dict(dict) {
             content.appendChild(create_list_item(i));
         });
     }
+
+    update_editable(node);
 
     return node;
 }
