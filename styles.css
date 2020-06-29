@@ -107,6 +107,42 @@
     justify-content: center;
 }
 
+.node > .content.list {
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    scrollbar-width: none;
+}
+
+.node > .content.list > .list_item {
+    background-color: var(--bg-secondary);
+    min-height: 20px;
+    margin-top: 5px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+}
+
+.node > .content.list > .list_item > .list_item_content {
+    margin: 5px;
+    max-height: 90%;
+    overflow: auto;
+    scrollbar-width: none;
+}
+
+.node > .content.list > .list_item > .control {
+    margin-left: auto;
+    margin-right: 5px;
+}
+
+.node.locked > .content.list > .list_item > .control.toggle {
+    display: none;
+}
+
+.node > .content.list:last-child {
+    margin-bottom: auto;
+}
+
 .resize_handle {
     width: 10px;
     height: 10px;

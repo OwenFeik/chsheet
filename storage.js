@@ -38,23 +38,7 @@ function save_sheet(sheet) {
     node_store.clear();
 
     sheet.querySelectorAll(".node").forEach(node => {
-        let node_title = node.querySelector(".header").querySelector(".title");
-        let node_content = node.querySelector(".content");
-
-        let node_info = {
-            title: node_title.innerText,
-            type: node.type,
-            width: node.width,
-            height: node.height,
-            x: parseInt(node.style.gridColumnStart, 10),
-            y: parseInt(node.style.gridRowStart, 10),
-            controls_active: !node.classList.contains("controls_inactive"),
-            font_size: parseInt(node_content.style.font_size, 10),
-            locked: node.classList.contains("locked"),
-            content: node_content.innerText
-        }
-
-        node_store.add(node_info);
+        node_store.add(node_to_dict(node));
     });
 
     transaction.oncomplete = function () {
@@ -74,34 +58,76 @@ function load_sheet(sheet) {
         let cursor = e.target.result;
 
         if (cursor) {
-            let node = create_node(
-                cursor.value.width, 
-                cursor.value.height, 
-                cursor.value.type
-            );
-
-            let header = node.querySelector(".header");
-            let title = header.querySelector(".title");
-            let content = node.querySelector(".content");
-
-            title.innerText = cursor.value.innerText;
-
-            if (!cursor.value.controls_active) {
-                node.classList.add("controls_inactive");
-            }
-
-            content.style.fontSize = cursor.value.font_size + "pt";
-
-            if (cursor.value.locked) {
-                node.classList.add("locked");
-            }
-
-            content.innerText = cursor.value.content;
+            let node = node_from_dict(cursor.value);
             sheet.appendChild(node);
-
             snap_to_grid(node, cursor.value.x, cursor.value.y);
-
             cursor.continue();
         }
     };
+}
+
+function node_to_dict(node) {
+    let node_title = node.querySelector(".header").querySelector(".title");
+    let node_content = node.querySelector(".content");
+    
+    let node_info = {
+        title: node_title.innerText,
+        type: node.type,
+        width: node.width,
+        height: node.height,
+        x: parseInt(node.style.gridColumnStart, 10),
+        y: parseInt(node.style.gridRowStart, 10),
+        controls_active: !node.classList.contains("controls_inactive"),
+        font_size: parseInt(node_content.style.font_size, 10),
+        locked: node.classList.contains("locked"),
+    }
+
+    if (node.type === "text" || node.type === "number") {
+        node_info.content = node_content.innerText;
+    }
+    else if (node.type === "list") {
+        let list_items = [];
+        node_content.querySelectorAll(".list_item").forEach(i => {
+            list_items.push(i.querySelector(".list_item_content").innerText);
+        });
+        
+        node_info.content = list_items;
+    }
+
+    return node_info;
+}
+
+function node_from_dict(dict) {
+    let node = create_node(
+        dict.width, 
+        dict.height, 
+        dict.type
+    );
+
+    let header = node.querySelector(".header");
+    let title = header.querySelector(".title");
+    let content = node.querySelector(".content");
+
+    title.innerText = dict.title;
+
+    if (!dict.controls_active) {
+        node.classList.add("controls_inactive");
+    }
+
+    content.style.fontSize = dict.font_size + "pt";
+
+    if (dict.locked) {
+        node.classList.add("locked");
+    }
+
+    if (dict.type == "text" || dict.type == "number") {
+        content.innerText = dict.content;
+    }
+    else if (dict.type == "list") {
+        dict.content.forEach(i => {
+            content.appendChild(create_list_item(i));
+        });
+    }
+
+    return node;
 }

@@ -17,6 +17,7 @@ function set_up_sheet() {
     create_node(2, 1);
     create_node(1, 1, "number");
     create_node(2, 2, "number");
+    create_node(2, 3, "list");
 }
 
 function set_up_toolbar() {
@@ -111,7 +112,7 @@ function set_content_type(node, type = "text") {
     });
 
     content.onkeydown = null;
-    content.classList.remove("text", "number");
+    content.classList.remove("text", "number", "list");
     if (type === "text") {
         content.classList.add("text");
         content.innerHTML = "Lorem ipsum dolor sit amet";
@@ -143,7 +144,7 @@ function set_content_type(node, type = "text") {
         
         content.onkeydown = key_press_is_num;
 
-        increment_btn = document.createElement("img");
+        let increment_btn = document.createElement("img");
         increment_btn.classList.add("icon", "control", "toggle");
         increment_btn.src = icon_path("add.png");
         increment_btn.onclick = function () {
@@ -152,7 +153,7 @@ function set_content_type(node, type = "text") {
         };
         header.appendChild(increment_btn);
 
-        decrement_btn = document.createElement("img");
+        let decrement_btn = document.createElement("img");
         decrement_btn.classList.add("icon", "control", "toggle");
         decrement_btn.src = icon_path("subtract.png");
         decrement_btn.onclick = function () {
@@ -161,8 +162,44 @@ function set_content_type(node, type = "text") {
         };
         header.appendChild(decrement_btn);
     }
+    else if (type === "list") {
+        content.classList.add("list");
+        content.innerHTML = "";
+        content.style.fontSize = "10pt";
+        
+        function add_item() {
+            content.appendChild(create_list_item());            
+        }
+
+        let add_btn = document.createElement("img");
+        add_btn.classList.add("icon", "control", "toggle");
+        add_btn.src = icon_path("add.png");
+        add_btn.onclick = add_item;
+        header.appendChild(add_btn);
+    }
 
     node.type = type;
+}
+
+function create_list_item(content="New item") {
+    let new_item = document.createElement("div");
+    new_item.classList.add("list_item");
+
+    let item_content = document.createElement("span");
+    item_content.classList.add("list_item_content");
+    item_content.contentEditable = true;
+    item_content.innerText = content;
+    new_item.append(item_content);
+
+    let remove_btn = document.createElement("img");
+    remove_btn.classList.add("icon", "control", "toggle");
+    remove_btn.src = icon_path("cross.png");
+    remove_btn.onclick = function () {
+        new_item.remove();
+    };
+    new_item.append(remove_btn);
+
+    return new_item;
 }
 
 function node_size(k) {
@@ -338,7 +375,7 @@ function create_settings(node) {
     type.appendChild(type_label);
 
     let type_dropdown = document.createElement("select");
-    [ "text", "number" ].forEach(t => {
+    [ "text", "number", "list" ].forEach(t => {
         let option = document.createElement("option");
         option.innerHTML = t;
         type_dropdown.appendChild(option);
