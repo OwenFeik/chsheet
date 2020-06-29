@@ -165,6 +165,7 @@ function set_content_type(node, type = "text") {
     else if (type === "list") {
         content.classList.add("list");
         content.innerHTML = "";
+        content.contentEditable = false;
         content.style.fontSize = "10pt";
         
         function add_item() {
@@ -188,6 +189,7 @@ function create_list_item(content="New item") {
     let item_content = document.createElement("span");
     item_content.classList.add("list_item_content");
     item_content.contentEditable = true;
+    item_content.spellcheck = false;
     item_content.innerText = content;
     new_item.append(item_content);
 
@@ -265,11 +267,17 @@ function create_menu(node) {
     settings.onclick = function () {
         node_settings(node);
         menu.close();
-    }
+    };
 
     menu.appendChild(settings);
     menu.appendChild(create_resize_menu_item());
     
+    let remove = create_menu_item("Delete", "cross.png");
+    remove.onclick = function () {
+        node.remove();
+    };
+    menu.appendChild(remove);
+
     return menu;
 }
 
