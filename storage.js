@@ -20,6 +20,7 @@ function set_up_db() {
         );
 
         node_store.createIndex("title", "title");
+        node_store.createIndex("title_active", "title_active");
         node_store.createIndex("type", "type");
         node_store.createIndex("width", "width");
         node_store.createIndex("height", "height");
@@ -79,8 +80,8 @@ function node_to_dict(node) {
         x: parseInt(node.style.gridColumnStart, 10),
         y: parseInt(node.style.gridRowStart, 10),
         controls_active: !node.classList.contains("controls_inactive"),
-        font_size: parseInt(node_content.style.font_size, 10),
-        locked: node.classList.contains("locked"),
+        font_size: parseInt(node_content.style.fontSize),
+        locked: node.classList.contains("locked")
     }
 
     if (node.type === "text" || node.type === "number") {
@@ -89,10 +90,18 @@ function node_to_dict(node) {
     else if (node.type === "list") {
         let list_items = [];
         node_content.querySelectorAll(".list_item").forEach(i => {
-            list_items.push(i.querySelector(".list_item_content").innerText);
+            list_items.push({
+                content: i.querySelector(".list_item_content").innerText,
+                checkbox_checked: i.querySelector(".checkbox")
+                    .classList.contains("checked")
+            });
         });
         
-        node_info.content = list_items;
+        node_info.content = {
+            items: list_items,
+            checkboxes_active: 
+                node_content.classList.contains("checkboxes_active"),
+        };
     }
 
     return node_info;
@@ -126,8 +135,19 @@ function node_from_dict(dict) {
         content.innerText = dict.content;
     }
     else if (dict.type == "list") {
-        dict.content.forEach(i => {
-            content.appendChild(create_list_item(i));
+        if (dict.content.checkboxes_active) {
+            content.classList.add("checkboxes_active");
+        }
+
+        dict.content.items.forEach(i => {
+            let list_item = create_list_item(i.content);
+            let checkbox = list_item.querySelector(".checkbox");
+            checkbox.value = i.checkbox_checked;
+            if (!checkbox.value) {
+                checkbox.classList.remove("checked");
+            }
+
+            content.appendChild(list_item);
         });
     }
 

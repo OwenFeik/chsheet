@@ -116,7 +116,7 @@
 
 .node > .content.list > .list_item {
     background-color: var(--bg-secondary);
-    min-height: 20px;
+    min-height: 24px;
     margin-top: 5px;
     border-radius: 5px;
     display: flex;
@@ -126,13 +126,18 @@
 .node > .content.list > .list_item > .list_item_content {
     margin: 5px;
     max-height: 90%;
-    overflow: auto;
-    scrollbar-width: none;
+    max-width: 90%;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .node > .content.list > .list_item > .control {
     margin-left: auto;
     margin-right: 5px;
+}
+
+.node.controls_inactive > .content.list > .list_item > .control.toggle {
+    display: none;
 }
 
 .node.locked > .content.list > .list_item > .control.toggle {
@@ -141,6 +146,32 @@
 
 .node > .content.list:last-child {
     margin-bottom: auto;
+}
+
+.node > .content.list > .list_item > .checkbox {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    margin-left: 5px;
+    background-color: var(--bg-primary);
+    display: flex;
+    align-items: center;
+}
+
+.node > .content.list:not(.checkboxes_active) > .list_item > .checkbox {
+    display: none;
+}
+
+.node > .content.list > .list_item > .checkbox > .icon {
+    margin: auto;
+}
+
+.node > .content.list > .list_item > .checkbox.checked > .icon {
+    display: block;
+}
+
+.node > .content.list > .list_item > .checkbox:not(.checked) > .icon {
+    display: none;
 }
 
 .resize_handle {
@@ -194,20 +225,26 @@
     border-radius: 5px;
     position: absolute;
     background: var(--bg-secondary);
-    right: -205px;
+    right: -215px;
     top: 0px;
     z-index: 200;
     display: flex;
+    padding: 5px;
+    padding-top: 0px;
     flex-direction: column;
 }
 
 .node > .settings > .setting {
     background: var(--bg-primary);
     display: flex;
-    margin: 5px;
+    margin-top: 5px;
     border-radius: 5px;
     position: relative;
     align-items: center;
+}
+
+.node:not(.list_content) > .settings > .setting.list_content {
+    display: none;
 }
 
 .node > .settings > .setting > input, .node > .settings > .setting > select {

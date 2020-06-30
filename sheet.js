@@ -173,6 +173,7 @@ function set_content_type(node, type = "text") {
     }
 
     node.type = type;
+    node.classList.add(type + "_content");
 }
 
 function update_editable(node) {
@@ -193,6 +194,20 @@ function update_editable(node) {
 function create_list_item(content="New item") {
     let new_item = document.createElement("div");
     new_item.classList.add("list_item");
+
+    let item_checkbox = document.createElement("div");
+    item_checkbox.classList.add("checkbox", "checked");
+    item_checkbox.value = true;
+    item_checkbox.onclick = function () {
+        item_checkbox.value = !item_checkbox.value;
+        item_checkbox.classList.toggle("checked"); 
+    };
+    new_item.appendChild(item_checkbox);
+
+    let item_checkbox_img = document.createElement("img");
+    item_checkbox_img.classList.add("icon");
+    item_checkbox_img.src = icon_path("tick.png");
+    item_checkbox.appendChild(item_checkbox_img);
 
     let item_content = document.createElement("span");
     item_content.classList.add("list_item_content");
@@ -447,6 +462,23 @@ function create_settings(node) {
     };
     font.appendChild(font_input);
 
+    let checkboxes = document.createElement("div");
+    checkboxes.classList.add("setting", "list_content");
+    settings.appendChild(checkboxes);
+
+    let checkboxes_label = document.createElement("span");
+    checkboxes_label.classList.add("label");
+    checkboxes_label.innerHTML = "Checkboxes";
+    checkboxes.appendChild(checkboxes_label);
+
+    let checkboxes_input = document.createElement("input");
+    checkboxes_input.type = "checkbox";
+    checkboxes_input.value = content.classList.contains("checkboxes_active");
+    checkboxes_input.onclick = function () {
+        content.classList.toggle("checkboxes_active");
+    };
+    checkboxes.appendChild(checkboxes_input);
+
     node.appendChild(settings);
 
     return settings;
@@ -603,7 +635,7 @@ function resize_to_grid(el, x=true, y=true) {
 }
 
 function add_node_to_sheet(e) {
-    create_node(1, 1);    
+    create_node(2, 2);    
 }
 
 function make_node_draggable(el) {
