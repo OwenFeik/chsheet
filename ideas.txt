@@ -1,0 +1,3 @@
+Multiple save files
+Save to and load from disk
+Place dragging handle outside node for small nodes

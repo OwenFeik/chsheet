@@ -16,14 +16,8 @@ function set_up_sheet() {
 function set_up_toolbar() {
     let toolbar = document.getElementById("toolbar");
 
-    let add = document.createElement("button");
-    add.classList.add("tool");
+    let add = create_tool("add.png");
     toolbar.appendChild(add);
-    
-    let img = document.createElement("img");
-    img.src = icon_path("add.png");
-    add.appendChild(img);
-
     add.onclick = add_node_to_sheet;
 
     let save = document.createElement("button");
@@ -49,6 +43,23 @@ function set_up_toolbar() {
     load.onclick = function () {
         load_sheet(document.querySelector("#sheet"));
     }
+
+    let download = create_tool("down.png");
+    toolbar.appendChild(download);
+
+    let upload = create_tool("up.png");
+    toolbar.appendChild(upload);
+}
+
+function create_tool(icon) {
+    let tool = document.createElement("button");
+    tool.classList.add("tool");
+    
+    let img = document.createElement("img");
+    img.src = icon_path(icon);
+    tool.appendChild(img);
+
+    return tool;
 }
 
 function create_node(w, h, type = "text") {
