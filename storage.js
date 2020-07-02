@@ -155,3 +155,37 @@ function node_from_dict(dict) {
 
     return node;
 }
+
+function download_sheet(sheet) {
+    let nodes = []
+    sheet.querySelectorAll(".node").forEach(node => {
+        nodes.push(node_to_dict(node));
+    });
+
+    let blob = new Blob([JSON.stringify(nodes)], {type: "text/plain"});
+
+    let a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "sheet.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+function upload_sheet(sheet, file) {
+    let file_reader = new FileReader();
+    file_reader.onload = function (e) {
+        try {
+            JSON.parse(e.target.result).forEach(i => {
+                let node = node_from_dict(i);
+                sheet.appendChild(node);
+                snap_to_grid(node, i.x, i.y);
+            });
+        }
+        catch {
+            console.log("Failed to read.");
+        }
+    }
+    
+    file_reader.readAsText(file, "UTF-8");
+}

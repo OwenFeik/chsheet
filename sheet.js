@@ -46,9 +46,19 @@ function set_up_toolbar() {
 
     let download = create_tool("down.png");
     toolbar.appendChild(download);
+    download.onclick = function () {
+        download_sheet(document.getElementById("sheet"));   
+    };
 
     let upload = create_tool("up.png");
     toolbar.appendChild(upload);
+
+    let upload_input = document.createElement("input");
+    upload_input.type = "file";
+    upload.appendChild(upload_input);
+    upload_input.oninput = function () {
+        upload_sheet(document.getElementById("sheet"), upload_input.files[0]);
+    }
 }
 
 function create_tool(icon) {
