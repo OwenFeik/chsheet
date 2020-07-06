@@ -108,7 +108,7 @@
     scrollbar-width: none;
 }
 
-.node > .content.number {
+.node > .content.number, .node > .content.die {
     text-align: center;
     overflow: hidden;
     font-size: 20pt;
@@ -254,6 +254,10 @@
 }
 
 .node:not(.list_content) > .settings > .setting.list_content {
+    display: none;
+}
+
+.node:not(.die_content) > .settings > .setting.die_content {
     display: none;
 }
 

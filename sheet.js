@@ -144,32 +144,28 @@ function set_content_type(node, type = "text") {
         content.style.textAlign = "center";
 
         function key_press_is_num(e) {
-            if (event.keyCode === 8 || event.keyCode === 9) {
+            if (
+                event.keyCode === 8 /* Backspace */ 
+                || event.keyCode === 9 /* Tab */
+                || (event.keyCode >= 48 && event.keyCode <= 57) /* 0-9 */
+                || (event.keyCode >= 37 && event.keyCode <= 40) /* Arrows */
+                || (event.key == "+" || event.key == "-")
+            ) {
                 return;
-            } /* Backspace and Tab */ 
-            else if (event.keyCode >= 48 && event.keyCode <= 57) {
-                return;
-            } /* 0-9 */
-            else if (event.keyCode >= 37 && event.keyCode <= 40) {
-                return;
-            } /* Arrow keys */
+            }
             e.preventDefault();
         }
         
         content.onkeydown = key_press_is_num;
 
-        let increment_btn = document.createElement("img");
-        increment_btn.classList.add("icon", "control", "toggle");
-        increment_btn.src = icon_path("add.png");
+        let increment_btn = create_control("add.png", true);
         increment_btn.onclick = function () {
             content.innerHTML 
                 = (parseInt(content.innerHTML, 10) + 1).toString();
         };
         header.appendChild(increment_btn);
 
-        let decrement_btn = document.createElement("img");
-        decrement_btn.classList.add("icon", "control", "toggle");
-        decrement_btn.src = icon_path("subtract.png");
+        let decrement_btn = create_control("subtract.png", true);
         decrement_btn.onclick = function () {
             content.innerHTML
                 = (parseInt(content.innerHTML, 10) - 1).toString();
@@ -186,15 +182,39 @@ function set_content_type(node, type = "text") {
             content.appendChild(create_list_item());            
         }
 
-        let add_btn = document.createElement("img");
-        add_btn.classList.add("icon", "control", "toggle");
-        add_btn.src = icon_path("add.png");
+        let add_btn = create_control("add.png", true);
         add_btn.onclick = add_item;
         header.appendChild(add_btn);
+    }
+    else if (type === "die") {
+        content.classList.add("die");
+        content.innerHTML = "0";
+        content.contentEditable = false;
+        content.style.fontSize = "20pt";
+
+        node.die_size = 20;
+        
+        let roll_btn = create_control("die.png");
+        roll_btn.onclick = function () {
+            content.innerText 
+                = Math.ceil(Math.random() * node.die_size).toString();
+        };
+        header.appendChild(roll_btn);
     }
 
     node.type = type;
     node.classList.add(type + "_content");
+}
+
+function create_control(image, toggle=false) {
+    let btn = document.createElement("img");
+    btn.classList.add("icon", "control");
+    if (toggle) {
+        btn.classList.add("toggle");
+    }
+    btn.src = icon_path(image);
+
+    return btn;
 }
 
 function update_editable(node) {
@@ -374,6 +394,7 @@ function create_settings(node) {
     title.appendChild(title_label);
 
     let title_input = document.createElement("input");
+    title_input.value = node_title.innerText;
     title_input.oninput = function () {
         node_title.innerHTML = title_input.value;
     };
@@ -439,7 +460,7 @@ function create_settings(node) {
     type.appendChild(type_label);
 
     let type_dropdown = document.createElement("select");
-    [ "text", "number", "list" ].forEach(t => {
+    [ "text", "number", "list", "die" ].forEach(t => {
         let option = document.createElement("option");
         option.innerHTML = t;
         type_dropdown.appendChild(option);
@@ -495,10 +516,29 @@ function create_settings(node) {
     let checkboxes_input = document.createElement("input");
     checkboxes_input.type = "checkbox";
     checkboxes_input.value = content.classList.contains("checkboxes_active");
+    checkboxes_input.checked = checkboxes_input.value;
     checkboxes_input.onclick = function () {
         content.classList.toggle("checkboxes_active");
     };
     checkboxes.appendChild(checkboxes_input);
+
+    let die_size = document.createElement("div");
+    die_size.classList.add("setting", "die_content");
+    settings.appendChild(die_size);
+
+    let die_size_label = document.createElement("span");
+    die_size_label.classList.add("label");
+    die_size_label.innerHTML = "Die size";
+    die_size.appendChild(die_size_label);
+
+    let die_size_input = document.createElement("input");
+    die_size_input.type = "number";
+    die_size_input.value 
+        = node.die_size !== undefined ? node.die_size.toString() : "20";
+    die_size_input.oninput = function () {
+        node.die_size = die_size_input.value;
+    };
+    die_size.appendChild(die_size_input);
 
     node.appendChild(settings);
 

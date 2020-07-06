@@ -103,6 +103,11 @@ function node_to_dict(node) {
                 node_content.classList.contains("checkboxes_active"),
         };
     }
+    else if (node.type === "die") {
+        node_info.content = {
+            die_size: node.die_size
+        }
+    }
 
     return node_info;
 }
@@ -131,10 +136,10 @@ function node_from_dict(dict) {
         node.classList.add("locked");
     }
 
-    if (dict.type == "text" || dict.type == "number") {
+    if (dict.type === "text" || dict.type === "number") {
         content.innerText = dict.content;
     }
-    else if (dict.type == "list") {
+    else if (dict.type === "list") {
         if (dict.content.checkboxes_active) {
             content.classList.add("checkboxes_active");
         }
@@ -149,6 +154,9 @@ function node_from_dict(dict) {
 
             content.appendChild(list_item);
         });
+    }
+    else if (dict.type === "die") {
+        node.die_size = dict.content.die_size;
     }
 
     update_editable(node);
