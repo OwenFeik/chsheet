@@ -235,20 +235,7 @@ function update_editable(node) {
 function create_list_item(content="New item") {
     let new_item = document.createElement("div");
     new_item.classList.add("list_item");
-
-    let item_checkbox = document.createElement("div");
-    item_checkbox.classList.add("checkbox", "checked");
-    item_checkbox.value = true;
-    item_checkbox.onclick = function () {
-        item_checkbox.value = !item_checkbox.value;
-        item_checkbox.classList.toggle("checked"); 
-    };
-    new_item.appendChild(item_checkbox);
-
-    let item_checkbox_img = document.createElement("img");
-    item_checkbox_img.classList.add("icon");
-    item_checkbox_img.src = icon_path("tick.png");
-    item_checkbox.appendChild(item_checkbox_img);
+    new_item.appendChild(create_checkbox());
 
     let item_content = document.createElement("span");
     item_content.classList.add("list_item_content");
@@ -266,6 +253,23 @@ function create_list_item(content="New item") {
     new_item.append(remove_btn);
 
     return new_item;
+}
+
+function create_checkbox() {
+    let checkbox = document.createElement("div");
+    checkbox.classList.add("checkbox", "checked");
+    checkbox.value = true;
+    checkbox.onclick = function () {
+        checkbox.value = !checkbox.value;
+        checkbox.classList.toggle("checked"); 
+    };
+
+    let checkbox_img = document.createElement("img");
+    checkbox_img.classList.add("icon");
+    checkbox_img.src = icon_path("tick.png");
+    checkbox.appendChild(checkbox_img);
+
+    return checkbox;
 }
 
 function node_size(k) {
@@ -515,8 +519,7 @@ function create_settings(node) {
 
     let checkboxes_input = document.createElement("input");
     checkboxes_input.type = "checkbox";
-    checkboxes_input.value = content.classList.contains("checkboxes_active");
-    checkboxes_input.checked = checkboxes_input.value;
+    checkboxes_input.checked = content.classList.contains("checkboxes_active");
     checkboxes_input.onclick = function () {
         content.classList.toggle("checkboxes_active");
     };
@@ -543,6 +546,16 @@ function create_settings(node) {
     node.appendChild(settings);
 
     return settings;
+}
+
+function create_save_menu() {
+    let menu = document.createElement("div");
+
+    let header = document.createElement("div");
+    menu.appendChild(header);
+
+    let header_checkbox = create_checkbox();
+    header.appendChild(header_checkbox);
 }
 
 function create_menu_item(label, image) {
@@ -765,4 +778,12 @@ function snap_to_grid(e, x = null, y = null) {
 
 function icon_path(name) {
     return "icons/" + name;
+}
+
+function fade_out() {
+    document.getElementById("#fade").classList.add("active");
+}
+
+function fade_in() {
+    document.getElementById("fade").classList.remove("active");
 }

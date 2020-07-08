@@ -13,7 +13,7 @@
     width: 50px;
     height: 50px;
     border: 5px var(--bg-primary);
-    border-radius: 5px;
+    border-radius: var(--border-rad);
     background: var(--bg-primary);
     user-select: none;
     margin: 5px;
@@ -25,7 +25,7 @@
     top: 0px;
     width: 50px;
     height: 50px;
-    border-radius: 5px;
+    border-radius: var(--border-rad);
     opacity: 0;
 }
 
@@ -34,7 +34,7 @@
 }
 
 .node {
-    border-radius: 5px;
+    border-radius: var(--border-rad);
     position: relative;
     background: var(--bg-primary);
     font-size: 12px;
@@ -43,7 +43,7 @@
 }
 
 .node_ghost {
-    border-radius: 5px;
+    border-radius: var(--border-rad);
     border: dashed 2px var(--bg-secondary);
     z-index: -100;
     position: absolute;
@@ -128,7 +128,7 @@
     background-color: var(--bg-secondary);
     min-height: 24px;
     margin-top: 5px;
-    border-radius: 5px;
+    border-radius: var(--border-rad);
     display: flex;
     align-items: center;
 }
@@ -161,7 +161,7 @@
 .node > .content.list > .list_item > .checkbox {
     width: 20px;
     height: 20px;
-    border-radius: 5px;
+    border-radius: var(--border-rad);
     margin-left: 5px;
     background-color: var(--bg-primary);
     display: flex;
@@ -190,7 +190,7 @@
     border-radius: 50%;
     background-color: var(--bg-secondary);
     position: absolute;
-    z-index: 100;
+    z-index: 50;
 }
 
 .resize_handle.top {
@@ -232,12 +232,12 @@
 
 .node > .settings {
     width: 200px;
-    border-radius: 5px;
+    border-radius: var(--border-rad);
     position: absolute;
     background: var(--bg-secondary);
     right: -215px;
     top: 0px;
-    z-index: 200;
+    z-index: 100;
     display: flex;
     padding: 5px;
     padding-top: 0px;
@@ -248,7 +248,7 @@
     background: var(--bg-primary);
     display: flex;
     margin-top: 5px;
-    border-radius: 5px;
+    border-radius: var(--border-rad);
     position: relative;
     align-items: center;
 }
@@ -279,16 +279,16 @@
 
 .node > .menu {
     width: 100px;
-    border-radius: 5px;
+    border-radius: var(--border-rad);
     position: absolute;
     background: var(--bg-secondary);
     right: -105px;
     top: 0px;
-    z-index: 1000;
+    z-index: 100;
 }
 
 .node > .menu > .menuitem {
-    border-radius: 5px;
+    border-radius: var(--border-rad);
     background: var(--bg-primary);
     margin: 5px;
     display: grid;
@@ -308,6 +308,23 @@
     padding: 5px;
 }
 
+.panel {
+    background-color: var(--bg-primary);
+    border-radius: var(--border-rad);
+    z-index: 250;
+}
+
+#fade.active {
+    top: 0;
+    left: 0;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg-primary);
+    opacity: 50%;
+    z-index: 200;
+}
+
 :root {
     background: white;
     font-family: 'Open Sans';
@@ -315,6 +332,7 @@
     --bg-secondary: darkgrey;
     --fg-primary: black;
     --fg-secondary: grey;
+    --border-rad: 3px;
 }
 
 [contenteditable] {
