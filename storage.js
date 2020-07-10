@@ -14,33 +14,60 @@ function set_up_db() {
     request.onupgradeneeded = function (e) {
         db = e.target.result;
 
-        let node_store = db.createObjectStore(
-            "nodes", 
-            { keyPath: "id", autoIncrement: true }
+        let sheet_store = db.createObjectStore(
+            "sheets",
+            { keyPath: "title" }
         );
 
-        node_store.createIndex("title", "title");
-        node_store.createIndex("title_active", "title_active");
-        node_store.createIndex("type", "type");
-        node_store.createIndex("width", "width");
-        node_store.createIndex("height", "height");
-        node_store.createIndex("x", "x");
-        node_store.createIndex("y", "y");
-        node_store.createIndex("controls_active", "controls_active");
-        node_store.createIndex("font_size", "font_size");
-        node_store.createIndex("locked", "locked");
-        node_store.createIndex("content", "content");
+        sheet_store.createIndex("time", "time");
+        sheet_store.createIndex("data", "data");
     };
 }
 
-function save_sheet(sheet) {
-    let transaction = db.transaction('nodes', 'readwrite');
-    let node_store = transaction.objectStore('nodes');
-    node_store.clear();
+function save_sheet(sheet, title=null) {
+    let transaction = db.transaction('sheets', 'readwrite');
+    let sheet_store = transaction.objectStore('sheets');
 
-    sheet.querySelectorAll(".node").forEach(node => {
-        node_store.add(node_to_dict(node));
-    });
+    if (title === null) {
+        let n = 0;
+
+        function get_next_option() {
+            title = "untitled" + n.toString();
+            let request = sheet_store.get(title);
+
+            request.onsuccess = function (e) {
+                if (e.target.data !== undefined) {
+                    n += 1;
+                    get_next_option();    
+                }
+                else {
+                    _save_sheet();
+                }
+            };
+
+            request.onerror = function () {
+                _save_sheet();
+            };
+        }
+
+        get_next_option();
+    }
+    else {
+        _save_sheet();
+    }
+
+    function _save_sheet() {
+        let sheet_data = [];
+        sheet.querySelectorAll(".node").forEach(node => {
+            sheet_data.push(node_to_dict(node));
+        });
+    
+        sheet_store.put({
+            title: title,
+            time: new Date().getTime(),
+            data: sheet_data
+        });    
+    }
 
     transaction.oncomplete = function () {
     };
@@ -49,21 +76,17 @@ function save_sheet(sheet) {
     };
 }
 
-function load_sheet(sheet) {
-    sheet.querySelectorAll(".node").forEach(node => {
-        node.remove();
-    });
+function load_sheet(sheet, title) {
+    let sheet_store = db.transaction('sheets').objectStore('sheets');
+    let request = sheet_store.get(title);
 
-    let node_store = db.transaction('nodes').objectStore('nodes');
-    node_store.openCursor().onsuccess = function (e) {
-        let cursor = e.target.result;
+    request.onsuccess = function (e) {
+        build_sheet(sheet, e.target.result.data);
+        return true;
+    };
 
-        if (cursor) {
-            let node = node_from_dict(cursor.value);
-            sheet.appendChild(node);
-            snap_to_grid(node, cursor.value.x, cursor.value.y);
-            cursor.continue();
-        }
+    request.onerror = function (e) {
+        return false;
     };
 }
 
@@ -164,6 +187,15 @@ function node_from_dict(dict) {
     return node;
 }
 
+function build_sheet(sheet, data) {
+    sheet.innerHTML = "";
+    data.forEach(n => {
+        let node = node_from_dict(n);
+        sheet.appendChild(node);
+        snap_to_grid(node, n.x, n.y);
+    });
+}
+
 function download_sheet(sheet) {
     let nodes = []
     sheet.querySelectorAll(".node").forEach(node => {
@@ -184,12 +216,7 @@ function upload_sheet(sheet, file) {
     let file_reader = new FileReader();
     file_reader.onload = function (e) {
         try {
-            sheet.innerHTML = "";
-            JSON.parse(e.target.result).forEach(i => {
-                let node = node_from_dict(i);
-                sheet.appendChild(node);
-                snap_to_grid(node, i.x, i.y);
-            });
+            build_sheet(sheet, JSON.parse(e.target.result));
         }
         catch {
             console.log("Failed to read.");
