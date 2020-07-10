@@ -550,12 +550,50 @@ function create_settings(node) {
 
 function create_save_menu() {
     let menu = document.createElement("div");
+    menu.style.display = "none";
+    menu.show = function () {
+        fade_out();
+        menu.style.display = "block";
+    };
+    menu.hide = function () {
+        fade_in();
+        menu.style.display = "none";
+    };
+    menu.classList.add("panel");
 
     let header = document.createElement("div");
+    header.classList.add("panel_header");
     menu.appendChild(header);
 
     let header_checkbox = create_checkbox();
     header.appendChild(header_checkbox);
+
+    let header_input = document.createElement("input");
+    header.appendChild(header_input);
+
+    let sheet = document.getElementById("sheet");
+
+    let save = create_control("save.png");
+    save.onclick = function () {
+        save_sheet(sheet);
+    };
+    header.appendChild(save);
+    
+    let download = create_control("down.png");
+    download.onclick = function () {
+        download_sheet(sheet);
+    };
+    header.appendChild(download);
+
+    let upload = create_control("up.png");
+    upload.onclick = function () {
+        upload_sheet(sheet);
+    };
+    header.appendChild(upload);
+
+    let close = create_control("cross.png");
+    close.onclick = menu.hide;
+    header.appendChild(close);
 }
 
 function create_menu_item(label, image) {

@@ -314,6 +314,28 @@
     z-index: 250;
 }
 
+.panel_header {
+    display: flex;
+    flex-direction: row;
+}
+
+.panel_header > .checkbox {
+    flex-grow: 0;
+}
+
+.panel_header > input {
+    flex-grow: 1;
+}
+
+.panel_header > .control {
+    flex-grow: 0;
+    margin-left: auto;
+}
+
+.panel_header > .control ~ .control {
+    margin-left: 5px;
+}
+
 #fade.active {
     top: 0;
     left: 0;

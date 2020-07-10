@@ -184,6 +184,7 @@ function upload_sheet(sheet, file) {
     let file_reader = new FileReader();
     file_reader.onload = function (e) {
         try {
+            sheet.innerHTML = "";
             JSON.parse(e.target.result).forEach(i => {
                 let node = node_from_dict(i);
                 sheet.appendChild(node);
