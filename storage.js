@@ -25,8 +25,8 @@ function set_up_db() {
 }
 
 function save_sheet(sheet, title=null) {
-    let transaction = db.transaction('sheets', 'readwrite');
-    let sheet_store = transaction.objectStore('sheets');
+    let transaction = db.transaction("sheets", "readwrite");
+    let sheet_store = transaction.objectStore("sheets");
 
     if (title === null) {
         let n = 0;
@@ -77,17 +77,30 @@ function save_sheet(sheet, title=null) {
 }
 
 function load_sheet(sheet, title) {
-    let sheet_store = db.transaction('sheets').objectStore('sheets');
+    let sheet_store = db.transaction("sheets").objectStore("sheets");
     let request = sheet_store.get(title);
 
     request.onsuccess = function (e) {
-        build_sheet(sheet, e.target.result.data);
+        build_sheet(sheet, e.target.result);
         return true;
     };
 
     request.onerror = function (e) {
         return false;
     };
+}
+
+function get_all_sheets(callback) {
+    let sheet_store = db.transaction("sheets").objectStore("sheets");
+    let request = sheet_store.getAll();
+
+    request.onsuccess = function (e) {
+        callback(e.target.result);
+    };
+
+    request.onerror = function (e) {
+        console.log("error!");
+    }
 }
 
 function node_to_dict(node) {
@@ -187,9 +200,10 @@ function node_from_dict(dict) {
     return node;
 }
 
-function build_sheet(sheet, data) {
+function build_sheet(sheet, save) {
     sheet.innerHTML = "";
-    data.forEach(n => {
+    sheet.title = save.title;
+    save.data.forEach(n => {
         let node = node_from_dict(n);
         sheet.appendChild(node);
         snap_to_grid(node, n.x, n.y);
@@ -216,7 +230,11 @@ function upload_sheet(sheet, file) {
     let file_reader = new FileReader();
     file_reader.onload = function (e) {
         try {
-            build_sheet(sheet, JSON.parse(e.target.result));
+            build_sheet(sheet, {
+                title: file,
+                time: new Date(file.lastModified).toLocaleDateString(locale),
+                data: JSON.parse(e.target.result)
+            });
         }
         catch {
             console.log("Failed to read.");

@@ -1,3 +1,5 @@
+const locale = "en-AU";
+
 "use strict";
 
 window.onload = function() {

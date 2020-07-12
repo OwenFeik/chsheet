@@ -19,16 +19,6 @@
     margin: 5px;
 }
 
-.tool > input {
-    position: absolute;
-    left: 0px;
-    top: 0px;
-    width: 50px;
-    height: 50px;
-    border-radius: var(--border-rad);
-    opacity: 0;
-}
-
 #sheet {
     display: grid;
 }
@@ -158,29 +148,32 @@
     margin-bottom: auto;
 }
 
-.node > .content.list > .list_item > .checkbox {
+.checkbox {
     width: 20px;
     height: 20px;
     border-radius: var(--border-rad);
-    margin-left: 5px;
     background-color: var(--bg-primary);
     display: flex;
     align-items: center;
+}
+
+.content.list > .list_item > .checkbox {
+    margin-left: 5px;
 }
 
 .node > .content.list:not(.checkboxes_active) > .list_item > .checkbox {
     display: none;
 }
 
-.node > .content.list > .list_item > .checkbox > .icon {
+.checkbox > .icon {
     margin: auto;
 }
 
-.node > .content.list > .list_item > .checkbox.checked > .icon {
+.checkbox.checked > .icon {
     display: block;
 }
 
-.node > .content.list > .list_item > .checkbox:not(.checked) > .icon {
+.checkbox:not(.checked) > .icon {
     display: none;
 }
 
@@ -224,6 +217,12 @@
 .icon {
     width: 16px;
     height: 16px;    
+}
+
+.icon.background {
+    border-radius: var(--border-rad);
+    background-color: var(--bg-primary);
+    padding: 2px;
 }
 
 .hidden {
@@ -309,14 +308,25 @@
 }
 
 .panel {
+    position: absolute;
+    transform: translateX(-50%);
+    left: 50%;
+    top: 30%;
     background-color: var(--bg-primary);
     border-radius: var(--border-rad);
     z-index: 250;
+    width: 480px;
+    padding: 10px;
 }
 
 .panel_header {
     display: flex;
     flex-direction: row;
+    background-color: var(--bg-secondary);
+    border-radius: var(--border-rad);
+    padding: 5px;
+    align-items: center;
+    margin-bottom: 5px;
 }
 
 .panel_header > .checkbox {
@@ -325,6 +335,9 @@
 
 .panel_header > input {
     flex-grow: 1;
+    margin-left: 5px;
+    margin-right: 5px;
+    border-radius: var(--border-rad);
 }
 
 .panel_header > .control {
@@ -334,6 +347,80 @@
 
 .panel_header > .control ~ .control {
     margin-left: 5px;
+}
+
+.save_list {
+    padding: 5px;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    scrollbar-width: none;
+    align-items: center;
+}
+
+.save_list > .label {
+    color: var(--fg-secondary);
+    display: none;
+}
+
+.save_list > .label:only-child {
+    display: block;
+}
+
+.save_list > .list_item {
+    background-color: var(--bg-secondary);
+    height: 20px;
+    width: 100%;
+    margin-top: 5px;
+    border-radius: var(--border-rad);
+    display: flex;
+    align-items: center;
+    flex-grow: 0;
+    width: 100%;
+    padding: 5px;
+    font-size: 14px;
+}
+
+.save_list > .list_item:last-of-type {
+    margin-bottom: auto;
+}
+
+.save_list > .list_item > :not(:first-child) {
+    margin-left: 5px;
+}
+
+.save_list > .list_item > .label {
+    background-color: var(--bg-primary);
+    height: 100%;
+    border-radius: var(--border-rad);
+    padding-left: 3px;
+    padding-right: 3px;
+}
+
+.save_list > .list_item > .label:first-of-type {
+    flex-grow: 1;
+}
+
+.control.input_holder {
+    position: relative;
+    height: 20px;
+    width: 20px;
+    border-radius: var(--border-rad);
+    background-color: var(--bg-primary);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.control > input {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--border-rad);
+    opacity: 0;
 }
 
 #fade.active {

@@ -59,6 +59,14 @@ function set_up_toolbar() {
     upload_input.oninput = function () {
         upload_sheet(document.getElementById("sheet"), upload_input.files[0]);
     }
+
+    let menu = create_tool("save.png");
+    toolbar.appendChild(menu);
+
+    menu.onclick = function () {
+        let save_menu = create_save_menu();
+        save_menu.show();
+    }
 }
 
 function create_tool(icon) {
@@ -158,14 +166,14 @@ function set_content_type(node, type = "text") {
         
         content.onkeydown = key_press_is_num;
 
-        let increment_btn = create_control("add.png", true);
+        let increment_btn = create_control("add.png", "toggle");
         increment_btn.onclick = function () {
             content.innerHTML 
                 = (parseInt(content.innerHTML, 10) + 1).toString();
         };
         header.appendChild(increment_btn);
 
-        let decrement_btn = create_control("subtract.png", true);
+        let decrement_btn = create_control("subtract.png", "toggle");
         decrement_btn.onclick = function () {
             content.innerHTML
                 = (parseInt(content.innerHTML, 10) - 1).toString();
@@ -182,7 +190,7 @@ function set_content_type(node, type = "text") {
             content.appendChild(create_list_item());            
         }
 
-        let add_btn = create_control("add.png", true);
+        let add_btn = create_control("add.png", "toggle");
         add_btn.onclick = add_item;
         header.appendChild(add_btn);
     }
@@ -206,12 +214,12 @@ function set_content_type(node, type = "text") {
     node.classList.add(type + "_content");
 }
 
-function create_control(image, toggle=false) {
+function create_control(image, ...classes) {
     let btn = document.createElement("img");
     btn.classList.add("icon", "control");
-    if (toggle) {
-        btn.classList.add("toggle");
-    }
+    classes.forEach(c => {
+        btn.classList.add(c);
+    });
     btn.src = icon_path(image);
 
     return btn;
@@ -549,7 +557,10 @@ function create_settings(node) {
 }
 
 function create_save_menu() {
-    let menu = document.createElement("div");
+    let sheet = document.getElementById("sheet");
+
+    let menu = document.getElementById("save_menu");
+    menu.innerHTML = "";
     menu.style.display = "none";
     menu.show = function () {
         fade_out();
@@ -569,31 +580,96 @@ function create_save_menu() {
     header.appendChild(header_checkbox);
 
     let header_input = document.createElement("input");
+    header_input.minLength = 1;
+    header_input.maxLength = 32;
     header.appendChild(header_input);
 
-    let sheet = document.getElementById("sheet");
-
-    let save = create_control("save.png");
+    function check_for_input(e) {
+        if (header_input.value != "") {
+            header_input.setCustomValidity("");
+            header_input.removeEventListener("keyup", check_for_input);
+        }
+    }
+    
+    let save = create_control("save.png", "background");
     save.onclick = function () {
-        save_sheet(sheet);
+        if (header_input.value === "") {
+            header_input.setCustomValidity("Title required to save.");
+            header_input.addEventListener("keyup", check_for_input);
+        }
+        else {
+            save_sheet(sheet, header_input.value);
+        }
     };
     header.appendChild(save);
     
-    let download = create_control("down.png");
+    let download = create_control("down.png", "background");
     download.onclick = function () {
         download_sheet(sheet);
     };
     header.appendChild(download);
 
-    let upload = create_control("up.png");
-    upload.onclick = function () {
-        upload_sheet(sheet);
-    };
+    let upload = document.createElement("div");
+    upload.classList.add("control", "input_holder");
     header.appendChild(upload);
 
-    let close = create_control("cross.png");
+    let upload_img = document.createElement("img");
+    upload_img.classList.add("icon");
+    upload_img.src = icon_path("up.png");
+    upload.appendChild(upload_img);
+
+    let upload_input = document.createElement("input");
+    upload_input.type = "file";
+    upload.appendChild(upload_input);
+    upload_input.oninput = function () {
+        upload_sheet(sheet, upload_input.files[0]);
+    }
+
+    let close = create_control("cross.png", "background");
     close.onclick = menu.hide;
     header.appendChild(close);
+
+    let save_list = document.createElement("div");
+    save_list.classList.add("save_list");
+    menu.appendChild(save_list);
+    get_all_sheets(data => {
+        data.sort((a, b) => a.time - b.time);
+        data.forEach(save_file => {
+            save_list.appendChild(create_save_list_item(save_file));
+        });
+    });
+
+    let empty = document.createElement("span");
+    empty.classList.add("label");
+    empty.innerText = "No saves";
+    save_list.append(empty);
+
+    return menu;
+}
+
+function create_save_list_item(save) {
+    let list_item = document.createElement("div");
+    list_item.classList.add("list_item");
+
+    let checkbox = create_checkbox();
+    list_item.appendChild(checkbox);
+
+    let title = document.createElement("span");
+    title.classList.add("label");
+    title.innerText = save.title;
+    list_item.appendChild(title);
+
+    let time = document.createElement("span");
+    time.classList.add("label");
+    time.innerText = new Date(save.time).toLocaleDateString('en-AU');
+    list_item.appendChild(time);
+
+    let node_count = document.createElement("span");
+    node_count.classList.add("label");
+    node_count.innerText = save.data.length.toString() + " nodes";
+    list_item.appendChild(node_count);
+
+    return list_item;
 }
 
 function create_menu_item(label, image) {
@@ -819,7 +895,7 @@ function icon_path(name) {
 }
 
 function fade_out() {
-    document.getElementById("#fade").classList.add("active");
+    document.getElementById("fade").classList.add("active");
 }
 
 function fade_in() {
