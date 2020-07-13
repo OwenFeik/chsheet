@@ -1,2 +1,0 @@
-Multiple save files
-Place dragging handle outside node for small nodes

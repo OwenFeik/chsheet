@@ -351,6 +351,7 @@
 
 .save_list {
     padding: 5px;
+    padding-bottom: 0px;
     display: flex;
     flex-direction: column;
     overflow: auto;
@@ -382,7 +383,7 @@
 }
 
 .save_list > .list_item:last-of-type {
-    margin-bottom: auto;
+    margin-bottom: 0px;
 }
 
 .save_list > .list_item > :not(:first-child) {

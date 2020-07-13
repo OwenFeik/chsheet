@@ -20,53 +20,14 @@ function set_up_toolbar() {
     toolbar.appendChild(add);
     add.onclick = add_node_to_sheet;
 
-    let save = document.createElement("button");
-    save.classList.add("tool");
+    let save = create_tool("save.png");
     toolbar.appendChild(save);
 
-    let save_label = document.createElement("span");
-    save_label.innerText = "Save";
-    save.appendChild(save_label);
+    let save_menu = create_save_menu();
 
     save.onclick = function () {
-        save_sheet(document.querySelector("#sheet"));
-    }
-
-    let load = document.createElement("button");
-    load.classList.add("tool");
-    toolbar.appendChild(load);
-
-    let load_label = document.createElement("span");
-    load_label.innerText = "Load";
-    load.appendChild(load_label);
-
-    load.onclick = function () {
-        load_sheet(document.querySelector("#sheet"));
-    }
-
-    let download = create_tool("down.png");
-    toolbar.appendChild(download);
-    download.onclick = function () {
-        download_sheet(document.getElementById("sheet"));   
-    };
-
-    let upload = create_tool("up.png");
-    toolbar.appendChild(upload);
-
-    let upload_input = document.createElement("input");
-    upload_input.type = "file";
-    upload.appendChild(upload_input);
-    upload_input.oninput = function () {
-        upload_sheet(document.getElementById("sheet"), upload_input.files[0]);
-    }
-
-    let menu = create_tool("save.png");
-    toolbar.appendChild(menu);
-
-    menu.onclick = function () {
-        let save_menu = create_save_menu();
         save_menu.show();
-    }
+    };
 }
 
 function create_tool(icon) {
@@ -263,10 +224,13 @@ function create_list_item(content="New item") {
     return new_item;
 }
 
-function create_checkbox() {
+function create_checkbox(checked=true) {
     let checkbox = document.createElement("div");
-    checkbox.classList.add("checkbox", "checked");
-    checkbox.value = true;
+    checkbox.classList.add("checkbox");
+    if (checked) {
+        checkbox.classList.add("checked");
+    }
+    checkbox.value = checked;
     checkbox.onclick = function () {
         checkbox.value = !checkbox.value;
         checkbox.classList.toggle("checked"); 
@@ -564,6 +528,7 @@ function create_save_menu() {
     menu.style.display = "none";
     menu.show = function () {
         fade_out();
+        reload_saves();
         menu.style.display = "block";
     };
     menu.hide = function () {
@@ -576,10 +541,27 @@ function create_save_menu() {
     header.classList.add("panel_header");
     menu.appendChild(header);
 
-    let header_checkbox = create_checkbox();
+    let header_checkbox = create_checkbox(false);
+    header_checkbox.onclick = function () {
+        header_checkbox.value = !header_checkbox.value;
+        header_checkbox.classList.toggle("checked");
+        
+        save_list.querySelectorAll(".list_item").forEach(e => {
+            let checkbox = e.querySelector(".checkbox"); 
+            checkbox.value = header_checkbox.value;
+            
+            if (header_checkbox.value) {
+                checkbox.classList.add("checked");
+            }
+            else {
+                checkbox.classList.remove("checked");
+            }
+        });
+    };
     header.appendChild(header_checkbox);
 
     let header_input = document.createElement("input");
+    header_input.value = sheet.title;
     header_input.minLength = 1;
     header_input.maxLength = 32;
     header.appendChild(header_input);
@@ -598,7 +580,8 @@ function create_save_menu() {
             header_input.addEventListener("keyup", check_for_input);
         }
         else {
-            save_sheet(sheet, header_input.value);
+            save_sheet(sheet, header_input.value, reload_saves);
+            sheet.title = header_input.value;
         }
     };
     header.appendChild(save);
@@ -622,7 +605,7 @@ function create_save_menu() {
     upload_input.type = "file";
     upload.appendChild(upload_input);
     upload_input.oninput = function () {
-        upload_sheet(sheet, upload_input.files[0]);
+        upload_sheet(sheet, upload_input.files[0], reload_saves);
     }
 
     let close = create_control("cross.png", "background");
@@ -632,12 +615,18 @@ function create_save_menu() {
     let save_list = document.createElement("div");
     save_list.classList.add("save_list");
     menu.appendChild(save_list);
-    get_all_sheets(data => {
-        data.sort((a, b) => a.time - b.time);
-        data.forEach(save_file => {
-            save_list.appendChild(create_save_list_item(save_file));
+    function reload_saves() {
+        save_list.querySelectorAll(".list_item").forEach(e => {
+            e.remove();
         });
-    });
+
+        get_all_sheets(data => {
+            data.sort((a, b) => a.time - b.time);
+            data.forEach(save_file => {
+                save_list.appendChild(create_save_list_item(save_file));
+            });
+        });
+    }
 
     let empty = document.createElement("span");
     empty.classList.add("label");
@@ -651,7 +640,7 @@ function create_save_list_item(save) {
     let list_item = document.createElement("div");
     list_item.classList.add("list_item");
 
-    let checkbox = create_checkbox();
+    let checkbox = create_checkbox(false);
     list_item.appendChild(checkbox);
 
     let title = document.createElement("span");

@@ -24,56 +24,17 @@ function set_up_db() {
     };
 }
 
-function save_sheet(sheet, title=null) {
-    let transaction = db.transaction("sheets", "readwrite");
-    let sheet_store = transaction.objectStore("sheets");
-
-    if (title === null) {
-        let n = 0;
-
-        function get_next_option() {
-            title = "untitled" + n.toString();
-            let request = sheet_store.get(title);
-
-            request.onsuccess = function (e) {
-                if (e.target.data !== undefined) {
-                    n += 1;
-                    get_next_option();    
-                }
-                else {
-                    _save_sheet();
-                }
-            };
-
-            request.onerror = function () {
-                _save_sheet();
-            };
-        }
-
-        get_next_option();
-    }
-    else {
-        _save_sheet();
-    }
-
-    function _save_sheet() {
-        let sheet_data = [];
-        sheet.querySelectorAll(".node").forEach(node => {
-            sheet_data.push(node_to_dict(node));
-        });
+function save_sheet(sheet, title=null, callback=null) {
+    let sheet_data = [];
+    sheet.querySelectorAll(".node").forEach(node => {
+        sheet_data.push(node_to_dict(node));
+    });
     
-        sheet_store.put({
-            title: title,
-            time: new Date().getTime(),
-            data: sheet_data
-        });    
-    }
-
-    transaction.oncomplete = function () {
-    };
-
-    transaction.onerror = function () {
-    };
+    insert_to_db({
+        title: title,
+        time: new Date().getTime(),
+        data: sheet_data
+    }, callback);    
 }
 
 function load_sheet(sheet, title) {
@@ -226,15 +187,33 @@ function download_sheet(sheet) {
     document.body.removeChild(a);
 }
 
-function upload_sheet(sheet, file) {
+function insert_to_db(sheet_obj, callback=null) {
+    let transaction = db.transaction("sheets", "readwrite");
+    let sheet_store = transaction.objectStore("sheets");
+
+    sheet_store.put(sheet_obj);
+
+    transaction.oncomplete = function () {
+        if (callback !== null) {
+            callback();
+        }
+        return true;
+    }
+
+    transaction.onerror = function () {
+        return false;
+    }
+}
+
+function upload_sheet(file, callback=null) {
     let file_reader = new FileReader();
     file_reader.onload = function (e) {
         try {
-            build_sheet(sheet, {
+            insert_to_db({
                 title: file,
                 time: new Date(file.lastModified).toLocaleDateString(locale),
                 data: JSON.parse(e.target.result)
-            });
+            }, callback);
         }
         catch {
             console.log("Failed to read.");
