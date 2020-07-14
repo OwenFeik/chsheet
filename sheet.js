@@ -574,6 +574,7 @@ function create_save_menu() {
     }
     
     let save = create_control("save.png", "background");
+    save.title = "Save";
     save.onclick = function () {
         if (header_input.value === "") {
             header_input.setCustomValidity("Title required to save.");
@@ -585,12 +586,6 @@ function create_save_menu() {
         }
     };
     header.appendChild(save);
-    
-    let download = create_control("down.png", "background");
-    download.onclick = function () {
-        download_sheet(sheet);
-    };
-    header.appendChild(download);
 
     let upload = document.createElement("div");
     upload.classList.add("control", "input_holder");
@@ -602,13 +597,17 @@ function create_save_menu() {
     upload.appendChild(upload_img);
 
     let upload_input = document.createElement("input");
+    upload_input.title = "Upload save";
     upload_input.type = "file";
+    upload_input.accept = ".json";
     upload.appendChild(upload_input);
     upload_input.oninput = function () {
-        upload_sheet(sheet, upload_input.files[0], reload_saves);
+        upload_sheet(upload_input.files[0], reload_saves);
+        reload_saves();
     }
 
     let close = create_control("cross.png", "background");
+    close.title = "Close";
     close.onclick = menu.hide;
     header.appendChild(close);
 
@@ -657,6 +656,21 @@ function create_save_list_item(save) {
     node_count.classList.add("label");
     node_count.innerText = save.data.length.toString() + " nodes";
     list_item.appendChild(node_count);
+
+    let trash = create_control("trash.png", "background");
+    trash.title = "Delete";
+    trash.onclick = function () {
+        delete_sheet(save.title);
+        list_item.remove();
+    };
+    list_item.appendChild(trash);
+    
+    let download = create_control("down.png", "background");
+    download.title = "Download";
+    download.onclick = function () {
+        download_sheet(save.title);
+    };
+    list_item.appendChild(download);
 
     return list_item;
 }

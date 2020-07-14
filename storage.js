@@ -38,16 +38,20 @@ function save_sheet(sheet, title=null, callback=null) {
 }
 
 function load_sheet(sheet, title) {
+    get_sheet_from_db(title, data => {
+        build_sheet(sheet, data);
+    });
+}
+
+function get_sheet_from_db(title, callback) {
     let sheet_store = db.transaction("sheets").objectStore("sheets");
     let request = sheet_store.get(title);
 
     request.onsuccess = function (e) {
-        build_sheet(sheet, e.target.result);
-        return true;
+        callback(e.target.result);
     };
 
     request.onerror = function (e) {
-        return false;
     };
 }
 
@@ -171,20 +175,31 @@ function build_sheet(sheet, save) {
     });
 }
 
-function download_sheet(sheet) {
-    let nodes = []
-    sheet.querySelectorAll(".node").forEach(node => {
-        nodes.push(node_to_dict(node));
+function download_sheet(title) {
+    get_sheet_from_db(title, sheet => {
+        let blob = new Blob([JSON.stringify(sheet.data)], {type: "text/plain"});
+
+        let a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `${title}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);    
     });
+}
 
-    let blob = new Blob([JSON.stringify(nodes)], {type: "text/plain"});
+function delete_sheet(title, callback=null) {
+    let store = db.transaction("sheets", "readwrite").objectStore("sheets");
+    let request = store.delete(title);
 
-    let a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "sheet.json";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    request.onsuccess = function () {
+        if (callback !== null) {
+            callback();
+        }
+    }
+
+    request.onerror = function () {
+    }
 }
 
 function insert_to_db(sheet_obj, callback=null) {
@@ -210,8 +225,8 @@ function upload_sheet(file, callback=null) {
     file_reader.onload = function (e) {
         try {
             insert_to_db({
-                title: file,
-                time: new Date(file.lastModified).toLocaleDateString(locale),
+                title: file.name.slice(0, -1 * ".json".length),
+                time: file.lastModified,
                 data: JSON.parse(e.target.result)
             }, callback);
         }
