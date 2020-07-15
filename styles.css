@@ -5,7 +5,6 @@
 
 #toolbar {
     position: relative;
-    grid-column: "2/3";
 }
 
 .tool {
@@ -77,6 +76,10 @@
     flex-grow: 0;
     margin-left: auto;
     order: 1;
+}
+
+.control {
+    cursor: pointer;
 }
 
 .header > .handle {
@@ -396,10 +399,12 @@
     border-radius: var(--border-rad);
     padding-left: 3px;
     padding-right: 3px;
+    overflow: hidden;
 }
 
-.save_list > .list_item > .label:first-of-type {
+.save_list > .list_item > .label.save_title {
     flex-grow: 1;
+    cursor: pointer;
 }
 
 .control.input_holder {

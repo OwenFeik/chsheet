@@ -604,7 +604,26 @@ function create_save_menu() {
     upload_input.oninput = function () {
         upload_sheet(upload_input.files[0], reload_saves);
         reload_saves();
-    }
+    };
+
+    let trash = create_control("trash.png", "background");
+    trash.title = "Delete selected";
+    trash.onclick = function () {
+        let saves_to_delete = [];
+        save_list.querySelectorAll(".list_item").forEach(e => {
+            let checkbox = e.querySelector(".checkbox");
+            if (checkbox.classList.contains("checked")) {
+                saves_to_delete.push(e.save_title);     
+            }
+        });
+
+        if (saves_to_delete.length) {
+            delete_sheets(saves_to_delete, reload_saves);
+            header_checkbox.click();
+        }
+    };
+    header.appendChild(trash);
+
 
     let close = create_control("cross.png", "background");
     close.title = "Close";
@@ -614,6 +633,7 @@ function create_save_menu() {
     let save_list = document.createElement("div");
     save_list.classList.add("save_list");
     menu.appendChild(save_list);
+
     function reload_saves() {
         save_list.querySelectorAll(".list_item").forEach(e => {
             e.remove();
@@ -637,14 +657,20 @@ function create_save_menu() {
 
 function create_save_list_item(save) {
     let list_item = document.createElement("div");
+    list_item.save_title = save.title;
     list_item.classList.add("list_item");
 
     let checkbox = create_checkbox(false);
     list_item.appendChild(checkbox);
 
     let title = document.createElement("span");
-    title.classList.add("label");
+    title.classList.add("label", "save_title");
+    title.title = `Load "${save.title}"`;
     title.innerText = save.title;
+    title.onclick = function () {
+        load_sheet(sheet, save.title);
+    };
+
     list_item.appendChild(title);
 
     let time = document.createElement("span");

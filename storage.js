@@ -202,11 +202,24 @@ function delete_sheet(title, callback=null) {
     }
 }
 
-function insert_to_db(sheet_obj, callback=null) {
+function delete_sheets(titles, callback=null) {
     let transaction = db.transaction("sheets", "readwrite");
     let sheet_store = transaction.objectStore("sheets");
 
-    sheet_store.put(sheet_obj);
+    transaction.oncomplete = function () {
+        if (callback !== null) {
+            callback();
+        }
+    };
+
+    titles.forEach(title => {
+        sheet_store.delete(title);
+    });
+}
+
+function insert_to_db(sheet_obj, callback=null) {
+    let transaction = db.transaction("sheets", "readwrite");
+    let sheet_store = transaction.objectStore("sheets");
 
     transaction.oncomplete = function () {
         if (callback !== null) {
@@ -218,6 +231,8 @@ function insert_to_db(sheet_obj, callback=null) {
     transaction.onerror = function () {
         return false;
     }
+
+    sheet_store.put(sheet_obj);
 }
 
 function upload_sheet(file, callback=null) {
