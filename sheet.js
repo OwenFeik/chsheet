@@ -292,6 +292,7 @@ function create_menu(node) {
             node.classList.add("locked");
             menu.replaceChild(unlock, lock);
             update_editable(node);
+            resize.end();
         }
     }
 
@@ -312,9 +313,13 @@ function create_menu(node) {
     };
 
     menu.appendChild(settings);
-    menu.appendChild(create_resize_menu_item());
+    
+    let resize = create_resize_menu_item();
+    resize.classList.add("toggle");
+    menu.appendChild(resize);
     
     let remove = create_menu_item("Delete", "cross.png");
+    remove.classList.add("toggle");
     remove.onclick = function () {
         node.remove();
     };
@@ -719,7 +724,7 @@ function create_menu_item(label, image) {
 }
 
 function create_resize_menu_item() {
-    function resize_node (node) {
+    function resize_node(node) {
         let ghost = document.createElement("div");
         ghost.classList.add("node_ghost");
         node.appendChild(ghost);
@@ -743,16 +748,24 @@ function create_resize_menu_item() {
     }
 
     function end_resize(node) {
-        node.querySelector(".node_ghost").remove();
-        node.querySelector(".resize_handle.bottom").remove();
-        node.querySelector(".resize_handle.right").remove();
-        node.querySelector(".header")
-            .querySelector(".handle").style.display = "none";
-        resize_to_grid(node);
-        snap_to_grid(node);
+        try {
+            node.querySelector(".node_ghost").remove();
+            node.querySelector(".resize_handle.bottom").remove();
+            node.querySelector(".resize_handle.right").remove();
+            node.querySelector(".header")
+                .querySelector(".handle").style.display = "none";
+            resize_to_grid(node);
+            snap_to_grid(node);    
+        }
+        catch {
+
+        }
     }
 
     let resize = create_menu_item("Resize", "resize.png");
+    resize.end = function () {
+        end_resize(resize.parentNode.parentNode);
+    };
     resize.resizing = false;
     resize.onclick = function () {
         resize.parentNode.close();
