@@ -11,6 +11,7 @@ function set_up_sheet() {
     let columnstring = (NODESIZE + "px ").repeat(node_qty).slice(0, -1);
     sheet.style.gridTemplateColumns = columnstring;
     sheet.style.gridTemplateRows = (NODESIZE + "px ").repeat(10).slice(0, -1);
+    sheet.title = "untitled";
 }
 
 function set_up_toolbar() {
@@ -56,6 +57,7 @@ function create_node(w, h, type = "text") {
     let title = document.createElement("span");
     title.classList.add("title");
     title.innerHTML = "Title";
+    title.title = "Title";
     header.appendChild(title);
 
     let handle = document.createElement("img");
@@ -127,14 +129,15 @@ function set_content_type(node, type = "text") {
         
         content.onkeydown = key_press_is_num;
 
-        let increment_btn = create_control("add.png", "toggle");
+        let increment_btn = create_control("add.png", "toggle", "background");
         increment_btn.onclick = function () {
             content.innerHTML 
                 = (parseInt(content.innerHTML, 10) + 1).toString();
         };
         header.appendChild(increment_btn);
 
-        let decrement_btn = create_control("subtract.png", "toggle");
+        let decrement_btn 
+            = create_control("subtract.png", "toggle", "background");
         decrement_btn.onclick = function () {
             content.innerHTML
                 = (parseInt(content.innerHTML, 10) - 1).toString();
@@ -151,7 +154,7 @@ function set_content_type(node, type = "text") {
             content.appendChild(create_list_item());            
         }
 
-        let add_btn = create_control("add.png", "toggle");
+        let add_btn = create_control("add.png", "toggle", "background");
         add_btn.onclick = add_item;
         header.appendChild(add_btn);
     }
@@ -163,7 +166,7 @@ function set_content_type(node, type = "text") {
 
         node.die_size = 20;
         
-        let roll_btn = create_control("die.png");
+        let roll_btn = create_control("die.png", "background");
         roll_btn.onclick = function () {
             content.innerText 
                 = Math.ceil(Math.random() * node.die_size).toString();
@@ -378,6 +381,7 @@ function create_settings(node) {
     title_input.value = node_title.innerText;
     title_input.oninput = function () {
         node_title.innerHTML = title_input.value;
+        node_title.title = title_input.value;
     };
     title.appendChild(title_input);
 

@@ -49,22 +49,25 @@
 }
 
 .node > .header {
+    margin-top: 2px;
     display: flex;
     flex-wrap: nowrap;
     flex-grow: 0;
     width: 100%;
+    align-items: center;
 }
 
 .header > .title {
     color: var(--fg-secondary);
     text-align: left;
-    padding: 5px;
+    padding-left: 3px;
     padding-bottom: 0px;
     font-weight: bolder;
     overflow: hidden;
     flex-grow: 1;
     white-space: nowrap;
     order: 0;
+    cursor: pointer;
 }
 
 .header > .control {
@@ -76,6 +79,11 @@
     flex-grow: 0;
     margin-left: auto;
     order: 1;
+    margin-left: 2px;
+}
+
+.header > .control:last-of-type {
+    margin-right: 2px;
 }
 
 .control {
@@ -224,7 +232,7 @@
 
 .icon.background {
     border-radius: var(--border-rad);
-    background-color: var(--bg-primary);
+    background-color: var(--bg-secondary);
     padding: 2px;
 }
 
@@ -320,6 +328,7 @@
     z-index: 250;
     width: 480px;
     padding: 10px;
+    font-size: 14px;
 }
 
 .panel_header {
@@ -345,9 +354,10 @@
     height: 18px;
 }
 
-.panel_header > .control {
+.panel .control {
     flex-grow: 0;
     margin-left: auto;
+    background-color: var(--bg-primary);
 }
 
 .panel_header > .control ~ .control {
@@ -388,7 +398,6 @@
     flex-grow: 0;
     width: 100%;
     padding: 5px;
-    font-size: 14px;
 }
 
 .save_list > .list_item:last-of-type {
@@ -403,8 +412,8 @@
     background-color: var(--bg-primary);
     height: 100%;
     border-radius: var(--border-rad);
-    padding-left: 3px;
-    padding-right: 3px;
+    padding-left: 5px;
+    padding-right: 5px;
     overflow: hidden;
     color: var(--fg-primary);
 }
@@ -440,6 +449,9 @@ input {
     background-color: var(--bg-secondary);
     color: var(--fg-primary);
     border: none;
+    font-family: inherit;
+    font-size: inherit;
+    padding-left: 5px;
 }
 
 select {
