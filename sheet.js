@@ -1,31 +1,45 @@
 const NODESIZE = 32;
 const GAP = 10; 
+const TOOLBAR_WIDTH = 80;
 
 function set_up_sheet() {    
     let sheet = document.getElementById("sheet");
 
-    let node_qty = Math.floor(sheet.offsetWidth / (NODESIZE + GAP));
+    let node_qty = Math.floor(
+        (sheet.offsetWidth - TOOLBAR_WIDTH) / (NODESIZE + GAP));
     sheet.style.width = node_qty * (NODESIZE + GAP) - GAP + "px";
     sheet.width = node_qty;
     sheet.style.gridGap = GAP + "px";
     let columnstring = (NODESIZE + "px ").repeat(node_qty).slice(0, -1);
     sheet.style.gridTemplateColumns = columnstring;
     sheet.style.gridTemplateRows = (NODESIZE + "px ").repeat(10).slice(0, -1);
-    sheet.title = "untitled";
+    sheet.save_title = "untitled";
 }
 
 function set_up_toolbar() {
     let toolbar = document.getElementById("toolbar");
+    let tools = document.getElementById("tools");
+
+    let toggle = document.getElementById("tools_toggle");
+    let toggle_img = document.createElement("img");
+    toggle_img.src = icon_path("chevron_down.png"); 
+    toggle.appendChild(toggle_img);
+    toggle.onclick = function () {
+        toolbar.classList.toggle("telescoped");
+    
+        toggle_img.src = toolbar.classList.contains("telescoped") ? 
+            icon_path("chevron_up.png") : icon_path("chevron_down.png");
+    };
 
     let add = create_tool("add.png");
-    toolbar.appendChild(add);
+    add.classList.add("toggle");
+    tools.appendChild(add);
     add.onclick = add_node_to_sheet;
 
     let save = create_tool("save.png");
-    toolbar.appendChild(save);
-
+    save.classList.add("toggle");
+    tools.appendChild(save);
     let save_menu = create_save_menu();
-
     save.onclick = function () {
         save_menu.show();
     };
@@ -570,7 +584,7 @@ function create_save_menu() {
     header.appendChild(header_checkbox);
 
     let header_input = document.createElement("input");
-    header_input.value = sheet.title;
+    header_input.value = sheet.save_title;
     header_input.minLength = 1;
     header_input.maxLength = 32;
     header.appendChild(header_input);
@@ -591,7 +605,7 @@ function create_save_menu() {
         }
         else {
             save_sheet(sheet, header_input.value, reload_saves);
-            sheet.title = header_input.value;
+            sheet.save_title = header_input.value;
         }
     };
     header.appendChild(save);
@@ -651,7 +665,9 @@ function create_save_menu() {
         get_all_sheets(data => {
             data.sort((a, b) => a.time - b.time);
             data.forEach(save_file => {
-                save_list.appendChild(create_save_list_item(save_file));
+                save_list.appendChild(create_save_list_item(save_file, () => {
+                    header_input.value = save_file.title;
+                }));
             });
         });
     }
@@ -664,7 +680,7 @@ function create_save_menu() {
     return menu;
 }
 
-function create_save_list_item(save) {
+function create_save_list_item(save, load_callback) {
     let list_item = document.createElement("div");
     list_item.save_title = save.title;
     list_item.classList.add("list_item");
@@ -677,7 +693,7 @@ function create_save_list_item(save) {
     title.title = `Load "${save.title}"`;
     title.innerText = save.title;
     title.onclick = function () {
-        load_sheet(sheet, save.title);
+        load_sheet(sheet, save.title, load_callback);
     };
 
     list_item.appendChild(title);

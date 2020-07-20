@@ -1,22 +1,44 @@
-#container {
-    display: grid;
-    grid-template-columns: 1fr 50px;
+#toolbar {
+    position: absolute;
+    display: flex;
+    top: 0px;
+    right: 10px;
+    flex-direction: column;
+    background-color: var(--bg-secondary);
+    align-items: center;
+    width: 40px;
+    height: 44px;
+    border-bottom-left-radius: var(--border-rad);
+    border-bottom-right-radius: var(--border-rad);
+    transition: all 0.5s;
 }
 
-#toolbar {
-    position: relative;
+#tools_toggle {
+    margin-top: 10px;
+}
+
+#tools {
+    overflow: hidden;    
+}
+
+#toolbar.telescoped {
+    height: 300px;
 }
 
 .tool {
-    position: relative;
     width: 50px;
     height: 50px;
     border: 5px var(--bg-primary);
     border-radius: var(--border-rad);
     background: var(--bg-primary);
     user-select: none;
-    margin: 5px;
+    margin-top: 10px;
+    flex-shrink: 0;
 }
+
+/* #toolbar:not(.telescoped) > #tools > .toggle {
+    display: none;
+} */
 
 #sheet {
     display: grid;
@@ -55,6 +77,7 @@
     flex-grow: 0;
     width: 100%;
     align-items: center;
+    justify-content: flex-end;
 }
 
 .header > .title {
@@ -452,25 +475,36 @@ input {
     font-family: inherit;
     font-size: inherit;
     padding-left: 5px;
+    outline: none;
 }
 
 select {
     background-color: var(--bg-secondary);
 }
 
-#fade.active {
+button {
+    outline: none;
+}
+
+#fade {
+    background-color: white;
     top: 0;
     left: 0;
     position: fixed;
     width: 100%;
     height: 100%;
-    background-color: white;
-    opacity: 10%;
     z-index: 200;
+    display: none;
+    opacity: 10%;
+}
+
+#fade.active {
+    display: block;
 }
 
 :root {
-    background-color: #171d27;
+    --bg-colour: #171d27;
+    background-color: var(--bg-colour);
     font-family: 'Open Sans';
     --bg-primary: #393e46;
     --bg-secondary: #222831;

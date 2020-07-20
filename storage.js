@@ -37,9 +37,10 @@ function save_sheet(sheet, title=null, callback=null) {
     }, callback);    
 }
 
-function load_sheet(sheet, title) {
+function load_sheet(sheet, title, callback) {
     get_sheet_from_db(title, data => {
         build_sheet(sheet, data);
+        callback();
     });
 }
 
