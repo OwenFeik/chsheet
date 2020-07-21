@@ -426,7 +426,7 @@ function create_settings(node) {
         if (new_width > 0) /* NaN > 0 === false */ {
             node.width = new_width;
             node.style.width = node_size(new_width) + "px";
-            snap_to_grid(node);
+            no_transition(node, () => { snap_to_grid(node) });
         }
     };
     dimensions.appendChild(width_input);
@@ -444,7 +444,7 @@ function create_settings(node) {
         if (new_height > 0) /* NaN > 0 === false */ {
             node.height = new_height;
             node.style.height = node_size(new_height) + "px";
-            snap_to_grid(node);
+            no_transition(node, () => { snap_to_grid(node) });
         }
     };
     dimensions.appendChild(height_input);
@@ -809,6 +809,7 @@ function make_resize_handle_draggable(el, node) {
     let x_direction = el.classList.contains("left") 
         || el.classList.contains("right");
     let ghost = node.querySelector(".node_ghost");
+    let minv = x_direction ? el.offsetLeft : el.offsetTop;
 
     el.onmousedown = start_drag;
 
@@ -818,12 +819,13 @@ function make_resize_handle_draggable(el, node) {
         let top = el.offsetTop;
         let left = el.offsetLeft;
 
-        el.style.position = "absolute";
-        el.style.top = top + "px";
-        el.style.left = left + "px";
-        el.style.width = node_size(el.width) + "px";
-        el.style.height = node_size(el.height) + "px";
-
+        no_transition(el, () => {
+            el.style.position = "absolute";
+            el.style.top = top + "px";
+            el.style.left = left + "px";
+            el.style.width = node_size(el.width) + "px";
+            el.style.height = node_size(el.height) + "px";
+        });
         v2 = x_direction ? e.clientX : e.clienty;
         
         document.onmouseup = end_drag;
@@ -837,19 +839,35 @@ function make_resize_handle_draggable(el, node) {
         v2 = x_direction ? e.clientX : e.clientY;
 
         if (x_direction) {
-            el.style.left = (el.offsetLeft - v1) + "px";
             let new_width = 
                 Math.max(parseInt(node.style.width, 10) - v1, NODESIZE);
-            node.style.width = new_width + "px";
+            if (new_width != NODESIZE) {
+                el.style.left = (el.offsetLeft - v1) + "px";
+            }
+            else {
+                start_drag(el);
+            }
+
+            no_transition(node, () => {
+                node.style.width = new_width + "px";
+            });
             ghost.style.width = new_width + 4 + "px";
             resize_to_grid(ghost, true, false);
             ghost.style.width = parseInt(ghost.style.width, 10) + 4 + "px";
         }
         else {
-            el.style.top = (el.offsetTop - v1) + "px";
             let new_height = 
                 Math.max(parseInt(node.style.height, 10) - v1, NODESIZE);
-            node.style.height = new_height + "px";
+            if (new_height != NODESIZE) {
+                el.style.top = (el.offsetTop - v1) + "px";
+            }
+            else {
+                start_drag(el);
+            }
+
+            no_transition(node, () => {
+                node.style.height = new_height + "px";
+            });
             ghost.style.height = new_height + 4 + "px";
             resize_to_grid(ghost, false, true);
             ghost.style.height = parseInt(ghost.style.height, 10) + 4 + "px";
@@ -919,9 +937,11 @@ function make_node_draggable(el) {
         y1 = y2 - e.clientY;
         x2 = e.clientX;
         y2 = e.clientY;
-
-        el.style.top = (el.offsetTop - y1) + "px";
-        el.style.left = (el.offsetLeft - x1) + "px";
+        
+        no_transition(el, () => {
+            el.style.top = (el.offsetTop - y1) + "px";
+            el.style.left = (el.offsetLeft - x1) + "px";
+        });
     }
 
     function end_drag() {
@@ -962,4 +982,12 @@ function fade_out() {
 
 function fade_in() {
     document.getElementById("fade").classList.remove("active");
+}
+
+function no_transition(el, func) {
+    let old = el.style.transition;
+    el.style.transition = "none";
+    func();
+    el.offsetHeight;
+    el.style.transition = old;
 }

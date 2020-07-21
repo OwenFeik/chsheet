@@ -168,7 +168,7 @@ function node_from_dict(dict) {
 
 function build_sheet(sheet, save) {
     sheet.innerHTML = "";
-    sheet.title = save.title;
+    sheet.save_title = save.title;
     save.data.forEach(n => {
         let node = node_from_dict(n);
         sheet.appendChild(node);
