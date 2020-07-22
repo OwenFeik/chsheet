@@ -7,14 +7,20 @@
     background-color: var(--bg-secondary);
     align-items: center;
     width: 40px;
-    height: 44px;
+    height: 40px;
     border-bottom-left-radius: var(--border-rad);
     border-bottom-right-radius: var(--border-rad);
     transition: all 0.5s;
 }
 
 #tools_toggle {
-    margin-top: 10px;
+    margin-top: 5px;
+    transition: all 0.5s;
+    cursor: pointer;
+}
+
+#toolbar.telescoped > #tools_toggle {
+    transform: rotate(180deg);
 }
 
 #tools {
@@ -34,11 +40,8 @@
     user-select: none;
     margin-top: 10px;
     flex-shrink: 0;
+    cursor: pointer;
 }
-
-/* #toolbar:not(.telescoped) > #tools > .toggle {
-    display: none;
-} */
 
 #sheet {
     display: grid;

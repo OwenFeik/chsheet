@@ -1,6 +1,6 @@
 const NODESIZE = 32;
-const GAP = 10; 
-const TOOLBAR_WIDTH = 80;
+const GAP = 10;
+const TOOLBAR_WIDTH = 70; 
 
 function set_up_sheet() {    
     let sheet = document.getElementById("sheet");
@@ -26,9 +26,6 @@ function set_up_toolbar() {
     toggle.appendChild(toggle_img);
     toggle.onclick = function () {
         toolbar.classList.toggle("telescoped");
-    
-        toggle_img.src = toolbar.classList.contains("telescoped") ? 
-            icon_path("chevron_up.png") : icon_path("chevron_down.png");
     };
 
     let add = create_tool("add.png");
@@ -93,7 +90,7 @@ function create_node(w, h, type = "text") {
     };
 
     document.getElementById("sheet").appendChild(node);
-    snap_to_grid(node);
+    position_node(node);
 
     return node;
 }
@@ -972,6 +969,36 @@ function snap_to_grid(e, x = null, y = null) {
     e.style.gridRow = y + "/" + (y + e.height);
 }
 
+function parse_grid_area(node) {
+    let x1 = parseInt(node.style.gridColumnStart);
+    let x2 = parseInt(node.style.gridColumnEnd);
+    let y1 = parseInt(node.style.gridRowStart);
+    let y2 = parseInt(node.style.gridRowEnd);
+
+    return [x1, x2, y1, y2];
+}
+
+function position_node(node) {
+    let sheet = document.getElementById("sheet");
+    snap_to_grid(node);
+    refresh_css(node);
+
+    let [x1, x2, y1, y2] = parse_grid_area(node);
+
+    sheet.querySelectorAll(".node").forEach(n => {
+        if (n == node) {
+            return;
+        }
+
+        let [nx1, nx2, ny1, ny2] = parse_grid_area(n);
+
+        if ((x2 > nx1 && x1 < nx2) && (y2 > ny1 && y1 < ny2)) {
+            // if possible, position to the right of this node, else
+            // position down
+        }
+    });
+}
+
 function icon_path(name) {
     return "icons/" + name;
 }
@@ -984,10 +1011,14 @@ function fade_in() {
     document.getElementById("fade").classList.remove("active");
 }
 
+function refresh_css(el) {
+    el.offsetHeight;
+}
+
 function no_transition(el, func) {
     let old = el.style.transition;
     el.style.transition = "none";
     func();
-    el.offsetHeight;
+    refresh_css(el);
     el.style.transition = old;
 }
