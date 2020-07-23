@@ -5,14 +5,29 @@ const TOOLBAR_WIDTH = 70;
 function set_up_sheet() {    
     let sheet = document.getElementById("sheet");
 
-    let node_qty = Math.floor(
-        (sheet.offsetWidth - TOOLBAR_WIDTH) / (NODESIZE + GAP));
-    sheet.style.width = node_qty * (NODESIZE + GAP) - GAP + "px";
-    sheet.width = node_qty;
-    sheet.style.gridGap = GAP + "px";
-    let columnstring = (NODESIZE + "px ").repeat(node_qty).slice(0, -1);
-    sheet.style.gridTemplateColumns = columnstring;
-    sheet.style.gridTemplateRows = (NODESIZE + "px ").repeat(10).slice(0, -1);
+    sheet.resize = function () {
+        if (sheet.width === 0) {
+            sheet.width = Math.floor(
+                (sheet.offsetWidth - TOOLBAR_WIDTH) / (NODESIZE + GAP));    
+        }
+        if (sheet.height === 0) {
+            sheet.height = Math.min(
+                Math.floor(sheet.offsetHeight / (NODESIZE + GAP)), 10);
+        }
+        
+        sheet.style.width = sheet.width * (NODESIZE + GAP) - GAP + "px";
+        sheet.style.gridGap = GAP + "px";
+        sheet.style.gridTemplateColumns = 
+            (NODESIZE + "px ").repeat(sheet.width).slice(0, -1);
+        sheet.style.gridTemplateRows = 
+            (NODESIZE + "px ").repeat(sheet.height).slice(0, -1);
+            
+    };
+
+    sheet.width = 0;
+    sheet.height = 10;
+    sheet.resize();
+
     sheet.save_title = "untitled";
 }
 
@@ -955,6 +970,12 @@ function snap_to_grid(e, x = null, y = null) {
     }
     if (y == null) {
         y = Math.round(e.offsetTop / (NODESIZE + GAP)) + 1;
+    }
+
+    let sheet = document.getElementById("sheet");
+    if (y > sheet.height) {
+        sheet.height = y + e.height;
+        sheet.resize();
     }
 
     while (x + e.width - 1> e.parentNode.width) {
