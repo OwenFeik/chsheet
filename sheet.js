@@ -8,11 +8,11 @@ function set_up_sheet() {
     sheet.resize = function () {
         if (sheet.width === 0) {
             sheet.width = Math.floor(
-                (sheet.offsetWidth - TOOLBAR_WIDTH) / (NODESIZE + GAP));    
+                (window.innerWidth - TOOLBAR_WIDTH) / (NODESIZE + GAP));    
         }
         if (sheet.height === 0) {
-            sheet.height = Math.min(
-                Math.floor(sheet.offsetHeight / (NODESIZE + GAP)), 10);
+            sheet.height = Math.max(
+                Math.floor(window.innerHeight / (NODESIZE + GAP)), 10);
         }
         
         sheet.style.width = sheet.width * (NODESIZE + GAP) - GAP + "px";
@@ -27,6 +27,12 @@ function set_up_sheet() {
     sheet.width = 0;
     sheet.height = 10;
     sheet.resize();
+
+    window.onresize = function () {
+        sheet.width = 0;
+        sheet.resize();
+    };
+
 
     sheet.save_title = "untitled";
 }
@@ -55,6 +61,13 @@ function set_up_toolbar() {
     save.onclick = function () {
         save_menu.show();
     };
+
+    let settings = create_tool("cog.png");
+    let settings_panel = create_document_settings();
+    settings.onclick = function () {
+        settings_panel.show();
+    };
+    tools.appendChild(settings);
 }
 
 function create_tool(icon) {
@@ -66,6 +79,23 @@ function create_tool(icon) {
     tool.appendChild(img);
 
     return tool;
+}
+
+function create_document_settings() {
+    let panel = document.getElementById("document_settings");
+    panel.innerHTML = "";
+    panel.style.display = "none";
+    panel.show = function () {
+        fade_out();
+        panel.style.display = "block";
+    };
+    panel.hide = function () {
+        fade_in();
+        panel.style.display = "none";
+    };
+    panel.classList.add("panel");
+
+    return panel;
 }
 
 function create_node(w, h, type = "text") {
@@ -370,7 +400,7 @@ function create_menu(node) {
 function node_settings(node) {
     let settings = node.querySelector(".settings"); 
     if (!settings) {
-        settings = create_settings(node); 
+        settings = create_node_settings(node); 
     }
 
     function click_off_settings (e) {
@@ -385,7 +415,7 @@ function node_settings(node) {
     settings.style.visibility = "visible";
 }
 
-function create_settings(node) {
+function create_node_settings(node) {
     let header = node.querySelector(".header");
     let content = node.querySelector(".content");
 
