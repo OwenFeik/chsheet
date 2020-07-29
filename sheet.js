@@ -95,6 +95,34 @@ function create_document_settings() {
     };
     panel.classList.add("panel");
 
+    let header = document.createElement("div");
+    header.classList.add("panel_header");
+    panel.appendChild(header);
+
+    let title = document.createElement("span");
+    title.classList.add("title");
+    title.innerText = "Settings";
+    header.appendChild(title);
+
+    let close = create_control("cross.png", "background");
+    close.onclick = panel.hide;
+    header.appendChild(close);
+
+    let settings = document.createElement("div");
+    settings.classList.add("settings")
+    panel.appendChild(settings);
+    
+    let node_size = document.createElement("div");
+    node_size.classList.add("setting");
+    settings.appendChild(node_size);
+    
+    let node_size_label = document.createElement("span");
+    node_size_label.innerText = "Block size"
+    node_size_label.classList.add("label");
+    node_size.appendChild(node_size_label);
+    
+    
+
     return panel;
 }
 
