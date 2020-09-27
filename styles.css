@@ -235,14 +235,14 @@
     left: 50%;
     bottom: -20px;
     transform: translate(-50%, 0);
-    cursor: n-resize;
+    cursor: s-resize;
 }
 
 .resize_handle.left {
     left: -20px;
     top: 50%;
     transform: translate(0, -50%);
-    cursor: e-resize;
+    cursor: w-resize;
 }
 
 .resize_handle.right {

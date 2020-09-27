@@ -2,6 +2,22 @@ const NODESIZE = 32;
 const GAP = 10;
 const TOOLBAR_WIDTH = 70; 
 
+function set_up_shortcuts() {
+    document.onkeydown = function (e) {
+        // https://stackoverflow.com/a/19589671
+
+        if (e.key == "Backspace" && !(e.target.tagName == "INPUT" ||
+            e.target.contentEditable == "true")) {
+
+            e.preventDefault();
+        }
+        else if (e.key == "s" && e.ctrlKey) {
+            e.preventDefault();
+            document.getElementById("save_menu").show();
+        }
+    }
+}
+
 function set_up_sheet() {    
     let sheet = document.getElementById("sheet");
 

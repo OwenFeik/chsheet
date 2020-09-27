@@ -86,8 +86,11 @@ function node_to_dict(node) {
         locked: node.classList.contains("locked")
     }
 
-    if (node.type === "text" || node.type === "number") {
+    if (node.type === "text") {
         node_info.content = node_content.innerText;
+    }
+    else if (node.type === "number") {
+        node_info.content = node_content.replace("\n", "")
     }
     else if (node.type === "list") {
         let list_items = [];
@@ -178,7 +181,10 @@ function build_sheet(sheet, save) {
 
 function download_sheet(title) {
     get_sheet_from_db(title, sheet => {
-        let blob = new Blob([JSON.stringify(sheet.data)], {type: "text/plain"});
+        let blob = new Blob(
+            [JSON.stringify(sheet.data)], 
+            {type: "text/plain"}
+        );
 
         let a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
