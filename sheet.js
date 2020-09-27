@@ -15,7 +15,7 @@ function set_up_shortcuts() {
             e.preventDefault();
             document.getElementById("save_menu").show();
         }
-    }
+    };
 }
 
 function set_up_sheet() {    
@@ -136,8 +136,6 @@ function create_document_settings() {
     node_size_label.innerText = "Block size"
     node_size_label.classList.add("label");
     node_size.appendChild(node_size_label);
-    
-    
 
     return panel;
 }
@@ -159,6 +157,17 @@ function create_node(w, h, type = "text") {
     title.innerHTML = "Title";
     title.title = "Title";
     header.appendChild(title);
+
+    title.ondblclick = function () {
+        title.contentEditable = "true";
+        title.focus();
+
+        title.onblur = function () {
+            title.contentEditable = "false";
+            title.scrollLeft = 0; // display from left end of title
+            title.onblur = null;
+        }
+    };
 
     let handle = document.createElement("img");
     handle.classList.add("handle", "icon", "control");
