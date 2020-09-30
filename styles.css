@@ -82,7 +82,6 @@
     width: 100%;
     align-items: center;
     justify-content: flex-end;
-    min-height: 20px;
     overflow: hidden;
 }
 
@@ -98,6 +97,7 @@
     order: 0;
     cursor: pointer;
     user-select: none;
+    min-height: 20px;
 }
 
 .header > .control {
