@@ -83,6 +83,7 @@
     align-items: center;
     justify-content: flex-end;
     overflow: hidden;
+    top: 0;
 }
 
 .node > .header > .title {
@@ -91,13 +92,16 @@
     padding-left: 3px;
     padding-bottom: 0px;
     font-weight: bolder;
-    overflow: hidden;
     flex-grow: 1;
     white-space: nowrap;
     order: 0;
     cursor: pointer;
     user-select: none;
     min-height: 20px;
+    line-height: 20px;
+    overflow-x: hidden;
+    overflow-y: visible;
+    top: 0;
 }
 
 .header > .control {
@@ -191,7 +195,7 @@
 }
 
 .content.list > .list_item > .checkbox {
-    margin-left: 5px;
+    margin-left: 2px;
 }
 
 .node > .content.list:not(.checkboxes_active) > .list_item > .checkbox {
