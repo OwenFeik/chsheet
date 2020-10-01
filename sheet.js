@@ -49,8 +49,10 @@ function set_up_sheet() {
         sheet.resize();
     };
 
-
     sheet.save_title = "untitled";
+    // window.onbeforeunload = function (e) {
+    //     save_sheet(sheet, sheet.save_title);
+    // };
 }
 
 function set_up_toolbar() {
@@ -181,10 +183,80 @@ function create_node(w, h, type = "text") {
     set_content_type(node, type);
 
     make_node_draggable(node);
+    make_node_resizeable(node);
 
     node.oncontextmenu = function (e) {
         e.preventDefault();
-        node_menu(node);
+        close_all_menus();
+        create_context_menu(
+            node,
+            [
+                [
+                    "lock.png",
+                    "Lock",
+                    function (item) {
+                        if (node.classList.contains("locked")) {
+                            node.classList.remove("locked");
+                            item.querySelector(".icon").src =
+                                icon_path("lock.png");
+                            item.querySelector(".label").innerHTML = "Lock";
+                        }
+                        else {
+                            node.classList.add("locked");
+                            item.querySelector(".icon").src = 
+                                icon_path("unlock.png");
+                            item.querySelector(".label").innerHTML = "Unlock";
+                            node.end_resize();
+                        }
+                        update_editable(node);
+                    },
+                    false
+                ],
+                [
+                    "resize.png",
+                    "Resize",
+                    function (item) {
+                        let label = item.querySelector(".label");
+                        if (node.resizing) {
+                            node.end_resize();
+                            label.innerHTML = "Resize";
+                        }
+                        else {
+                            node.resize();
+                            label.innerHTML = "Finish";
+                        }
+                        node.resizing = !node.resizing;
+                    },
+                    true
+                ],
+                [
+                    "cog.png",
+                    "Settings",
+                    function (item) {
+                        node_settings(node);
+                    },
+                    false
+                ],
+                [
+                    "cross.png",
+                    "Delete",
+                    function (item) {
+                        node.remove()
+                    },
+                    true
+                ],
+                [
+                    "clone.png",
+                    "Clone",
+                    function (item) {
+                        let new_node = node_from_dict(node_to_dict(node));
+                        new_node.style.gridArea = "";
+                        snap_to_grid(new_node);
+                        document.getElementById("sheet").appendChild(new_node);
+                    }
+                ]
+            ]
+        )
     };
 
     document.getElementById("sheet").appendChild(node);
@@ -260,11 +332,31 @@ function set_content_type(node, type = "text") {
         content.style.fontSize = "10pt";
         
         function add_item() {
-            content.appendChild(create_list_item());            
+            content.appendChild(create_list_item());
         }
 
         let add_btn = create_control("add.png", "toggle", "background");
         add_btn.onclick = add_item;
+        create_context_menu(
+            add_btn,
+            [
+                [
+                    "add.png",
+                    "Add item",
+                    function (item) {
+                        add_item();
+                    }
+                ],
+                [
+                    "handle.png",
+                    "Add break",
+                    function (item) {
+                        content.appendChild(create_list_break());
+                    }
+                ]
+            ]
+        );
+
         header.appendChild(add_btn);
     }
     else if (type === "die") {
@@ -336,6 +428,18 @@ function create_list_item(content="New item") {
     return new_item;
 }
 
+function create_list_break(title="Break") {
+    let new_break = document.createElement("div");
+    new_break.classList.add("list_item", "list_break");
+    
+    let break_title = document.createElement("span");
+    break_title.classList.add("title");
+    break_title.innerHTML = title;
+    new_break.appendChild(break_title);
+
+    return new_break;
+}
+
 function create_checkbox(checked=true) {
     let checkbox = document.createElement("div");
     checkbox.classList.add("checkbox");
@@ -358,96 +462,6 @@ function create_checkbox(checked=true) {
 
 function node_size(k) {
     return k * NODESIZE + (k - 1) * GAP;    
-}
-
-function node_menu(node) {
-    let menu = node.querySelector(".menu");
-    if (!menu) {
-        menu = create_menu(node);
-    }
-    else {
-        menu.style.visibility = "visible";
-    }
-
-    function click_off_menu(e) {
-        if (e.target == menu || menu.contains(e.target)) {
-            return;
-        }
-        menu.close();
-    }
-
-    function close_menu() {
-        menu.style.visibility = "hidden";
-        window.removeEventListener("click", click_off_menu);
-    }
-
-    menu.close = close_menu;
-
-    window.addEventListener("click", click_off_menu);
-}
-
-function create_menu(node) {
-    let menu = document.createElement("div");
-    menu.classList.add("menu");
-    node.appendChild(menu);
-
-    let unlock = create_menu_item("Unlock", "unlock.png");
-    let lock = create_menu_item("Lock", "lock.png");
-
-    function toggle_locked(e) {
-        if (node.classList.contains("locked")) {
-            node.classList.remove("locked");
-            menu.replaceChild(lock, unlock);
-            update_editable(node);
-        }
-        else {
-            node.classList.add("locked");
-            menu.replaceChild(unlock, lock);
-            update_editable(node);
-            resize.end();
-        }
-    }
-
-    unlock.onclick = toggle_locked;
-    lock.onclick = toggle_locked;
-
-    if (node.classList.contains("locked")) {
-        menu.appendChild(unlock); 
-    }
-    else {
-        menu.appendChild(lock);
-    }
-
-    let settings = create_menu_item("Settings", "cog.png");
-    settings.onclick = function () {
-        node_settings(node);
-        menu.close();
-    };
-
-    menu.appendChild(settings);
-    
-    let resize = create_resize_menu_item();
-    resize.classList.add("toggle");
-    menu.appendChild(resize);
-    
-    let remove = create_menu_item("Delete", "cross.png");
-    remove.classList.add("toggle");
-    remove.onclick = function () {
-        node.remove();
-    };
-    menu.appendChild(remove);
-
-    let clone = create_menu_item("Clone", "clone.png");
-    clone.onclick = function () {
-        let new_node = node_from_dict(node_to_dict(node));
-        new_node.style.gridArea = "";
-        snap_to_grid(new_node);
-        document.getElementById("sheet").appendChild(new_node);
-        menu.close();
-    };
-    menu.appendChild(clone);
-
-    return menu;
 }
 
 function node_settings(node) {
@@ -795,7 +809,7 @@ function create_save_list_item(save, load_callback) {
 
     let time = document.createElement("span");
     time.classList.add("label");
-    time.innerText = new Date(save.time).toLocaleDateString('en-AU');
+    time.innerText = new Date(save.time).toLocaleDateString("en-AU");
     list_item.appendChild(time);
 
     let node_count = document.createElement("span");
@@ -821,25 +835,71 @@ function create_save_list_item(save, load_callback) {
     return list_item;
 }
 
-function create_menu_item(label, image) {
-    let item = document.createElement("div");
-    item.classList.add("menuitem");
-
-    let img = document.createElement("img");
-    img.classList.add("icon");
-    img.src = icon_path(image);
-    item.appendChild(img);
-
-    let text = document.createElement("span");
-    text.classList.add("label");
-    text.innerHTML = label;
-    item.appendChild(text);
-
-    return item;
+function close_all_menus() {
+    document.querySelectorAll(".menu").forEach(menu => {
+        menu.close();
+    });
 }
 
-function create_resize_menu_item() {
-    function resize_node(node) {
+function create_context_menu(parent, item_tuples) {
+    let menu = document.createElement("div");
+    menu.classList.add("menu");
+    parent.appendChild(menu);
+
+    item_tuples.forEach(tuple => {
+        let [icon_name, title, func, toggled] = tuple;        
+
+        let item = document.createElement("div");
+        item.classList.add("menuitem");
+    
+        let icon = document.createElement("img");
+        icon.classList.add("icon");
+        icon.src = icon_path(icon_name);
+        item.appendChild(icon);
+    
+        let label = document.createElement("span");
+        label.classList.add("label");
+        label.innerHTML = title;
+        item.appendChild(label);
+
+        if (toggled) {
+            item.classList.add("toggle");
+        }
+    
+        item.onclick = function () {
+            menu.close();
+            func(item);
+        }
+
+        menu.appendChild(item);
+    });
+
+    function click_off_menu(e) {
+        if (!(e.target == menu || menu.contains(e.target))) {
+            menu.close();
+        }
+    }
+
+    function close_menu() {
+        menu.style.visibility = "hidden";
+        window.removeEventListener("click", click_off_menu);
+    }
+
+    menu.close = close_menu;
+
+    parent.oncontextmenu = function (e) {
+        console.log(parent);
+        e.stopPropagation();
+        e.preventDefault();
+        // close_all_menus();
+        menu.style.visibility = "visible";
+        console.log(menu);
+        window.addEventListener("click", click_off_menu);
+    }
+}
+
+function make_node_resizeable(node) {
+    node.resize = function () {
         let ghost = document.createElement("div");
         ghost.classList.add("node_ghost");
         node.appendChild(ghost);
@@ -862,7 +922,7 @@ function create_resize_menu_item() {
         node.appendChild(right);
     }
 
-    function end_resize(node) {
+    node.end_resize = function () {
         try {
             node.querySelector(".node_ghost").remove();
             node.querySelector(".resize_handle.bottom").remove();
@@ -877,26 +937,7 @@ function create_resize_menu_item() {
         }
     }
 
-    let resize = create_menu_item("Resize", "resize.png");
-    resize.end = function () {
-        end_resize(resize.parentNode.parentNode);
-    };
-    resize.resizing = false;
-    resize.onclick = function () {
-        resize.parentNode.close();
-        let label = resize.querySelector(".label");
-        if (resize.resizing) {
-            end_resize(resize.parentNode.parentNode);
-            label.innerHTML = "Resize";
-        }
-        else {
-            resize_node(resize.parentNode.parentNode);
-            label.innerHTML = "Finish";
-        }
-        resize.resizing = !resize.resizing;
-    };
-
-    return resize;
+    node.resizing = false;
 }
 
 function make_resize_handle_draggable(el, node) {

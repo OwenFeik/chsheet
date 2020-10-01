@@ -90,7 +90,7 @@ function node_to_dict(node) {
         node_info.content = node_content.innerText;
     }
     else if (node.type === "number") {
-        node_info.content = node_content.innerText.replace("\n", "");
+        node_info.content = node_content.innerText.replace(/\n/g, "");
     }
     else if (node.type === "list") {
         let list_items = [];
