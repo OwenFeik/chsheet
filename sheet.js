@@ -181,12 +181,14 @@ function create_node(w, h, type = "text") {
     node.oncontextmenu = function (e) {
         e.preventDefault();
         close_all_menus();
-        let menu = create_context_menu(
+        create_context_menu(
             node,
             [
                 [
-                    "lock.png",
-                    "Lock",
+                    node.classList.contains("locked") ?
+                        "unlock.png" : "lock.png",
+                    node.classList.contains("locked") ?
+                        "Unlock": "Lock",
                     function (item) {
                         if (node.classList.contains("locked")) {
                             node.classList.remove("locked");
@@ -325,14 +327,16 @@ function set_content_type(node, type = "text") {
         content.contentEditable = false;
         content.style.fontSize = "10pt";
         
-        function add_item(is_break=false) {
+        function add_item(is_break) {
             let new_item = is_break ? create_list_break() : create_list_item();
             new_item.style.order = content.children.length;
             content.appendChild(new_item);
         }
 
         let add_btn = create_control("add.png", "toggle", "background");
-        add_btn.onclick = add_item;
+        add_btn.onclick = function () {
+            add_item(false);
+        };
         create_context_menu(
             add_btn,
             [
@@ -340,7 +344,7 @@ function set_content_type(node, type = "text") {
                     "add.png",
                     "Item",
                     function (item) {
-                        add_item();
+                        add_item(false);
                     }
                 ],
                 [
@@ -948,6 +952,8 @@ function make_double_click_editable(el) {
         if (parent_node_locked(el)) {
             return;
         }
+
+        el.tabIndex = "0";
 
         el.contentEditable = "true";
         el.focus();
