@@ -160,16 +160,7 @@ function create_node(w, h, type = "text") {
     title.title = "Title";
     header.appendChild(title);
 
-    title.ondblclick = function () {
-        title.contentEditable = "true";
-        title.focus();
-
-        title.onblur = function () {
-            title.contentEditable = "false";
-            title.scrollLeft = 0; // display from left end of title
-            title.onblur = null;
-        }
-    };
+    make_double_click_editable(title);
 
     let handle = document.createElement("img");
     handle.classList.add("handle", "icon", "control");
@@ -188,7 +179,7 @@ function create_node(w, h, type = "text") {
     node.oncontextmenu = function (e) {
         e.preventDefault();
         close_all_menus();
-        create_context_menu(
+        let menu = create_context_menu(
             node,
             [
                 [
@@ -255,7 +246,8 @@ function create_node(w, h, type = "text") {
                         document.getElementById("sheet").appendChild(new_node);
                     }
                 ]
-            ]
+            ],
+            true
         )
     };
 
@@ -332,6 +324,7 @@ function set_content_type(node, type = "text") {
         content.style.fontSize = "10pt";
         
         function add_item() {
+            console.log('yeet');
             content.appendChild(create_list_item());
         }
 
@@ -379,13 +372,22 @@ function set_content_type(node, type = "text") {
     node.classList.add(type + "_content");
 }
 
+function create_icon(icon_name) {
+    let container = document.createElement("div");
+    let icon = document.createElement("img");
+    icon.src = icon_path(icon_name);
+    icon.classList.add("icon");
+    container.appendChild(icon);
+    
+    return container;
+}
+
 function create_control(image, ...classes) {
-    let btn = document.createElement("img");
-    btn.classList.add("icon", "control");
+    let btn = create_icon(image);
+    btn.classList.add("control");
     classes.forEach(c => {
         btn.classList.add(c);
     });
-    btn.src = icon_path(image);
 
     return btn;
 }
@@ -433,9 +435,11 @@ function create_list_break(title="Break") {
     new_break.classList.add("list_item", "list_break");
     
     let break_title = document.createElement("span");
-    break_title.classList.add("title");
+    break_title.classList.add("title", "list_item_content");
     break_title.innerHTML = title;
     new_break.appendChild(break_title);
+
+    make_double_click_editable(break_title);
 
     return new_break;
 }
@@ -841,9 +845,12 @@ function close_all_menus() {
     });
 }
 
-function create_context_menu(parent, item_tuples) {
+function create_context_menu(parent, item_tuples, visible=false) {
     let menu = document.createElement("div");
     menu.classList.add("menu");
+    if (!visible) {
+        menu.style.visibility = "hidden";
+    }
     parent.appendChild(menu);
 
     item_tuples.forEach(tuple => {
@@ -866,7 +873,8 @@ function create_context_menu(parent, item_tuples) {
             item.classList.add("toggle");
         }
     
-        item.onclick = function () {
+        item.onclick = function (e) {
+            e.stopPropagation();
             menu.close();
             func(item);
         }
@@ -880,22 +888,51 @@ function create_context_menu(parent, item_tuples) {
         }
     }
 
-    function close_menu() {
+    menu.close = function () {
         menu.style.visibility = "hidden";
         window.removeEventListener("click", click_off_menu);
     }
 
-    menu.close = close_menu;
-
-    parent.oncontextmenu = function (e) {
-        console.log(parent);
-        e.stopPropagation();
-        e.preventDefault();
-        // close_all_menus();
+    menu.show = function () {
         menu.style.visibility = "visible";
-        console.log(menu);
         window.addEventListener("click", click_off_menu);
     }
+
+    menu.onclick = function (e) {
+        e.stopPropagation();
+    }
+    
+    parent.oncontextmenu = function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        close_all_menus();
+        menu.show();
+    }
+}
+
+function parent_node_locked(el) {
+    while (!el.classList.contains("node")) {
+        el = el.parentNode;
+    }
+
+    return el.classList.contains("locked");
+}
+
+function make_double_click_editable(el) {
+    el.ondblclick = function () {
+        if (parent_node_locked(el)) {
+            return;
+        }
+
+        el.contentEditable = "true";
+        el.focus();
+
+        el.onblur = function () {
+            el.contentEditable = "false";
+            el.scrollLeft = 0; // display from left end of title
+            el.onblur = null;
+        };
+    };
 }
 
 function make_node_resizeable(node) {
