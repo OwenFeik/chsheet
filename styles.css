@@ -120,8 +120,11 @@
 }
 
 .header > .handle {
-    cursor: move;
     order: 2;
+}
+
+.handle {
+    cursor: move;
 }
 
 .node > .content {
@@ -157,14 +160,11 @@
 .node > .content.list > .list_item {
     background-color: var(--bg-secondary);
     height: 24px;
-    margin-top: 5px;
+    margin-bottom: 5px;
     border-radius: var(--border-rad);
     display: flex;
+    flex-direction: row;
     align-items: center;
-}
-
-.node > .content.list > .list_item:first-of-type {
-    margin-top: 0px;
 }
 
 .node > .content.list > .list_item > .list_item_content {
@@ -183,9 +183,27 @@
     color: var(--fg-secondary);
 }
 
-.node > .content.list > .list_item > .control {
-    margin-left: auto;
-    margin-right: 5px;
+.node > .content.list > .list_item .controls_box {
+    display: none;
+}
+
+.node > .content.list > .list_item:hover .controls_box {
+    display: flex;
+}
+
+.list_item .controls_box {
+    display: flex;
+    flex-direction: row;
+    justify-content: right;
+    justify-self: end;
+}
+
+.list_item .handle {
+    cursor: ns-resize;
+}
+
+.controls_box > .control {
+    margin-left: 0px;
 }
 
 .node.controls_inactive > .content.list > .list_item > .control.toggle {
@@ -524,6 +542,10 @@
 
 .rounded {
     border-radius: var(--border-rad);
+}
+
+.padding {
+    flex: 1;
 }
 
 .control > input {

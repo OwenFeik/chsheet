@@ -1,6 +1,8 @@
 const NODESIZE = 32;
 const GAP = 10;
-const TOOLBAR_WIDTH = 70; 
+const TOOLBAR_WIDTH = 70;
+const NODE_HEADER_HEIGHT = 20;
+const LIST_ITEM_HEIGHT = 24;
 
 function set_up_shortcuts() {
     document.onkeydown = function (e) {
@@ -289,11 +291,11 @@ function set_content_type(node, type = "text") {
 
         function key_press_is_num(e) {
             if (
-                event.keyCode === 8 /* Backspace */ 
-                || event.keyCode === 9 /* Tab */
-                || (event.keyCode >= 48 && event.keyCode <= 57) /* 0-9 */
-                || (event.keyCode >= 37 && event.keyCode <= 40) /* Arrows */
-                || (event.key == "+" || event.key == "-")
+                e.keyCode === 8 /* Backspace */ 
+                || e.keyCode === 9 /* Tab */
+                || (e.keyCode >= 48 && e.keyCode <= 57) /* 0-9 */
+                || (e.keyCode >= 37 && e.keyCode <= 40) /* Arrows */
+                || (e.key == "+" || e.key == "-")
             ) {
                 return;
             }
@@ -323,9 +325,9 @@ function set_content_type(node, type = "text") {
         content.contentEditable = false;
         content.style.fontSize = "10pt";
         
-        function add_item() {
-            console.log('yeet');
-            content.appendChild(create_list_item());
+        function add_item(is_break=false) {
+            let new_item = is_break ? create_list_break() : create_list_item();
+            content.appendChild(new_item);
         }
 
         let add_btn = create_control("add.png", "toggle", "background");
@@ -335,16 +337,16 @@ function set_content_type(node, type = "text") {
             [
                 [
                     "add.png",
-                    "Add item",
+                    "Item",
                     function (item) {
                         add_item();
                     }
                 ],
                 [
                     "handle.png",
-                    "Add break",
+                    "Break",
                     function (item) {
-                        content.appendChild(create_list_break());
+                        add_item(true);
                     }
                 ]
             ]
@@ -407,6 +409,23 @@ function update_editable(node) {
     }
 }
 
+function create_list_item_controls_box(item) {
+    let controls_box = document.createElement("div");
+    controls_box.classList.add("padding", "controls_box");
+
+    let handle = create_control("handle.png", "handle");
+    make_list_item_draggable(item, handle);
+    controls_box.appendChild(handle);
+
+    let remove_btn = create_control("cross.png", "control", "toggle");
+    remove_btn.onclick = function () {
+        item.remove();
+    };
+    controls_box.append(remove_btn);
+
+    return controls_box;
+}
+
 function create_list_item(content="New item") {
     let new_item = document.createElement("div");
     new_item.classList.add("list_item");
@@ -419,13 +438,7 @@ function create_list_item(content="New item") {
     item_content.innerText = content;
     new_item.append(item_content);
 
-    let remove_btn = document.createElement("img");
-    remove_btn.classList.add("icon", "control", "toggle");
-    remove_btn.src = icon_path("cross.png");
-    remove_btn.onclick = function () {
-        new_item.remove();
-    };
-    new_item.append(remove_btn);
+    new_item.appendChild(create_list_item_controls_box(new_item));
 
     return new_item;
 }
@@ -433,13 +446,22 @@ function create_list_item(content="New item") {
 function create_list_break(title="Break") {
     let new_break = document.createElement("div");
     new_break.classList.add("list_item", "list_break");
-    
+
+    let left_padding = document.createElement("div");
+    left_padding.classList.add("padding");
+    new_break.appendChild(left_padding);
+
     let break_title = document.createElement("span");
     break_title.classList.add("title", "list_item_content");
     break_title.innerHTML = title;
+    make_double_click_editable(break_title);
     new_break.appendChild(break_title);
 
-    make_double_click_editable(break_title);
+    let right_padding = document.createElement("div");
+    right_padding.classList.add("padding");
+    new_break.appendChild(right_padding);
+
+    right_padding.appendChild(create_list_item_controls_box(new_break));
 
     return new_break;
 }
@@ -518,6 +540,8 @@ function create_node_settings(node) {
     title_active.oninput = function () {
         node_title.style.display 
             = title_active.checked ? "inline" : "none";
+        header.style.minHeight
+            = title_active.checked ? `${NODE_HEADER_HEIGHT}px` : "0px";
     };
     title.appendChild(title_active);
 
@@ -933,6 +957,44 @@ function make_double_click_editable(el) {
             el.onblur = null;
         };
     };
+}
+
+function make_list_item_draggable(el, handle) {
+    let ymin, list_content;
+
+    function start_drag(e) {
+        e.preventDefault();
+        
+        list_content = el.parentNode;
+        ymin = list_content.getBoundingClientRect().top;
+
+        document.onmouseup = end_drag;
+        document.onmousemove = drag;
+    }
+
+    function drag(e) {
+        e.preventDefault();
+
+        let new_index = Math.min(
+            Math.max(Math.floor((e.clientY - ymin) / LIST_ITEM_HEIGHT), 0),
+            list_content.children.length
+        );
+        let old_index = el.style.order;
+        
+        for (let item of list_content.children) {
+            if (item.style.order == new_index) {
+                item.style.order = old_index;
+            }
+        }
+        el.style.order = new_index;
+    }
+
+    function end_drag() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+    }
+
+    handle.onmousedown = start_drag;
 }
 
 function make_node_resizeable(node) {

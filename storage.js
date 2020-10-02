@@ -94,12 +94,23 @@ function node_to_dict(node) {
     }
     else if (node.type === "list") {
         let list_items = [];
-        node_content.querySelectorAll(".list_item").forEach(i => {
-            list_items.push({
-                content: i.querySelector(".list_item_content").innerText,
-                checkbox_checked: i.querySelector(".checkbox")
-                    .classList.contains("checked")
-            });
+        Array.prototype.slice.call(node_content.children).sort((a, b) =>
+            (a.style.order - b.style.order)
+        ).forEach(i => {
+            if (i.classList.contains("list_break")) {
+                list_items.push({
+                    type: "break",
+                    title: i.querySelector(".title").innerText
+                });
+            }
+            else {
+                list_items.push({
+                    type: "item",
+                    content: i.querySelector(".list_item_content").innerText,
+                    checkbox_checked: i.querySelector(".checkbox")
+                        .classList.contains("checked")
+                });
+            }
         });
         
         node_info.content = {
@@ -128,6 +139,9 @@ function node_from_dict(dict) {
     let title = header.querySelector(".title");
     let content = node.querySelector(".content");
 
+    header.style.minHeight
+        = dict.title_active ? `${NODE_HEADER_HEIGHT}px` : "0px";
+
     title.innerText = dict.title;
     title.style.display = dict.title_active ? "inline" : "none";
 
@@ -150,14 +164,25 @@ function node_from_dict(dict) {
         }
 
         dict.content.items.forEach(i => {
-            let list_item = create_list_item(i.content);
-            let checkbox = list_item.querySelector(".checkbox");
-            checkbox.value = i.checkbox_checked;
-            if (!checkbox.value) {
-                checkbox.classList.remove("checked");
+            let new_item;
+            
+            if (i.type === "break") {
+                new_item = create_list_break(i.title)
+            }
+            else {
+                // old save files have no breaks and no type fields
+                // this allows them to still be loaded
+
+                new_item = create_list_item(i.content);
+                let checkbox = new_item.querySelector(".checkbox");
+                checkbox.value = i.checkbox_checked;
+                if (!checkbox.value) {
+                    checkbox.classList.remove("checked");
+                }
             }
 
-            content.appendChild(list_item);
+            new_item.style.order = content.children.length;
+            content.appendChild(new_item);
         });
     }
     else if (dict.type === "die") {
