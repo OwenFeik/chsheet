@@ -327,6 +327,7 @@ function set_content_type(node, type = "text") {
         
         function add_item(is_break=false) {
             let new_item = is_break ? create_list_break() : create_list_item();
+            new_item.style.order = content.children.length;
             content.appendChild(new_item);
         }
 
