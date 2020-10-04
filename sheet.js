@@ -2,7 +2,7 @@ const NODESIZE = 32;
 const GAP = 10;
 const TOOLBAR_WIDTH = 70;
 const NODE_HEADER_HEIGHT = 20;
-const LIST_ITEM_HEIGHT = 24;
+const LIST_ITEM_HEIGHT = 29;
 
 function set_up_shortcuts() {
     document.onkeydown = function (e) {
@@ -418,7 +418,7 @@ function create_list_item_controls_box(item) {
     let controls_box = document.createElement("div");
     controls_box.classList.add("padding", "controls_box");
 
-    let handle = create_control("handle.png", "handle");
+    let handle = create_control("handle.png", "handle", "toggle");
     make_list_item_draggable(item, handle);
     controls_box.appendChild(handle);
 
@@ -973,7 +973,7 @@ function make_list_item_draggable(el, handle) {
         e.preventDefault();
         
         list_content = el.parentNode;
-        ymin = list_content.getBoundingClientRect().top;
+        ymin = list_content.getBoundingClientRect().top + window.pageYOffset;
 
         document.onmouseup = end_drag;
         document.onmousemove = drag;
@@ -982,10 +982,13 @@ function make_list_item_draggable(el, handle) {
     function drag(e) {
         e.preventDefault();
 
+        let offset = e.pageY + list_content.scrollTop - ymin;
+
         let new_index = Math.min(
-            Math.max(Math.floor((e.clientY - ymin) / LIST_ITEM_HEIGHT), 0),
+            Math.max(Math.floor(offset / LIST_ITEM_HEIGHT), 0),
             list_content.children.length
         );
+
         let old_index = el.style.order;
         
         for (let item of list_content.children) {
