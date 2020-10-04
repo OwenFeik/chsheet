@@ -409,7 +409,10 @@ function update_editable(node) {
         node.querySelector(".content").querySelectorAll(".list_item")
             .forEach(i => {
             
-            i.querySelector(".list_item_content").contentEditable = editable;
+            let text = i.querySelector(".list_item_content:not(.title)");
+            if (text) {
+                text.contentEditable = editable;
+            } 
         });
     }
 }
@@ -948,17 +951,21 @@ function parent_node_locked(el) {
 }
 
 function make_double_click_editable(el) {
+    el.contentEditable = "false";
+    el.spellcheck = "false";
+    el.tabIndex = "0";
+
     el.ondblclick = function () {
         if (parent_node_locked(el)) {
             return;
         }
 
-        el.tabIndex = "0";
-
+        el.spellcheck = "true";
         el.contentEditable = "true";
         el.focus();
 
         el.onblur = function () {
+            el.spellcheck = "false";
             el.contentEditable = "false";
             el.scrollLeft = 0; // display from left end of title
             el.onblur = null;
@@ -1050,11 +1057,10 @@ function make_node_resizeable(node) {
 }
 
 function make_resize_handle_draggable(el, node) {
-    let v1 = 0, v2 = 0;
+    let dv = 0, mv = 0;
     let x_direction = el.classList.contains("left") 
         || el.classList.contains("right");
     let ghost = node.querySelector(".node_ghost");
-    let minv = x_direction ? el.offsetLeft : el.offsetTop;
 
     el.onmousedown = start_drag;
 
@@ -1071,7 +1077,7 @@ function make_resize_handle_draggable(el, node) {
             el.style.width = node_size(el.width) + "px";
             el.style.height = node_size(el.height) + "px";
         });
-        v2 = x_direction ? e.clientX : e.clienty;
+        mv = x_direction ? e.clientX : e.clientY;
         
         document.onmouseup = end_drag;
         document.onmousemove = drag;
@@ -1080,17 +1086,14 @@ function make_resize_handle_draggable(el, node) {
     function drag(e) {
         e.preventDefault();
 
-        v1 = v2 - (x_direction ? e.clientX : e.clientY);
-        v2 = x_direction ? e.clientX : e.clientY;
+        dv = mv - (x_direction ? e.clientX : e.clientY);
+        mv = x_direction ? e.clientX : e.clientY;
 
         if (x_direction) {
             let new_width = 
-                Math.max(parseInt(node.style.width, 10) - v1, NODESIZE);
+                Math.max(parseInt(node.style.width) - dv, NODESIZE);
             if (new_width != NODESIZE) {
-                el.style.left = (el.offsetLeft - v1) + "px";
-            }
-            else {
-                start_drag(el);
+                el.style.left = (el.offsetLeft - dv) + "px";
             }
 
             no_transition(node, () => {
@@ -1098,16 +1101,13 @@ function make_resize_handle_draggable(el, node) {
             });
             ghost.style.width = new_width + 4 + "px";
             resize_to_grid(ghost, true, false);
-            ghost.style.width = parseInt(ghost.style.width, 10) + 4 + "px";
+            ghost.style.width = parseInt(ghost.style.width) + 4 + "px";
         }
         else {
             let new_height = 
-                Math.max(parseInt(node.style.height, 10) - v1, NODESIZE);
+                Math.max(parseInt(node.style.height, 10) - dv, NODESIZE);
             if (new_height != NODESIZE) {
-                el.style.top = (el.offsetTop - v1) + "px";
-            }
-            else {
-                start_drag(el);
+                el.style.top = (el.offsetTop - dv) + "px";
             }
 
             no_transition(node, () => {
@@ -1115,7 +1115,7 @@ function make_resize_handle_draggable(el, node) {
             });
             ghost.style.height = new_height + 4 + "px";
             resize_to_grid(ghost, false, true);
-            ghost.style.height = parseInt(ghost.style.height, 10) + 4 + "px";
+            ghost.style.height = parseInt(ghost.style.height) + 4 + "px";
         }
     }
 

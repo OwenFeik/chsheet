@@ -55,7 +55,6 @@
     display: flex;
     flex-direction: column;
     transition: all 0.2s;
-    z-index: 0;
 }
 
 .node_ghost {
@@ -160,6 +159,7 @@
 .node > .content.list > .list_item {
     background-color: var(--bg-secondary);
     height: 24px;
+    min-height: 24px;
     margin-bottom: 5px;
     border-radius: var(--border-rad);
     display: flex;
@@ -180,7 +180,10 @@
 }
 
 .node > .content.list > .list_item.list_break > .title {
+    min-height: 1em;
+    min-width: 20px;
     color: var(--fg-secondary);
+    white-space: nowrap;
 }
 
 .node > .content.list > .list_item .controls_box {
