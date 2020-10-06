@@ -202,6 +202,7 @@ function build_sheet(sheet, save) {
         sheet.appendChild(node);
         snap_to_grid(node, n.x, n.y);
     });
+    set_document_title(save.title);
 }
 
 function download_sheet(title) {

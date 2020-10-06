@@ -52,6 +52,7 @@ function set_up_sheet() {
     };
 
     sheet.save_title = "untitled";
+    set_document_title(sheet.save_title);
     // window.onbeforeunload = function (e) {
     //     save_sheet(sheet, sheet.save_title);
     // };
@@ -274,7 +275,12 @@ function set_content_type(node, type = "text") {
     });
 
     content.onkeydown = null;
-    content.classList.remove("text", "number", "list");
+
+    ["text", "number", "list", "die", "image"].forEach(c => {
+        content.classList.remove(c);
+        node.classList.remove(c + "_content");
+    });
+    
     if (type === "text") {
         content.classList.add("text");
         content.innerHTML = "Lorem ipsum dolor sit amet";
@@ -373,6 +379,15 @@ function set_content_type(node, type = "text") {
                 = Math.ceil(Math.random() * node.die_size).toString();
         };
         header.appendChild(roll_btn);
+    }
+    else if (type === "image") {
+        content.classList.add("image");
+        content.innerHTML = "";
+        content.contentEditable = false;
+
+        let image = document.createElement("img");
+        image.src = icon_path("cross.png");
+        content.appendChild(image);
     }
 
     node.type = type;
@@ -604,7 +619,7 @@ function create_node_settings(node) {
     type.appendChild(type_label);
 
     let type_dropdown = document.createElement("select");
-    [ "text", "number", "list", "die" ].forEach(t => {
+    ["text", "number", "list", "die", "image"].forEach(t => {
         let option = document.createElement("option");
         option.innerHTML = t;
         type_dropdown.appendChild(option);
@@ -629,7 +644,7 @@ function create_node_settings(node) {
     type.appendChild(controls_active);
 
     let font = document.createElement("div");
-    font.classList.add("setting");
+    font.classList.add("setting", "font_content");
     settings.appendChild(font);
 
     let font_label = document.createElement("span");
@@ -682,6 +697,78 @@ function create_node_settings(node) {
         node.die_size = die_size_input.value;
     };
     die_size.appendChild(die_size_input);
+
+    let image_src = create_element("div", ["setting", "image_content"]);
+    settings.appendChild(image_src);
+
+    let image_src_label = create_element("span", ["label"]);
+    image_src_label.innerHTML = "Image";
+    image_src.appendChild(image_src_label);
+    
+    let image_src_input = create_element("input");
+    image_src_input.value = icon_path("cross.png");
+    image_src_input.oninput = function () {
+        let img = create_element("img");
+        let src = image_src_input.value;
+
+        img.onload = function () {
+            let image = content.querySelector("img");
+            image.src = src;
+            img.onload = null;
+            image_src_input.setCustomValidity("");
+        };
+
+        img.onerror = function () {
+            image_src_input.setCustomValidity("Image not found.");
+        }
+
+        img.src = src;
+    };
+    image_src_input.onblur = function () {
+        image_src_input.setCustomValidity("");
+        image_src_input.content = content.querySelector("img").src;
+    };
+    image_src.appendChild(image_src_input);
+
+    let image_src_upload = create_element("div", ["control", "input_holder"]);
+    image_src.appendChild(image_src_upload);
+
+    let image_src_upload_img = create_element("img", ["icon", "background"]);
+    image_src_upload_img.src = icon_path("up.png");
+    image_src_upload.appendChild(image_src_upload_img);
+
+    let image_src_upload_input = create_element("input");
+    image_src_upload_input.title = "Upload image";
+    image_src_upload_input.type = "file";
+    image_src_upload_input.accept = "image/*";
+    image_src_upload.appendChild(image_src_upload_input);
+    image_src_upload_input.oninput = function () {
+        let file_reader = new FileReader();
+
+        image_src_upload_input.files[0]
+    };
+
+    let image_mode = document.createElement("div");
+    image_mode.classList.add("setting", "image_content");
+    settings.appendChild(image_mode);
+
+    let image_mode_label = document.createElement("span");
+    image_mode_label.classList.add("label");
+    image_mode_label.innerHTML = "Image mode";
+    image_mode.appendChild(image_mode_label);
+
+    let image_mode_dropdown = document.createElement("select");
+    ["contain", "cover", "fill"].forEach(m => {
+        let option = document.createElement("option");
+        option.innerHTML = m;
+        image_mode_dropdown.appendChild(option);
+    });
+    image_mode_dropdown.value = "cover";
+    image_mode_dropdown.onchange = function () {
+        let image = content.querySelector("img");
+        image.style.objectFit = image_mode_dropdown.value;
+    };
+    image_mode.appendChild(image_mode_dropdown);
 
     node.appendChild(settings);
 
@@ -1275,4 +1362,20 @@ function no_transition(el, func) {
     func();
     refresh_css(el);
     el.style.transition = old;
+}
+
+function set_document_title(text="") {
+    document.title = "chsheet: " + text;
+}
+
+function create_element(tagname, classes) {
+    let el = document.createElement(tagname);
+
+    if (classes) {
+        classes.forEach(c => {
+            el.classList.add(c);
+        });
+    }
+
+    return el;
 }
