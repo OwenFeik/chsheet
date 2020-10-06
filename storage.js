@@ -21,6 +21,12 @@ function set_up_db() {
 
         sheet_store.createIndex("time", "time");
         sheet_store.createIndex("data", "data");
+
+        let blob_store = db.createObjectStore(
+            "blobs",
+            { keyPath: "title" }
+        );
+        blob_store.createIndex("blob", "blob");
     };
 }
 
@@ -124,6 +130,25 @@ function node_to_dict(node) {
             die_size: node.die_size
         }
     }
+    else if (node.type === "image") {
+        let image = node_content.querySelector("img");
+        let isLocal = image.src.startsWith("blob:null/");
+
+        // For a local image, uri is the name it is saved under in db
+        // for an external image it is the actual uri of the image.
+
+        node_info.content = {
+            uri: isLocal ? image.imageName : image.src,
+            blob: isLocal,
+            crop: image.src.objectFit ? image.src.objectFit : "cover"
+        }
+
+        console.log(node_info.content)
+
+        if (isLocal) {
+            save_image(image.imageName, image.src);
+        }
+    }
 
     return node_info;
 }
@@ -187,6 +212,21 @@ function node_from_dict(dict) {
     }
     else if (dict.type === "die") {
         node.die_size = dict.content.die_size;
+    }
+    else if (dict.type === "image") {
+        let image = node.querySelector("img");
+
+        image.style.objectFit = dict.content.crop;
+
+        if (!dict.content.blob) {
+            image.src = dict.content.uri;
+        }
+        else {
+            load_image(dict.content.uri, uri => {
+                image.imageName = dict.content.uri;
+                image.src = uri;
+            });
+        }
     }
 
     update_editable(node);
@@ -266,6 +306,53 @@ function insert_to_db(sheet_obj, callback=null) {
     }
 
     sheet_store.put(sheet_obj);
+}
+
+async function save_image(imageName, localURI) {
+    let reader = new FileReader();
+
+    reader.onload = function (e) {
+        console.log(e.target.result);
+        insert_blob({
+            title: imageName,
+            blob: e.target.result
+        });
+    }
+
+    reader.readAsArrayBuffer(await fetch(localURI).then(r => r.blob()));
+}
+
+async function load_image(imageName, doWithImage) {
+    let transaction = db.transaction("blobs", "readonly");
+    let blob_store = transaction.objectStore("blobs");
+
+    transaction.oncomplete = function (e) {
+        doWithImage(window.URL.createObjectURL(new Blob([e.target.result])));
+    }
+
+    transaction.onerror = function () {
+        console.log("ah fuck");
+    }
+
+    blob_store.get(imageName);
+}
+
+function insert_blob(blob_obj, callback=null) {
+    let transaction = db.transaction("blobs", "readwrite");
+    let blob_store = transaction.objectStore("blobs");
+
+    transaction.oncomplete = function () {
+        if (callback !== null) {
+            callback();
+        }
+        return true;
+    }
+
+    transaction.onerror = function () {
+        return false;
+    }
+
+    blob_store.put(blob_obj);
 }
 
 function upload_sheet(file, callback=null) {

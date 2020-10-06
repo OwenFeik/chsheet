@@ -743,9 +743,15 @@ function create_node_settings(node) {
     image_src_upload_input.accept = "image/*";
     image_src_upload.appendChild(image_src_upload_input);
     image_src_upload_input.oninput = function () {
+        let file = image_src_upload_input.files[0];
         let file_reader = new FileReader();
-
-        image_src_upload_input.files[0]
+        file_reader.onloadend = function () {
+            let image = content.querySelector("img"); 
+            image.src
+                = window.URL.createObjectURL(new Blob([file_reader.result]));
+            image.imageName = file.name;
+        }
+        file_reader.readAsArrayBuffer(file);
     };
 
     let image_mode = document.createElement("div");
@@ -754,7 +760,7 @@ function create_node_settings(node) {
 
     let image_mode_label = document.createElement("span");
     image_mode_label.classList.add("label");
-    image_mode_label.innerHTML = "Image mode";
+    image_mode_label.innerHTML = "Cropping";
     image_mode.appendChild(image_mode_label);
 
     let image_mode_dropdown = document.createElement("select");
