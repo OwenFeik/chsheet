@@ -9,7 +9,7 @@ function set_up_db() {
 
     request.onsuccess = function () {
         db = request.result; 
-        get_all_sheets(update_image_store);
+        document.getElementById("save_menu").reload_saves();
     };
 
     request.onupgradeneeded = function (e) {

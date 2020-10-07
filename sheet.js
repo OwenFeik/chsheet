@@ -749,8 +749,25 @@ function create_node_settings(node) {
             let image = content.querySelector("img"); 
             image.src
                 = window.URL.createObjectURL(new Blob([file_reader.result]));
-            image.image_name = file.name;
-        }
+            
+            // ensure a unique image_name, so that it isn't overwritten in db
+            let image_names = document.getElementById("save_menu").image_names;
+            if (image_names.indexOf(file.name) >= 0) {
+                name = file.name.replace(/\.\w+$/, "");
+                ext = file.name.replace(/^\w+/, "");
+
+                let i = 1;
+                while (image_names.indexOf(`${name}${i}${ext}`) >= 0) {
+                    i += 1;
+                }
+                image.image_name = `${name}${i}${ext}`;
+            }
+            else {
+                image.image_name = file.name;
+            }
+
+            image_src_input.value = image.image_name;
+        };
         file_reader.readAsArrayBuffer(file);
     };
 
@@ -797,6 +814,7 @@ function create_save_menu() {
         menu.style.display = "none";
     };
     menu.classList.add("panel");
+    menu.image_names = []; 
 
     let header = document.createElement("div");
     header.classList.add("panel_header");
@@ -885,7 +903,6 @@ function create_save_menu() {
     };
     header.appendChild(trash);
 
-
     let close = create_control("cross.png", "background");
     close.title = "Close";
     close.onclick = menu.hide;
@@ -901,6 +918,7 @@ function create_save_menu() {
         });
 
         get_all_sheets(data => {
+            menu.image_names = update_image_store(data);
             data.sort((a, b) => a.time - b.time);
             data.forEach(save_file => {
                 save_list.appendChild(create_save_list_item(save_file, () => {
@@ -909,6 +927,7 @@ function create_save_menu() {
             });
         });
     }
+    menu.reload_saves = reload_saves;
 
     let empty = document.createElement("span");
     empty.classList.add("label");
