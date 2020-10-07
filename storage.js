@@ -8,7 +8,8 @@ function set_up_db() {
     };
 
     request.onsuccess = function () {
-       db = request.result; 
+        db = request.result; 
+        get_all_sheets(update_image_store);
     };
 
     request.onupgradeneeded = function (e) {
@@ -138,15 +139,13 @@ function node_to_dict(node) {
         // for an external image it is the actual uri of the image.
 
         node_info.content = {
-            uri: isLocal ? image.imageName : image.src,
+            uri: isLocal ? image.image_name : image.src,
             blob: isLocal,
             crop: image.src.objectFit ? image.src.objectFit : "cover"
         }
 
-        console.log(node_info.content)
-
         if (isLocal) {
-            save_image(image.imageName, image.src);
+            save_image(image.image_name, image.src);
         }
     }
 
@@ -214,7 +213,7 @@ function node_from_dict(dict) {
         node.die_size = dict.content.die_size;
     }
     else if (dict.type === "image") {
-        let image = node.querySelector("img");
+        let image = content.querySelector("img");
 
         image.style.objectFit = dict.content.crop;
 
@@ -223,7 +222,7 @@ function node_from_dict(dict) {
         }
         else {
             load_image(dict.content.uri, uri => {
-                image.imageName = dict.content.uri;
+                image.image_name = dict.content.uri;
                 image.src = uri;
             });
         }
@@ -269,10 +268,7 @@ function delete_sheet(title, callback=null) {
         if (callback !== null) {
             callback();
         }
-    }
-
-    request.onerror = function () {
-    }
+    };
 }
 
 function delete_sheets(titles, callback=null) {
@@ -290,6 +286,42 @@ function delete_sheets(titles, callback=null) {
     });
 }
 
+// iterates across all saves, noting which images are in use
+// then deletes images not used in any saves, and returns a list
+// of reserved image names. 
+function update_image_store(all_sheets) {
+    let image_names = [];
+
+    all_sheets.forEach(s => {
+        s.data.forEach(n => {
+            if (n.type === "image" && n.content.blob) {
+                if (image_names.indexOf(n.content.uri) < 0) {
+                    image_names.push(n.content.uri);
+                }
+            }
+        });
+    });
+
+    let transaction = db.transaction("blobs", "readwrite");
+    let blob_store = transaction.objectStore("blobs");
+    let cursor_request = blob_store.openCursor();
+
+    cursor_request.onsuccess = function (e) {
+        let cursor = e.target.result;
+        
+        if (cursor) {
+            if (image_names.indexOf(cursor.value.title) < 0) {
+                blob_store.delete(cursor.value.title);
+                console.log("deleted "+ cursor.value.title);
+            }
+
+            cursor.continue();
+        }
+    };
+
+    return image_names;
+}
+
 function insert_to_db(sheet_obj, callback=null) {
     let transaction = db.transaction("sheets", "readwrite");
     let sheet_store = transaction.objectStore("sheets");
@@ -299,42 +331,31 @@ function insert_to_db(sheet_obj, callback=null) {
             callback();
         }
         return true;
-    }
+    };
 
     transaction.onerror = function () {
         return false;
-    }
+    };
 
     sheet_store.put(sheet_obj);
 }
 
-async function save_image(imageName, localURI) {
-    let reader = new FileReader();
-
-    reader.onload = function (e) {
-        console.log(e.target.result);
-        insert_blob({
-            title: imageName,
-            blob: e.target.result
-        });
-    }
-
-    reader.readAsArrayBuffer(await fetch(localURI).then(r => r.blob()));
+async function save_image(image_name, local_uri) {
+    insert_blob({
+        title: image_name,
+        blob: await fetch(local_uri).then(r => r.blob())
+    });
 }
 
-async function load_image(imageName, doWithImage) {
+async function load_image(image_name, doWithImage) {
     let transaction = db.transaction("blobs", "readonly");
     let blob_store = transaction.objectStore("blobs");
 
-    transaction.oncomplete = function (e) {
-        doWithImage(window.URL.createObjectURL(new Blob([e.target.result])));
-    }
+    let request = blob_store.get(image_name);
 
-    transaction.onerror = function () {
-        console.log("ah fuck");
-    }
-
-    blob_store.get(imageName);
+    request.onsuccess = function (e) {
+        doWithImage(window.URL.createObjectURL(e.target.result.blob));
+    };
 }
 
 function insert_blob(blob_obj, callback=null) {
@@ -346,11 +367,11 @@ function insert_blob(blob_obj, callback=null) {
             callback();
         }
         return true;
-    }
+    };
 
     transaction.onerror = function () {
         return false;
-    }
+    };
 
     blob_store.put(blob_obj);
 }
@@ -368,7 +389,7 @@ function upload_sheet(file, callback=null) {
         catch {
             console.log("Failed to read.");
         }
-    }
+    };
     
     file_reader.readAsText(file, "UTF-8");
 }

@@ -749,7 +749,7 @@ function create_node_settings(node) {
             let image = content.querySelector("img"); 
             image.src
                 = window.URL.createObjectURL(new Blob([file_reader.result]));
-            image.imageName = file.name;
+            image.image_name = file.name;
         }
         file_reader.readAsArrayBuffer(file);
     };
