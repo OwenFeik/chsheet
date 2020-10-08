@@ -579,6 +579,7 @@ function create_node_settings(node) {
 
     let width_input = document.createElement("input");
     width_input.type = "number";
+    width_input.min = "1";
     width_input.value = node.width.toString();
     width_input.oninput = function () {
         let new_width = parseInt(width_input.value, 10);
@@ -598,6 +599,7 @@ function create_node_settings(node) {
 
     let height_input = document.createElement("input");
     height_input.type = "number";
+    height_input.min = "1";
     height_input.value = node.height.toString();
     height_input.oninput = function () {
         let new_height = parseInt(height_input.value, 10);
@@ -706,7 +708,13 @@ function create_node_settings(node) {
     image_src.appendChild(image_src_label);
     
     let image_src_input = create_element("input");
-    image_src_input.value = icon_path("cross.png");
+    let image = content.querySelector("img");
+    if (image) {
+        image_src_input.value = image.src;    
+    }
+    else {
+        image_src_input.value = icon_path("cross.png");
+    }
     image_src_input.oninput = function () {
         let img = create_element("img");
         let src = image_src_input.value;
@@ -919,7 +927,7 @@ function create_save_menu() {
 
         get_all_sheets(data => {
             menu.image_names = update_image_store(data);
-            data.sort((a, b) => a.time - b.time);
+            data.sort((a, b) => b.time - a.time);
             data.forEach(save_file => {
                 save_list.appendChild(create_save_list_item(save_file, () => {
                     header_input.value = save_file.title;
@@ -1000,16 +1008,13 @@ function create_context_menu(parent, item_tuples, visible=false) {
     item_tuples.forEach(tuple => {
         let [icon_name, title, func, toggled] = tuple;        
 
-        let item = document.createElement("div");
-        item.classList.add("menuitem");
+        let item = create_element("div", ["menuitem"]);
     
-        let icon = document.createElement("img");
-        icon.classList.add("icon");
+        let icon = create_element("img", ["icon", "background"]);
         icon.src = icon_path(icon_name);
         item.appendChild(icon);
     
-        let label = document.createElement("span");
-        label.classList.add("label");
+        let label = create_element("span", ["label"]);
         label.innerHTML = title;
         item.appendChild(label);
 

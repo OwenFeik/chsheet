@@ -312,7 +312,6 @@ function update_image_store(all_sheets) {
         if (cursor) {
             if (image_names.indexOf(cursor.value.title) < 0) {
                 blob_store.delete(cursor.value.title);
-                console.log("deleted "+ cursor.value.title);
             }
 
             cursor.continue();

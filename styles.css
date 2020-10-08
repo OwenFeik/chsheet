@@ -112,6 +112,7 @@
     order: 1;
     width: 20px;
     height: 20px;
+    border-radius: var(--border-rad);
 }
 
 .control {
@@ -380,21 +381,24 @@
     border-radius: var(--border-rad);
     background: var(--bg-primary);
     margin: 5px;
-    display: grid;
-    grid-template-columns: 26px 1fr;
+    display: flex;
+    flex-direction: row;
     position: relative;
     font-size: 12px;
     color: var(--fg-secondary);
     user-select: none;
     text-align: left;
+    align-items: center;
 }
 
 .menuitem > .icon {
-    padding: 5px;
+    margin: 2px;
+    flex-grow: 0;
 }
 
 .menuitem > .label {
-    padding: 5px;
+    margin: 2px;
+    flex-grow: 1;
 }
 
 .panel {
