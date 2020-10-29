@@ -588,6 +588,11 @@ function create_node_settings(node) {
             node.width = new_width;
             node.style.width = node_size(new_width) + "px";
             no_transition(node, () => { snap_to_grid(node) });
+
+            let ghost = node.querySelector(".node_ghost");
+            if (ghost) {
+                ghost.update(node_size(new_width), -1);
+            }
         }
     };
     dimensions.appendChild(width_input);
@@ -607,6 +612,11 @@ function create_node_settings(node) {
             node.height = new_height;
             node.style.height = node_size(new_height) + "px";
             no_transition(node, () => { snap_to_grid(node) });
+
+            let ghost = node.querySelector(".node_ghost");
+            if (ghost) {
+                ghost.update(-1, node_size(new_height));
+            }
         }
     };
     dimensions.appendChild(height_input);
@@ -1141,6 +1151,19 @@ function make_node_resizeable(node) {
         ghost.style.width = parseInt(node.style.width, 10) + 4 + "px";
         ghost.style.height = parseInt(node.style.height, 10) + 4 + "px";
 
+        ghost.update = function (new_width, new_height) {
+            if (new_width >= 0) {
+                ghost.style.width = new_width + 4 + "px";
+                resize_to_grid(ghost, true, false);
+                ghost.style.width = parseInt(ghost.style.width) + 4 + "px";    
+            }
+            if (new_height >= 0) {
+                ghost.style.height = new_height + 4 + "px";
+                resize_to_grid(ghost, false, true);
+                ghost.style.height = parseInt(ghost.style.height) + 4 + "px";    
+            }
+        }
+
         node.querySelector(".header")
             .querySelector(".handle").style.display = "block";
 
@@ -1153,6 +1176,8 @@ function make_node_resizeable(node) {
         right.classList.add("resize_handle", "right");
         make_resize_handle_draggable(right, node);
         node.appendChild(right);
+
+        node.classList.add("resizing");
     }
 
     node.end_resize = function () {
@@ -1163,7 +1188,8 @@ function make_node_resizeable(node) {
             node.querySelector(".header")
                 .querySelector(".handle").style.display = "none";
             resize_to_grid(node);
-            snap_to_grid(node);    
+            snap_to_grid(node);
+            node.classList.remove("resizing");
         }
         catch {
 
@@ -1216,9 +1242,8 @@ function make_resize_handle_draggable(el, node) {
             no_transition(node, () => {
                 node.style.width = new_width + "px";
             });
-            ghost.style.width = new_width + 4 + "px";
-            resize_to_grid(ghost, true, false);
-            ghost.style.width = parseInt(ghost.style.width) + 4 + "px";
+
+            ghost.update(new_width, -1);
         }
         else {
             let new_height = 
@@ -1230,9 +1255,8 @@ function make_resize_handle_draggable(el, node) {
             no_transition(node, () => {
                 node.style.height = new_height + "px";
             });
-            ghost.style.height = new_height + 4 + "px";
-            resize_to_grid(ghost, false, true);
-            ghost.style.height = parseInt(ghost.style.height) + 4 + "px";
+
+            ghost.update(-1, new_height);
         }
     }
 
@@ -1328,7 +1352,7 @@ function snap_to_grid(e, x = null, y = null) {
         sheet.resize();
     }
 
-    while (x + e.width - 1> e.parentNode.width) {
+    while (x + e.width - 1 > e.parentNode.width) {
         x--;
     }
 

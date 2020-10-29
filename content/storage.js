@@ -141,7 +141,7 @@ function node_to_dict(node) {
         node_info.content = {
             uri: isLocal ? image.image_name : image.src,
             blob: isLocal,
-            crop: image.src.objectFit ? image.src.objectFit : "cover"
+            crop: image.objectFit ? image.objectFit : "cover"
         }
 
         if (isLocal) {
@@ -236,11 +236,15 @@ function node_from_dict(dict) {
 function build_sheet(sheet, save) {
     sheet.innerHTML = "";
     sheet.save_title = save.title;
+    sheet.width = Math.max.apply(null, save.data.map((n) => n.x + n.width));
+    sheet.resize();
+
     save.data.forEach(n => {
         let node = node_from_dict(n);
         sheet.appendChild(node);
         snap_to_grid(node, n.x, n.y);
     });
+
     set_document_title(save.title);
 }
 
