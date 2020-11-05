@@ -1010,9 +1010,6 @@ function close_all_menus() {
 function create_context_menu(parent, item_tuples, visible=false) {
     let menu = document.createElement("div");
     menu.classList.add("menu");
-    if (!visible) {
-        menu.style.visibility = "hidden";
-    }
     parent.appendChild(menu);
 
     item_tuples.forEach(tuple => {
@@ -1067,6 +1064,13 @@ function create_context_menu(parent, item_tuples, visible=false) {
         close_all_menus();
         menu.show();
     }
+
+    if (visible) {
+        menu.show();        
+    }
+    else {
+        menu.style.visibility = "hidden";
+    } 
 }
 
 function parent_node_locked(el) {
