@@ -47,6 +47,10 @@
     display: grid;
 }
 
+#sheet.placing .node > .content {
+    user-select: none;
+}
+
 .node {
     position: relative;
     background: var(--bg-primary);

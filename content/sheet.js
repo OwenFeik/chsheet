@@ -73,7 +73,53 @@ function set_up_toolbar() {
     let add = create_tool("add.png");
     add.classList.add("toggle");
     tools.appendChild(add);
-    add.onclick = add_node_to_sheet;
+    
+    let start_add = function () {
+        let sheet = document.getElementById("sheet");
+        sheet.classList.add("placing");
+
+        let ghost = create_node_ghost();
+        let move_ghost = function (e) {
+            if (e.target != sheet) {
+                ghost.visibility = "hidden";
+                return;
+            }
+            else {
+                ghost.visibility = "visible";
+            }
+
+            let [x, y] = sheet_offset_to_grid_coord(e.offsetX, e.offsetY);
+            snap_to_grid(ghost, x, y);
+        };
+        sheet.addEventListener("mousemove", move_ghost);
+
+        let place_node = function (e) {
+            if (e.target != sheet) {
+                return;
+            }
+
+            let [x, y] = sheet_offset_to_grid_coord(e.offsetX, e.offsetY);
+            let node = create_node(2, 2);
+            node.style.gridColumnStart = x;
+            node.style.gridColumnEnd = x + 2;
+            node.style.gridRowStart = y;
+            node.style.gridRowEnd = y + 2;
+            snap_to_grid(node);
+        };
+        sheet.addEventListener("click", place_node);
+
+        add.querySelector("img").src = icon_path("tick.png");
+        add.onclick = function () {
+            sheet.removeEventListener("mousemove", move_ghost);
+            sheet.removeEventListener("click", place_node);
+            sheet.classList.remove("placing");
+
+            add.querySelector("img").src = icon_path("add.png");
+            ghost.remove();
+            add.onclick = start_add;
+        };
+    };    
+    add.onclick = start_add;
 
     let save = create_tool("save.png");
     save.classList.add("toggle");
@@ -146,8 +192,7 @@ function create_document_settings() {
 }
 
 function create_node(w, h, type = "text") {
-    let node = document.createElement("div");
-    node.classList.add("node");
+    let node = create_element("div", ["node"]);
     node.style.width = `${node_size(w)}px`;
     node.style.height = `${node_size(h)}px`;
     node.width = w;
@@ -228,7 +273,7 @@ function create_node(w, h, type = "text") {
                 [
                     "cog.png",
                     "Settings",
-                    function (item) {
+                    function (_) {
                         node_settings(node);
                     },
                     false
@@ -236,7 +281,7 @@ function create_node(w, h, type = "text") {
                 [
                     "cross.png",
                     "Delete",
-                    function (item) {
+                    function (_) {
                         node.remove()
                     },
                     true
@@ -244,7 +289,7 @@ function create_node(w, h, type = "text") {
                 [
                     "clone.png",
                     "Clone",
-                    function (item) {
+                    function (_) {
                         let new_node = node_from_dict(node_to_dict(node));
                         new_node.style.gridArea = "";
                         snap_to_grid(new_node);
@@ -1145,28 +1190,41 @@ function make_list_item_draggable(el, handle) {
     handle.onmousedown = start_drag;
 }
 
-function make_node_resizeable(node) {
-    node.resize = function () {
-        let ghost = document.createElement("div");
-        ghost.classList.add("node_ghost");
+function create_node_ghost(node = null, width = 2, height = 2) {
+    let ghost = create_element("div", ["node_ghost"]);
+
+    ghost.update = function (new_width, new_height) {
+        if (new_width >= 0) {
+            ghost.style.width = new_width + 4 + "px";
+            resize_to_grid(ghost, true, false, 4);
+        }
+        if (new_height >= 0) {
+            ghost.style.height = new_height + 4 + "px";
+            resize_to_grid(ghost, false, true, 4);
+        }
+    };
+
+    if (node) {
         node.appendChild(ghost);
         ghost.width = node.width;
         ghost.height = node.height;
         ghost.style.width = parseInt(node.style.width, 10) + 4 + "px";
         ghost.style.height = parseInt(node.style.height, 10) + 4 + "px";
+    }
+    else {
+        document.getElementById("sheet").appendChild(ghost);
+        ghost.width = width;
+        ghost.height = height;
+        ghost.style.width = node_size(width) + 4 + "px";
+        ghost.style.height = node_size(height) + 4 + "px";
+    }
 
-        ghost.update = function (new_width, new_height) {
-            if (new_width >= 0) {
-                ghost.style.width = new_width + 4 + "px";
-                resize_to_grid(ghost, true, false);
-                ghost.style.width = parseInt(ghost.style.width) + 4 + "px";    
-            }
-            if (new_height >= 0) {
-                ghost.style.height = new_height + 4 + "px";
-                resize_to_grid(ghost, false, true);
-                ghost.style.height = parseInt(ghost.style.height) + 4 + "px";    
-            }
-        }
+    return ghost;
+}
+
+function make_node_resizeable(node) {
+    node.resize = function () {
+        create_node_ghost(node);
 
         node.querySelector(".header")
             .querySelector(".handle").style.display = "block";
@@ -1278,17 +1336,17 @@ function make_resize_handle_draggable(el, node) {
     }
 }
 
-function resize_to_grid(el, x=true, y=true) {
+function resize_to_grid(el, x=true, y=true, margin=0) {
     if (x) {
-        let current_width = parseInt(el.style.width, 10);
+        let current_width = parseInt(el.style.width);
         el.width = Math.max(Math.round(current_width / (NODESIZE + GAP)), 1);
-        el.style.width = node_size(el.width) + "px";    
+        el.style.width = (node_size(el.width) + margin) + "px";    
     }
 
     if (y) {
-        let current_height = parseInt(el.style.height, 10);
+        let current_height = parseInt(el.style.height);
         el.height = Math.max(Math.round(current_height / (NODESIZE + GAP)), 1);
-        el.style.height = node_size(el.height) + "px";    
+        el.style.height = (node_size(el.height) + margin) + "px";    
     }
 }
 
@@ -1349,6 +1407,9 @@ function snap_to_grid(e, x = null, y = null) {
     if (y == null) {
         y = Math.round(e.offsetTop / (NODESIZE + GAP)) + 1;
     }
+
+    x = Math.max(x, 1);
+    y = Math.max(y, 1);
 
     let sheet = document.getElementById("sheet");
     if (y > sheet.height) {
@@ -1436,4 +1497,15 @@ function create_element(tagname, classes) {
     }
 
     return el;
+}
+
+function sheet_offset_to_grid_coord(off_x, off_y) {
+    return [
+        Math.round(
+            off_x / (NODESIZE + GAP)
+        ),
+        Math.round(
+            off_y / (NODESIZE + GAP)
+        )
+    ];
 }
