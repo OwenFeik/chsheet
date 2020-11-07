@@ -385,6 +385,18 @@
     transition: all 0.1s;
 }
 
+.menu.left {
+    left: -105px;
+}
+
+.tool > .menu {
+    right: -110px;
+}
+
+.tool > .menu.left {
+    left: -110px;
+}
+
 .menu > .menuitem {
     border-radius: var(--border-rad);
     background: var(--bg-primary);

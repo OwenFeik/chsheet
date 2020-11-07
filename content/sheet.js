@@ -70,56 +70,7 @@ function set_up_toolbar() {
         toolbar.classList.toggle("telescoped");
     };
 
-    let add = create_tool("add.png");
-    add.classList.add("toggle");
-    tools.appendChild(add);
-    
-    let start_add = function () {
-        let sheet = document.getElementById("sheet");
-        sheet.classList.add("placing");
-
-        let ghost = create_node_ghost();
-        let move_ghost = function (e) {
-            if (e.target != sheet) {
-                ghost.visibility = "hidden";
-                return;
-            }
-            else {
-                ghost.visibility = "visible";
-            }
-
-            let [x, y] = sheet_offset_to_grid_coord(e.offsetX, e.offsetY);
-            snap_to_grid(ghost, x, y);
-        };
-        sheet.addEventListener("mousemove", move_ghost);
-
-        let place_node = function (e) {
-            if (e.target != sheet) {
-                return;
-            }
-
-            let [x, y] = sheet_offset_to_grid_coord(e.offsetX, e.offsetY);
-            let node = create_node(2, 2);
-            node.style.gridColumnStart = x;
-            node.style.gridColumnEnd = x + 2;
-            node.style.gridRowStart = y;
-            node.style.gridRowEnd = y + 2;
-            snap_to_grid(node);
-        };
-        sheet.addEventListener("click", place_node);
-
-        add.querySelector("img").src = icon_path("tick.png");
-        add.onclick = function () {
-            sheet.removeEventListener("mousemove", move_ghost);
-            sheet.removeEventListener("click", place_node);
-            sheet.classList.remove("placing");
-
-            add.querySelector("img").src = icon_path("add.png");
-            ghost.remove();
-            add.onclick = start_add;
-        };
-    };    
-    add.onclick = start_add;
+    tools.appendChild(create_add_tool());
 
     let save = create_tool("save.png");
     save.classList.add("toggle");
@@ -146,6 +97,115 @@ function create_tool(icon) {
     tool.appendChild(img);
 
     return tool;
+}
+
+function create_add_tool() {
+    let add = create_tool("add.png");
+    add.classList.add("toggle");
+    
+    let start_add = function () {
+        let sheet = document.getElementById("sheet");
+        sheet.classList.add("placing");
+
+        let ghost = create_node_ghost();
+        let move_ghost = function (e) {
+            if (e.target != sheet) {
+                ghost.visibility = "hidden";
+                return;
+            }
+            else {
+                ghost.visibility = "visible";
+            }
+
+            let [x, y] = sheet_offset_to_grid_coord(e.offsetX, e.offsetY);
+            snap_to_grid(ghost, x, y);
+        };
+        sheet.addEventListener("mousemove", move_ghost);
+
+        let place_node = function (e) {
+            if (e.target != sheet) {
+                return;
+            }
+
+            let [x, y] = sheet_offset_to_grid_coord(e.offsetX, e.offsetY);
+            let node = create_node(2, 2, add.node_type);
+            node.style.gridColumnStart = x;
+            node.style.gridColumnEnd = x + 2;
+            node.style.gridRowStart = y;
+            node.style.gridRowEnd = y + 2;
+            snap_to_grid(node);
+        };
+        sheet.addEventListener("click", place_node);
+
+        add.querySelector("img").src = icon_path("tick.png");
+        add.onclick = function () {
+            sheet.removeEventListener("mousemove", move_ghost);
+            sheet.removeEventListener("click", place_node);
+            sheet.classList.remove("placing");
+
+            add.node_type = "text";
+            add.querySelector("img").src = icon_path("add.png");
+            ghost.remove();
+            add.onclick = start_add;
+        };
+    };
+    add.onclick = start_add;
+
+    add.node_type = "text";
+    create_context_menu(
+        add,
+        [
+            [
+                "text.png",
+                "Text",
+                (_) => {
+                    add.node_type = "text";
+                    start_add();
+                },
+                false
+            ],
+            [
+                "number.png",
+                "Numbers",
+                (_) => {
+                    add.node_type = "number";
+                    start_add();
+                },
+                false
+            ],
+            [
+                "list.png",
+                "Lists",
+                (_) => {
+                    add.node_type = "list";
+                    start_add();
+                },
+                false
+            ],
+            [
+                "die.png",
+                "Dice",
+                (_) => {
+                    add.node_type = "die";
+                    start_add();
+                },
+                false
+            ],
+            [
+                "image.png",
+                "Images",
+                (_) => {
+                    add.node_type = "image";
+                    start_add();
+                },
+                false
+            ]
+        ],
+        false,
+        true
+    );
+
+    return add;
 }
 
 function create_document_settings() {
@@ -1052,7 +1112,7 @@ function close_all_menus() {
     });
 }
 
-function create_context_menu(parent, item_tuples, visible=false) {
+function create_context_menu(parent, item_tuples, visible=false, left=false) {
     let menu = document.createElement("div");
     menu.classList.add("menu");
     parent.appendChild(menu);
@@ -1115,7 +1175,11 @@ function create_context_menu(parent, item_tuples, visible=false) {
     }
     else {
         menu.style.visibility = "hidden";
-    } 
+    }
+
+    if (left) {
+        menu.classList.add("left");
+    }
 }
 
 function parent_node_locked(el) {
