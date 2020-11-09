@@ -23,8 +23,16 @@
     transform: rotate(180deg);
 }
 
-#tools {
-    overflow: hidden;    
+#toolbar:not(.telescoped):not(.telescoping) > #tools > .tool {
+    display: none;
+}
+
+#toolbar.telescoping > #tools {
+    overflow: hidden !important;
+}
+
+#toolbar.telescoped > #tools {
+    overflow: visible;
 }
 
 #toolbar.telescoped {
@@ -41,6 +49,7 @@
     margin-top: 10px;
     flex-shrink: 0;
     cursor: pointer;
+    position: relative;
 }
 
 #sheet {
@@ -387,14 +396,6 @@
 
 .menu.left {
     left: -105px;
-}
-
-.tool > .menu {
-    right: -110px;
-}
-
-.tool > .menu.left {
-    left: -110px;
 }
 
 .menu > .menuitem {

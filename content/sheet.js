@@ -67,7 +67,14 @@ function set_up_toolbar() {
     toggle_img.src = icon_path("chevron_down.png"); 
     toggle.appendChild(toggle_img);
     toggle.onclick = function () {
-        toolbar.classList.toggle("telescoped");
+        toolbar.classList.add("telescoping");
+        if (toolbar.classList.contains("telescoped")) {
+            toolbar.classList.remove("telescoped");
+        }
+        else {
+            toolbar.classList.add("telescoped");
+        }
+        setTimeout(() => toolbar.classList.remove("telescoping"), 500);
     };
 
     tools.appendChild(create_add_tool());
