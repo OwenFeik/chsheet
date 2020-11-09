@@ -462,9 +462,13 @@
     color: var(--fg-primary);
     background-color: var(--bg-primary);
     border-radius: var(--border-rad);
-    height: 18px;
+    height: 20px;
     padding-left: 5px;
     padding-right: 5px;
+}
+
+.panel_header :not(:first-child) {
+    margin-left: 5px !important;
 }
 
 .panel .control {
@@ -477,7 +481,7 @@
     margin-left: 5px;
 }
 
-.save_list {
+.entry_list {
     padding: 5px;
     padding-bottom: 0px;
     display: flex;
@@ -487,7 +491,7 @@
     align-items: center;
 }
 
-.save_list > .label {
+.entry_list > .label {
     color: var(--fg-secondary);
     display: none;
     background-color: var(--bg-secondary);
@@ -496,11 +500,11 @@
     border-radius: var(--border-rad);
 }
 
-.save_list > .label:only-child {
+.entry_list > .label:only-child {
     display: block;
 }
 
-.save_list > .list_item {
+.entry_list > .list_item {
     background-color: var(--bg-secondary);
     height: 20px;
     width: 100%;
@@ -513,19 +517,19 @@
     padding: 5px;
 }
 
-.save_list > .list_item:first-of-type {
+.entry_list > .list_item:first-of-type {
     margin-top: 0px;
 }
 
-.save_list > .list_item:last-of-type {
+.entry_list > .list_item:last-of-type {
     margin-bottom: 0px;
 }
 
-.save_list > .list_item > :not(:first-child) {
+.entry_list > .list_item > :not(:first-child) {
     margin-left: 5px;
 }
 
-.save_list > .list_item > .label {
+.entry_list > .list_item > .label {
     background-color: var(--bg-primary);
     height: 100%;
     border-radius: var(--border-rad);
@@ -535,7 +539,7 @@
     color: var(--fg-primary);
 }
 
-.save_list > .list_item > .label.save_title {
+.entry_list > .list_item > .label.item_title, .panel_header > .title {
     flex-grow: 1;
     cursor: pointer;
 }
@@ -550,37 +554,6 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-}
-
-.panel > .settings {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 5px;
-}
-
-.panel > .settings > .setting {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    background-color: var(--bg-secondary);
-    height: 20px;
-    margin-top: 5px;
-    border-radius: var(--border-rad);
-    flex-grow: 0;
-    width: 100%;
-    padding: 5px;
-}
-
-.panel > .settings > .setting > .label {
-    background-color: var(--bg-primary);
-    height: 100%;
-    border-radius: var(--border-rad);
-    padding-left: 5px;
-    padding-right: 5px;
-    overflow: hidden;
-    color: var(--fg-primary);
 }
 
 .rounded {
@@ -609,6 +582,12 @@ input {
     font-size: inherit;
     padding-left: 5px;
     outline: none;
+    border-radius: var(--border-rad);
+    height: 18px;
+}
+
+input.secondary {
+    background-color: var(--bg-primary);
 }
 
 select {
@@ -628,7 +607,7 @@ button {
     height: 100%;
     z-index: 200;
     display: none;
-    opacity: 10%;
+    opacity: 5%;
 }
 
 #fade.active {

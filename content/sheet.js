@@ -1,5 +1,5 @@
-const NODESIZE = 32;
-const GAP = 10;
+var NODESIZE = 32;
+var GAP = 10;
 const TOOLBAR_WIDTH = 70;
 const NODE_HEADER_HEIGHT = 20;
 const LIST_ITEM_HEIGHT = 29;
@@ -68,12 +68,7 @@ function set_up_toolbar() {
     toggle.appendChild(toggle_img);
     toggle.onclick = function () {
         toolbar.classList.add("telescoping");
-        if (toolbar.classList.contains("telescoped")) {
-            toolbar.classList.remove("telescoped");
-        }
-        else {
-            toolbar.classList.add("telescoped");
-        }
+        toolbar.classList.toggle("telescoped");
         setTimeout(() => toolbar.classList.remove("telescoping"), 500);
     };
 
@@ -229,12 +224,10 @@ function create_document_settings() {
     };
     panel.classList.add("panel");
 
-    let header = document.createElement("div");
-    header.classList.add("panel_header");
+    let header = create_element("div", ["panel_header"]);
     panel.appendChild(header);
 
-    let title = document.createElement("span");
-    title.classList.add("title");
+    let title = create_element("span", ["title"]);
     title.innerText = "Settings";
     header.appendChild(title);
 
@@ -242,28 +235,82 @@ function create_document_settings() {
     close.onclick = panel.hide;
     header.appendChild(close);
 
-    let settings = document.createElement("div");
-    settings.classList.add("settings")
+    let settings = create_element("div", ["entry_list"]);
     panel.appendChild(settings);
-    
-    let node_size = document.createElement("div");
-    node_size.classList.add("setting");
+
+    let node_size = create_element("div", ["list_item"]);
     settings.appendChild(node_size);
-    
-    let node_size_label = document.createElement("span");
-    node_size_label.innerText = "Block size"
-    node_size_label.classList.add("label");
+
+    let node_size_label = create_element("span", ["label"]);
+    node_size_label.innerText = "Node size";
     node_size.appendChild(node_size_label);
+
+    const MIN_NODESIZE = 10;
+    const MAX_NODESIZE = 100;
+
+    let node_size_input = create_element("input", ["secondary"]);
+    node_size_input.type = "number";
+    node_size_input.min = MIN_NODESIZE;
+    node_size_input.max = MAX_NODESIZE;
+    node_size_input.value = NODESIZE;
+    node_size.appendChild(node_size_input);
+
+    node_size_input.oninput = function () {
+        let new_size = node_size_input.value;
+        if (new_size >= MIN_NODESIZE && new_size <= MAX_NODESIZE) {
+            NODESIZE = new_size;
+            document.getElementById("sheet").resize();
+            resize_all_nodes();
+        }
+    };
+
+    let gap_size_label = create_element("span", ["label"]);
+    gap_size_label.innerText = "Gap size";
+    node_size.appendChild(gap_size_label);
+
+    const MIN_GAP = 5;
+    const MAX_GAP = 25;
+
+    let gap_size_input = create_element("input", ["secondary"]);
+    gap_size_input.type = "number";
+    gap_size_input.min = MIN_GAP;
+    gap_size_input.max = MAX_GAP;
+    gap_size_input.value = GAP;
+    node_size.appendChild(gap_size_input);
+
+    gap_size_input.oninput = function () {
+        let new_size = gap_size_input.value;
+        if (new_size >= MIN_GAP && new_size <= MAX_GAP) {
+            GAP = new_size;
+            document.getElementById("sheet").resize();
+            resize_all_nodes();
+        }
+    };
 
     return panel;
 }
 
+function resize_node(node) {
+    no_transition(
+        node,
+        () => {
+            node.style.width = `${node_size(node.width)}px`;
+            node.style.height = `${node_size(node.height)}px`;
+        }
+    );
+}
+
+function resize_all_nodes() {
+    document.getElementById("sheet").querySelectorAll(".node").forEach(
+        resize_node
+    );
+}
+
 function create_node(w, h, type = "text") {
     let node = create_element("div", ["node"]);
-    node.style.width = `${node_size(w)}px`;
-    node.style.height = `${node_size(h)}px`;
     node.width = w;
     node.height = h;
+    resize_node(node);
 
     let header = document.createElement("div");
     header.classList.add("header");
@@ -1038,8 +1085,7 @@ function create_save_menu() {
     close.onclick = menu.hide;
     header.appendChild(close);
 
-    let save_list = document.createElement("div");
-    save_list.classList.add("save_list");
+    let save_list = create_element("div", ["entry_list"]);
     menu.appendChild(save_list);
 
     function reload_saves() {
@@ -1075,8 +1121,7 @@ function create_save_list_item(save, load_callback) {
     let checkbox = create_checkbox(false);
     list_item.appendChild(checkbox);
 
-    let title = document.createElement("span");
-    title.classList.add("label", "save_title");
+    let title = create_element("span", ["item_title", "label"]);
     title.title = `Load "${save.title}"`;
     title.innerText = save.title;
     title.onclick = function () {
