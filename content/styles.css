@@ -537,11 +537,21 @@
     padding-right: 5px;
     overflow: hidden;
     color: var(--fg-primary);
+    flex-shrink: 0;
+    width: auto;
+}
+
+.entry_list > .list_item > input {
+    flex-shrink: 2;
 }
 
 .entry_list > .list_item > .label.item_title, .panel_header > .title {
     flex-grow: 1;
     cursor: pointer;
+}
+
+.entry_list > .list_item > * {
+    min-width: 0;
 }
 
 .control.input_holder {

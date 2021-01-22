@@ -1,5 +1,7 @@
 var NODESIZE = 32;
 var GAP = 10;
+var NODE_DEFAULT_WIDTH = 2;
+var NODE_DEFAULT_HEIGHT = 2;
 const TOOLBAR_WIDTH = 70;
 const NODE_HEADER_HEIGHT = 20;
 const LIST_ITEM_HEIGHT = 29;
@@ -109,7 +111,11 @@ function create_add_tool() {
         let sheet = document.getElementById("sheet");
         sheet.classList.add("placing");
 
-        let ghost = create_node_ghost();
+        let ghost = create_node_ghost(
+            null,
+            NODE_DEFAULT_WIDTH,
+            NODE_DEFAULT_HEIGHT
+        );
         let move_ghost = function (e) {
             if (e.target != sheet) {
                 ghost.visibility = "hidden";
@@ -119,7 +125,12 @@ function create_add_tool() {
                 ghost.visibility = "visible";
             }
 
-            let [x, y] = sheet_offset_to_grid_coord(e.offsetX, e.offsetY);
+            let [x, y] = sheet_offset_to_grid_coord(
+                e.offsetX,
+                e.offsetY,
+                NODE_DEFAULT_WIDTH == 1 ? 0.5 : 0,
+                NODE_DEFAULT_HEIGHT == 1 ? 0.5 : 0      
+            );
             snap_to_grid(ghost, x, y);
         };
         sheet.addEventListener("mousemove", move_ghost);
@@ -129,12 +140,21 @@ function create_add_tool() {
                 return;
             }
 
-            let [x, y] = sheet_offset_to_grid_coord(e.offsetX, e.offsetY);
-            let node = create_node(2, 2, add.node_type);
+            let [x, y] = sheet_offset_to_grid_coord(
+                e.offsetX,
+                e.offsetY,
+                NODE_DEFAULT_WIDTH == 1 ? 0.5 : 0,
+                NODE_DEFAULT_HEIGHT == 1 ? 0.5 : 0      
+            );
+            let node = create_node(
+                NODE_DEFAULT_WIDTH,
+                NODE_DEFAULT_HEIGHT,
+                add.node_type
+            );
             node.style.gridColumnStart = x;
-            node.style.gridColumnEnd = x + 2;
+            node.style.gridColumnEnd = x + NODE_DEFAULT_WIDTH;
             node.style.gridRowStart = y;
-            node.style.gridRowEnd = y + 2;
+            node.style.gridRowEnd = y + NODE_DEFAULT_HEIGHT;
             snap_to_grid(node);
         };
         sheet.addEventListener("click", place_node);
@@ -264,8 +284,41 @@ function create_document_settings() {
         }
     };
 
+
+    let node_width_label = create_element("span", ["label"]);
+    node_width_label.innerText = "Width";
+    node_size.appendChild(node_width_label);
+
+    let node_width_input = create_element("input", ["secondary"]);
+    node_width_input.type = "number";
+    node_width_input.min = 0;
+    node_width_input.value = NODE_DEFAULT_WIDTH;
+    node_size.appendChild(node_width_input);
+
+    node_width_input.oninput = function () {
+        if (node_width_input.value > 0) {
+            NODE_DEFAULT_WIDTH = parseInt(node_width_input.value);
+        }
+    };
+
+    let node_height_label = create_element("span", ["label"]);
+    node_height_label.innerText = "Height";
+    node_size.appendChild(node_height_label);
+
+    let node_height_input = create_element("input", ["secondary"]);
+    node_height_input.type = "number";
+    node_height_input.min = 0;
+    node_height_input.value = NODE_DEFAULT_HEIGHT;
+    node_size.appendChild(node_height_input);
+
+    node_height_input.oninput = function () {
+        if (node_height_input.value > 0) {
+            NODE_DEFAULT_HEIGHT = parseInt(node_height_input.value);
+        }
+    };
+
     let gap_size_label = create_element("span", ["label"]);
-    gap_size_label.innerText = "Gap size";
+    gap_size_label.innerText = "Gap";
     node_size.appendChild(gap_size_label);
 
     const MIN_GAP = 5;
@@ -1541,8 +1594,8 @@ function snap_to_grid(e, x = null, y = null) {
     e.style.left = "";
     e.style.position = "relative";
 
-    e.style.gridColumn = x + "/" + (x + e.width);
-    e.style.gridRow = y + "/" + (y + e.height);
+    e.style.gridColumn = x + "/" + (x + parseInt(e.width));
+    e.style.gridRow = y + "/" + (y + parseInt(e.height));
 }
 
 function parse_grid_area(node) {
@@ -1599,7 +1652,7 @@ function no_transition(el, func) {
     el.style.transition = old;
 }
 
-function set_document_title(text="") {
+function set_document_title(text = "") {
     document.title = "chsheet: " + text;
 }
 
@@ -1615,13 +1668,9 @@ function create_element(tagname, classes) {
     return el;
 }
 
-function sheet_offset_to_grid_coord(off_x, off_y) {
+function sheet_offset_to_grid_coord(off_x, off_y, delta_x = 0, delta_y = 0) {    
     return [
-        Math.round(
-            off_x / (NODESIZE + GAP)
-        ),
-        Math.round(
-            off_y / (NODESIZE + GAP)
-        )
+        Math.round(off_x / (NODESIZE + GAP) + delta_x),
+        Math.round(off_y / (NODESIZE + GAP) + delta_y)
     ];
 }
