@@ -487,6 +487,7 @@ function set_content_type(node, type = "text") {
     });
 
     content.onkeydown = null;
+    content.add_item = null;
 
     ["text", "number", "list", "die", "image"].forEach(c => {
         content.classList.remove(c);
@@ -545,11 +546,19 @@ function set_content_type(node, type = "text") {
         content.contentEditable = false;
         content.style.fontSize = "10pt";
         
-        function add_item(is_break) {
-            let new_item = is_break ? create_list_break() : create_list_item();
+        function add_item(is_break, text = "") {
+            let new_item = is_break ? create_list_break(text ? text : "Break")
+                : create_list_item(text ? text : "New item");
             new_item.style.order = content.children.length;
             content.appendChild(new_item);
         }
+        content.add_item = add_item;
+
+        content.clear_items = () => {
+            content.querySelectorAll(".list_item").forEach(e => {
+                e.remove();
+            });
+        };
 
         let add_btn = create_control("add.png", "toggle", "background");
         add_btn.onclick = function () {
@@ -561,14 +570,14 @@ function set_content_type(node, type = "text") {
                 [
                     "add.png",
                     "Item",
-                    function (item) {
+                    function (_) {
                         add_item(false);
                     }
                 ],
                 [
                     "handle.png",
                     "Break",
-                    function (item) {
+                    function (_) {
                         add_item(true);
                     }
                 ]
@@ -604,6 +613,27 @@ function set_content_type(node, type = "text") {
 
     node.type = type;
     node.classList.add(type + "_content");
+}
+
+function set_list_content_from_dict(node, dict) {
+    let content = node.querySelector(".content"); 
+    content.clear_items();
+    dict["entries"].forEach(item => {
+        if (item[0] == '_') {
+            content.add_item(true, item.slice(1));
+        }
+        else {
+            content.add_item(false, item);
+        }
+    });
+
+    if ("checkboxes_active" in node.classList) {
+        content.classList.remove("checkboxes_active");
+    }
+
+    if (dict["checkboxes"]) {
+        content.classList.add("checkboxes_active");
+    }
 }
 
 function create_icon(icon_name) {
@@ -661,7 +691,7 @@ function create_list_item_controls_box(item) {
     return controls_box;
 }
 
-function create_list_item(content="New item") {
+function create_list_item(content = "New item") {
     let new_item = document.createElement("div");
     new_item.classList.add("list_item");
     new_item.appendChild(create_checkbox());
@@ -678,7 +708,7 @@ function create_list_item(content="New item") {
     return new_item;
 }
 
-function create_list_break(title="Break") {
+function create_list_break(title = "Break") {
     let new_break = document.createElement("div");
     new_break.classList.add("list_item", "list_break");
 
@@ -701,7 +731,7 @@ function create_list_break(title="Break") {
     return new_break;
 }
 
-function create_checkbox(checked=true) {
+function create_checkbox(checked = true) {
     let checkbox = document.createElement("div");
     checkbox.classList.add("checkbox");
     if (checked) {
@@ -719,6 +749,12 @@ function create_checkbox(checked=true) {
     checkbox.appendChild(checkbox_img);
 
     return checkbox;
+}
+
+function create_label(content = "New label") {
+    let label = create_element("span", ["label"]);
+    label.innerHTML = content;
+    return label;
 }
 
 function node_size(k) {
@@ -887,14 +923,10 @@ function create_node_settings(node) {
     };
     font.appendChild(font_input);
 
-    let checkboxes = document.createElement("div");
-    checkboxes.classList.add("setting", "list_content");
-    settings.appendChild(checkboxes);
+    let list_options = create_element("div", ["setting", "list_content"]);
+    settings.appendChild(list_options);
 
-    let checkboxes_label = document.createElement("span");
-    checkboxes_label.classList.add("label");
-    checkboxes_label.innerHTML = "Checkboxes";
-    checkboxes.appendChild(checkboxes_label);
+    list_options.appendChild(create_label("Checkboxes"))
 
     let checkboxes_input = document.createElement("input");
     checkboxes_input.type = "checkbox";
@@ -902,7 +934,22 @@ function create_node_settings(node) {
     checkboxes_input.onclick = function () {
         content.classList.toggle("checkboxes_active");
     };
-    checkboxes.appendChild(checkboxes_input);
+    list_options.appendChild(checkboxes_input);
+
+    list_options.appendChild(create_label("Presets"));
+    let preset_dropdown = create_element("select");
+    ["None", "Skills"].forEach(t => {
+        let option = create_element("option");
+        option.innerHTML = t;
+        preset_dropdown.appendChild(option);
+    });
+    preset_dropdown.onchange = () => {
+        set_list_content_from_dict(
+            node,
+            CONTENT["list_presets"][preset_dropdown.value]
+        );
+    };
+    list_options.appendChild(preset_dropdown);
 
     let die_size = document.createElement("div");
     die_size.classList.add("setting", "die_content");
