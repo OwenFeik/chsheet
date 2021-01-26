@@ -25,14 +25,23 @@ function set_up_shortcuts() {
 function set_up_sheet() {    
     let sheet = document.getElementById("sheet");
 
-    sheet.resize = function () {
+    sheet.resize = function (w = null, h = null) {
+        if (w !== null) {
+            sheet.width = w;
+        }
+        if (h !== null) {
+            sheet.height = h;
+        }
+
         if (sheet.width === 0) {
             sheet.width = Math.floor(
                 (window.innerWidth - TOOLBAR_WIDTH) / (NODESIZE + GAP));    
         }
         if (sheet.height === 0) {
             sheet.height = Math.max(
-                Math.floor(window.innerHeight / (NODESIZE + GAP)), 10);
+                Math.floor(window.innerHeight / (NODESIZE + GAP)) - 1,
+                10
+            );
         }
         
         sheet.style.width = sheet.width * (NODESIZE + GAP) - GAP + "px";
@@ -110,6 +119,7 @@ function create_add_tool() {
     let start_add = function () {
         let sheet = document.getElementById("sheet");
         sheet.classList.add("placing");
+        sheet.resize(0, 0);
 
         let ghost = create_node_ghost(
             null,
@@ -173,11 +183,11 @@ function create_add_tool() {
         };
         add.onclick = end_add;
 
-        document.onkeyup = (e) => {
+        document.addEventListener("keydown", (e) => {
             if (e.key == "Escape") {
                 end_add();
             }
-        }
+        });
     };
     add.onclick = start_add;
 
@@ -226,6 +236,15 @@ function create_add_tool() {
                 "Images",
                 (_) => {
                     add.node_type = "image";
+                    start_add();
+                },
+                false
+            ],
+            [
+                "tick.png",
+                "Checks",
+                (_) => {
+                    add.node_type = "checkbox";
                     start_add();
                 },
                 false
@@ -497,7 +516,7 @@ function set_content_type(node, type = "text") {
     content.onkeydown = null;
     content.add_item = null;
 
-    ["text", "number", "list", "die", "image"].forEach(c => {
+    ["text", "number", "list", "die", "image", "checkbox"].forEach(c => {
         content.classList.remove(c);
         node.classList.remove(c + "_content");
     });
@@ -610,13 +629,19 @@ function set_content_type(node, type = "text") {
         header.appendChild(roll_btn);
     }
     else if (type === "image") {
-        content.classList.add("image");
+        content.classList.add("image_holder");
         content.innerHTML = "";
         content.contentEditable = false;
 
         let image = document.createElement("img");
         image.src = icon_path("cross.png");
         content.appendChild(image);
+    }
+    else if (type === "checkbox") {
+        content.classList.add("checkbox_holder");
+        content.innerHTML = "";
+        content.contentEditable = false;
+        content.appendChild(create_checkbox(true, ["inverted"]));
     }
 
     node.type = type;
@@ -741,12 +766,15 @@ function create_list_break(title = "Break") {
     return new_break;
 }
 
-function create_checkbox(checked = true) {
+function create_checkbox(checked = true, classes = []) {
     let checkbox = document.createElement("div");
     checkbox.classList.add("checkbox");
     if (checked) {
         checkbox.classList.add("checked");
     }
+    classes.forEach(c => {
+        checkbox.classList.add(c);
+    });
     checkbox.value = checked;
     checkbox.onclick = function () {
         checkbox.value = !checkbox.value;
@@ -889,7 +917,7 @@ function create_node_settings(node) {
     type.appendChild(type_label);
 
     let type_dropdown = document.createElement("select");
-    ["text", "number", "list", "die", "image"].forEach(t => {
+    ["text", "number", "list", "die", "image", "checkbox"].forEach(t => {
         let option = document.createElement("option");
         option.innerHTML = t;
         type_dropdown.appendChild(option);

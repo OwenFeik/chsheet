@@ -142,11 +142,17 @@ function node_to_dict(node) {
             uri: isLocal ? image.image_name : image.src,
             blob: isLocal,
             crop: image.objectFit ? image.objectFit : "cover"
-        }
+        };
 
         if (isLocal) {
             save_image(image.image_name, image.src);
         }
+    }
+    else if (node.type === "checkbox") {
+        node_info.content = {
+            checked: node_content.querySelector(".checkbox")
+                .classList.contains("checked")
+        };
     }
 
     return node_info;
@@ -225,6 +231,15 @@ function node_from_dict(dict) {
                 image.image_name = dict.content.uri;
                 image.src = uri;
             });
+        }
+    }
+    else if (dict.type === "checkbox") {
+        let checkbox = content.querySelector(".checkbox");
+        if (checkbox.classList.contains("checked")) {
+            checkbox.classList.remove("checked");
+        }
+        if (dict.content.checked) {
+            checkbox.classList.add("checked");
         }
     }
 
