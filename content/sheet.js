@@ -160,7 +160,8 @@ function create_add_tool() {
         sheet.addEventListener("click", place_node);
 
         add.querySelector("img").src = icon_path("tick.png");
-        add.onclick = function () {
+        
+        function end_add() {
             sheet.removeEventListener("mousemove", move_ghost);
             sheet.removeEventListener("click", place_node);
             sheet.classList.remove("placing");
@@ -170,6 +171,13 @@ function create_add_tool() {
             ghost.remove();
             add.onclick = start_add;
         };
+        add.onclick = end_add;
+
+        document.onkeyup = (e) => {
+            if (e.key == "Escape") {
+                end_add();
+            }
+        }
     };
     add.onclick = start_add;
 
@@ -634,6 +642,8 @@ function set_list_content_from_dict(node, dict) {
     if (dict["checkboxes"]) {
         content.classList.add("checkboxes_active");
     }
+
+    node.querySelector(".title").innerHTML = dict["title"];
 }
 
 function create_icon(icon_name) {

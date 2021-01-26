@@ -2,10 +2,12 @@ var CONTENT = {
     "list_presets": {
         "None": {
             "checkboxes": false,
+            "title": "Title",
             "entries": []
         },
         "Skills": {
             "checkboxes": true,
+            "title": "Skills",
             "entries": [
                 "_STR",
                 "Athletics",
