@@ -140,7 +140,7 @@ function create_add_tool() {
         2,
         2
     );
-    ghost.visibility = "hidden";
+    ghost.style.display = "none";
 
     let move_ghost = function (e) {
         if (e.target != sheet) {
@@ -169,6 +169,10 @@ function create_add_tool() {
             );
         }
     );
+
+    let hide_ghost = function (e) {
+        ghost.style.display = "none";
+    };
 
     let place_node = function (e) {
         if (e.target != sheet) {
@@ -203,6 +207,7 @@ function create_add_tool() {
 
             ghost.style.display = "none";
             sheet.removeEventListener("mousemove", move_ghost);
+            sheet.removeEventListener("mouseleave", hide_ghost);
             sheet.removeEventListener("click", place_node);
             sheet.classList.remove("placing");
 
@@ -216,6 +221,7 @@ function create_add_tool() {
             sheet.classList.add("placing");
             sheet.resize(0, 0);
             sheet.addEventListener("mousemove", move_ghost);
+            sheet.addEventListener("mouseleave", hide_ghost);
             sheet.addEventListener("click", place_node);
 
             add.querySelector("img").src = icon_path("tick.png");
