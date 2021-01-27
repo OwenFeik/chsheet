@@ -1,7 +1,5 @@
 var NODESIZE = 32;
 var GAP = 10;
-var NODE_DEFAULT_WIDTH = 2;
-var NODE_DEFAULT_HEIGHT = 2;
 const TOOLBAR_WIDTH = 70;
 const NODE_HEADER_HEIGHT = 20;
 const LIST_ITEM_HEIGHT = 29;
@@ -118,21 +116,29 @@ function create_add_tool() {
     add.classList.add("toggle");
     
     let node_style_reference = create_node(
-        NODE_DEFAULT_WIDTH,
-        NODE_DEFAULT_HEIGHT,
+        2,
+        2,
         "text",
         false
     );
+
     let node_style_settings = create_node_settings(node_style_reference);
     node_style_settings.classList.add("left");
+    node_style_settings.style.display = "none";
     add.appendChild(node_style_settings);
+
+    add.classList.add("text_content");
+    add.oncontextmenu = e => {
+        node_style_settings.show();
+        e.preventDefault();
+    };
 
     let sheet = document.getElementById("sheet");
 
     let ghost = create_node_ghost(
         null,
-        NODE_DEFAULT_WIDTH,
-        NODE_DEFAULT_HEIGHT
+        2,
+        2
     );
     ghost.visibility = "hidden";
 
@@ -148,11 +154,21 @@ function create_add_tool() {
         let [x, y] = sheet_offset_to_grid_coord(
             e.offsetX,
             e.offsetY,
-            NODE_DEFAULT_WIDTH == 1 ? 0.5 : 0,
-            NODE_DEFAULT_HEIGHT == 1 ? 0.5 : 0      
+            ghost.width == 1 ? 0.5 : 0,
+            ghost.width == 1 ? 0.5 : 0      
         );
         snap_to_grid(ghost, x, y);
     };
+    
+    node_style_settings.addEventListener(
+        "mouseleave",
+        _ => {
+            ghost.update(
+                node_size(node_style_reference.width),
+                node_size(node_style_reference.height)
+            );
+        }
+    );
 
     let place_node = function (e) {
         if (e.target != sheet) {
@@ -181,7 +197,6 @@ function create_add_tool() {
                     add.classList.add(content_class);
                 }
             });
-            console.log("clicked settings.");
         }
         else if (adding) {
             adding = false;
@@ -211,12 +226,6 @@ function create_add_tool() {
                 }
             });
         }
-    };
-
-    add.classList.add("text_content");
-    add.oncontextmenu = e => {
-        node_style_settings.show();
-        e.preventDefault();
     };
 
     return add;
@@ -273,39 +282,6 @@ function create_document_settings() {
             NODESIZE = new_size;
             document.getElementById("sheet").resize();
             resize_all_nodes();
-        }
-    };
-
-
-    let node_width_label = create_element("span", ["label"]);
-    node_width_label.innerText = "Width";
-    node_size.appendChild(node_width_label);
-
-    let node_width_input = create_element("input", ["secondary"]);
-    node_width_input.type = "number";
-    node_width_input.min = 0;
-    node_width_input.value = NODE_DEFAULT_WIDTH;
-    node_size.appendChild(node_width_input);
-
-    node_width_input.oninput = function () {
-        if (node_width_input.value > 0) {
-            NODE_DEFAULT_WIDTH = parseInt(node_width_input.value);
-        }
-    };
-
-    let node_height_label = create_element("span", ["label"]);
-    node_height_label.innerText = "Height";
-    node_size.appendChild(node_height_label);
-
-    let node_height_input = create_element("input", ["secondary"]);
-    node_height_input.type = "number";
-    node_height_input.min = 0;
-    node_height_input.value = NODE_DEFAULT_HEIGHT;
-    node_size.appendChild(node_height_input);
-
-    node_height_input.oninput = function () {
-        if (node_height_input.value > 0) {
-            NODE_DEFAULT_HEIGHT = parseInt(node_height_input.value);
         }
     };
 
@@ -827,7 +803,7 @@ function create_node_settings(node) {
     width_input.value = node.width.toString();
     width_input.oninput = function () {
         let new_width = parseInt(width_input.value, 10);
-        new_width = Math.min(new_width, node.parentNode.width);
+        new_width = Math.min(new_width, document.getElementById("sheet").width);
         if (new_width > 0) /* NaN > 0 === false */ {
             node.width = new_width;
             node.style.width = node_size(new_width) + "px";
@@ -1070,12 +1046,12 @@ function create_node_settings(node) {
         if (e.target == settings || settings.contains(e.target)) {
             return;
         }
-        settings.style.visibility = "hidden";
+        settings.style.display = "none";
         window.removeEventListener("mousedown", click_off_settings);
     }
 
     settings.show = () => {
-        settings.style.visibility = "visible";
+        settings.style.display = "block";
         window.addEventListener("mousedown", click_off_settings);
     };
 
@@ -1424,6 +1400,7 @@ function create_node_ghost(node = null, width = 2, height = 2) {
 
     ghost.update = function (new_width, new_height) {
         if (new_width >= 0) {
+            console.log("yep!", new_width + 4 + "px");
             ghost.style.width = new_width + 4 + "px";
             resize_to_grid(ghost, true, false, 4);
         }
@@ -1646,7 +1623,7 @@ function snap_to_grid(e, x = null, y = null) {
         sheet.resize();
     }
 
-    while (x + e.width - 1 > e.parentNode.width) {
+    while (x + e.width - 1 > sheet.width) {
         x--;
     }
 
