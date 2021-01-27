@@ -5,6 +5,7 @@ var NODE_DEFAULT_HEIGHT = 2;
 const TOOLBAR_WIDTH = 70;
 const NODE_HEADER_HEIGHT = 20;
 const LIST_ITEM_HEIGHT = 29;
+const NODE_TYPES = ["text", "number", "list", "die", "image", "checkbox"];
 
 function set_up_shortcuts() {
     document.onkeydown = function (e) {
@@ -116,143 +117,107 @@ function create_add_tool() {
     let add = create_tool("add.png");
     add.classList.add("toggle");
     
-    let start_add = function () {
-        let sheet = document.getElementById("sheet");
-        sheet.classList.add("placing");
-        sheet.resize(0, 0);
+    let node_style_reference = create_node(
+        NODE_DEFAULT_WIDTH,
+        NODE_DEFAULT_HEIGHT,
+        "text",
+        false
+    );
+    let node_style_settings = create_node_settings(node_style_reference);
+    node_style_settings.classList.add("left");
+    add.appendChild(node_style_settings);
 
-        let ghost = create_node_ghost(
-            null,
-            NODE_DEFAULT_WIDTH,
-            NODE_DEFAULT_HEIGHT
+    let sheet = document.getElementById("sheet");
+
+    let ghost = create_node_ghost(
+        null,
+        NODE_DEFAULT_WIDTH,
+        NODE_DEFAULT_HEIGHT
+    );
+    ghost.visibility = "hidden";
+
+    let move_ghost = function (e) {
+        if (e.target != sheet) {
+            ghost.style.display = "none";
+            return;
+        }
+        else {
+            ghost.style.display = "block";
+        }
+
+        let [x, y] = sheet_offset_to_grid_coord(
+            e.offsetX,
+            e.offsetY,
+            NODE_DEFAULT_WIDTH == 1 ? 0.5 : 0,
+            NODE_DEFAULT_HEIGHT == 1 ? 0.5 : 0      
         );
-        let move_ghost = function (e) {
-            if (e.target != sheet) {
-                ghost.visibility = "hidden";
-                return;
-            }
-            else {
-                ghost.visibility = "visible";
-            }
+        snap_to_grid(ghost, x, y);
+    };
 
-            let [x, y] = sheet_offset_to_grid_coord(
-                e.offsetX,
-                e.offsetY,
-                NODE_DEFAULT_WIDTH == 1 ? 0.5 : 0,
-                NODE_DEFAULT_HEIGHT == 1 ? 0.5 : 0      
-            );
-            snap_to_grid(ghost, x, y);
-        };
-        sheet.addEventListener("mousemove", move_ghost);
+    let place_node = function (e) {
+        if (e.target != sheet) {
+            return;
+        }
 
-        let place_node = function (e) {
-            if (e.target != sheet) {
-                return;
-            }
+        let data = node_to_dict(node_style_reference);
+        [data.x, data.y] = sheet_offset_to_grid_coord(
+            e.offsetX,
+            e.offsetY,
+            data.width == 1 ? 0.5 : 0,
+            data.height == 1 ? 0.5 : 0      
+        );
+        node = node_from_dict(data);
+        snap_to_grid(node, data.x, data.y);
+    };
 
-            let [x, y] = sheet_offset_to_grid_coord(
-                e.offsetX,
-                e.offsetY,
-                NODE_DEFAULT_WIDTH == 1 ? 0.5 : 0,
-                NODE_DEFAULT_HEIGHT == 1 ? 0.5 : 0      
-            );
-            let node = create_node(
-                NODE_DEFAULT_WIDTH,
-                NODE_DEFAULT_HEIGHT,
-                add.node_type
-            );
-            node.style.gridColumnStart = x;
-            node.style.gridColumnEnd = x + NODE_DEFAULT_WIDTH;
-            node.style.gridRowStart = y;
-            node.style.gridRowEnd = y + NODE_DEFAULT_HEIGHT;
-            snap_to_grid(node);
-        };
-        sheet.addEventListener("click", place_node);
+    let adding = false;
+    add.onclick = e => {
+        if (e.target == node_style_settings) {
+            NODE_TYPES.forEach(t => {
+                let content_class = t + "_content";
 
-        add.querySelector("img").src = icon_path("tick.png");
-        
-        function end_add() {
+                add.classList.remove(content_class);
+                if (content_class in node_style_reference.classList) {
+                    add.classList.add(content_class);
+                }
+            });
+            console.log("clicked settings.");
+        }
+        else if (adding) {
+            adding = false;
+
+            ghost.style.display = "none";
             sheet.removeEventListener("mousemove", move_ghost);
             sheet.removeEventListener("click", place_node);
             sheet.classList.remove("placing");
 
             add.node_type = "text";
             add.querySelector("img").src = icon_path("add.png");
-            ghost.remove();
-            add.onclick = start_add;
-        };
-        add.onclick = end_add;
+        }
+        else {
+            adding = true;
 
-        document.addEventListener("keydown", (e) => {
-            if (e.key == "Escape") {
-                end_add();
-            }
-        });
+            ghost.style.display = "block";
+            sheet.classList.add("placing");
+            sheet.resize(0, 0);
+            sheet.addEventListener("mousemove", move_ghost);
+            sheet.addEventListener("click", place_node);
+
+            add.querySelector("img").src = icon_path("tick.png");
+
+            document.addEventListener("keydown", (e) => {
+                if (e.key == "Escape") {
+                    add.click();
+                }
+            });
+        }
     };
-    add.onclick = start_add;
 
-    add.node_type = "text";
-    create_context_menu(
-        add,
-        [
-            [
-                "text.png",
-                "Text",
-                (_) => {
-                    add.node_type = "text";
-                    start_add();
-                },
-                false
-            ],
-            [
-                "number.png",
-                "Numbers",
-                (_) => {
-                    add.node_type = "number";
-                    start_add();
-                },
-                false
-            ],
-            [
-                "list.png",
-                "Lists",
-                (_) => {
-                    add.node_type = "list";
-                    start_add();
-                },
-                false
-            ],
-            [
-                "die.png",
-                "Dice",
-                (_) => {
-                    add.node_type = "die";
-                    start_add();
-                },
-                false
-            ],
-            [
-                "image.png",
-                "Images",
-                (_) => {
-                    add.node_type = "image";
-                    start_add();
-                },
-                false
-            ],
-            [
-                "tick.png",
-                "Checks",
-                (_) => {
-                    add.node_type = "checkbox";
-                    start_add();
-                },
-                false
-            ]
-        ],
-        false,
-        true
-    );
+    add.classList.add("text_content");
+    add.oncontextmenu = e => {
+        node_style_settings.show();
+        e.preventDefault();
+    };
 
     return add;
 }
@@ -386,7 +351,7 @@ function resize_all_nodes() {
     );
 }
 
-function create_node(w, h, type = "text") {
+function create_node(w, h, type = "text", add_to_sheet = true) {
     let node = create_element("div", ["node"]);
     node.width = w;
     node.height = h;
@@ -495,8 +460,10 @@ function create_node(w, h, type = "text") {
         )
     };
 
-    document.getElementById("sheet").appendChild(node);
-    position_node(node);
+    if (add_to_sheet) {
+        document.getElementById("sheet").appendChild(node);
+        position_node(node);
+    }
 
     return node;
 }
@@ -516,7 +483,7 @@ function set_content_type(node, type = "text") {
     content.onkeydown = null;
     content.add_item = null;
 
-    ["text", "number", "list", "die", "image", "checkbox"].forEach(c => {
+    NODE_TYPES.forEach(c => {
         content.classList.remove(c);
         node.classList.remove(c + "_content");
     });
@@ -805,16 +772,7 @@ function node_settings(node) {
         settings = create_node_settings(node); 
     }
 
-    function click_off_settings (e) {
-        if (e.target == settings || settings.contains(e.target)) {
-            return;
-        }
-        settings.style.visibility = "hidden";
-        window.removeEventListener("mousedown", click_off_settings);
-    }
-    window.addEventListener("mousedown", click_off_settings);
-
-    settings.style.visibility = "visible";
+    settings.show();
 }
 
 function create_node_settings(node) {
@@ -917,7 +875,7 @@ function create_node_settings(node) {
     type.appendChild(type_label);
 
     let type_dropdown = document.createElement("select");
-    ["text", "number", "list", "die", "image", "checkbox"].forEach(t => {
+    NODE_TYPES.forEach(t => {
         let option = document.createElement("option");
         option.innerHTML = t;
         type_dropdown.appendChild(option);
@@ -1107,6 +1065,23 @@ function create_node_settings(node) {
         image.style.objectFit = image_mode_dropdown.value;
     };
     image_mode.appendChild(image_mode_dropdown);
+
+    function click_off_settings (e) {
+        if (e.target == settings || settings.contains(e.target)) {
+            return;
+        }
+        settings.style.visibility = "hidden";
+        window.removeEventListener("mousedown", click_off_settings);
+    }
+
+    settings.show = () => {
+        settings.style.visibility = "visible";
+        window.addEventListener("mousedown", click_off_settings);
+    };
+
+    settings.onclick = e => {
+        e.stopPropagation();
+    };
 
     node.appendChild(settings);
 

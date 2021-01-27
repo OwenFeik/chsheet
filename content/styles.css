@@ -339,7 +339,7 @@
     display: none;
 }
 
-.node > .settings {
+.settings {
     width: 200px;
     border-radius: var(--border-rad);
     position: absolute;
@@ -354,7 +354,11 @@
     transition: all 0.1s;
 }
 
-.node > .settings > .setting {
+.settings.left {
+    left: -215px;
+}
+
+.settings > .setting {
     background: var(--bg-primary);
     display: flex;
     margin-top: 5px;
@@ -363,23 +367,23 @@
     align-items: center;
 }
 
-.node:not(.list_content) > .settings > .setting.list_content {
+:not(.list_content) > .settings > .setting.list_content {
     display: none;
 }
 
-.node:not(.die_content) > .settings > .setting.die_content {
+:not(.die_content) > .settings > .setting.die_content {
     display: none;
 }
 
-.node:not(.image_content) > .settings > .setting.image_content {
+:not(.image_content) > .settings > .setting.image_content {
     display: none;
 }
 
-.node.image_content > .settings > .setting.font_content {
+.image_content > .settings > .setting.font_content {
     display: none;
 }
 
-.node > .settings > .setting > input, .node > .settings > .setting > select {
+.settings > .setting > input, .settings > .setting > select {
     flex-shrink: 1;
     min-width: 10px;
     border: none;
@@ -389,7 +393,7 @@
     margin: 5px;
 }
 
-.node > .settings > .setting > .label {
+.settings > .setting > .label {
     color: var(--fg-secondary);
     padding: 5px;
     white-space: nowrap;
