@@ -34,12 +34,13 @@ function set_up_sheet() {
 
         if (sheet.width === 0) {
             sheet.width = Math.floor(
-                (window.innerWidth - TOOLBAR_WIDTH) / (NODESIZE + GAP));    
+                (window.innerWidth - TOOLBAR_WIDTH) / (NODESIZE + GAP)
+            );    
         }
         if (sheet.height === 0) {
             sheet.height = Math.max(
                 Math.floor(window.innerHeight / (NODESIZE + GAP)) - 1,
-                10
+                20
             );
         }
         
@@ -53,7 +54,7 @@ function set_up_sheet() {
     };
 
     sheet.width = 0;
-    sheet.height = 10;
+    sheet.height = 22;
     sheet.resize();
 
     window.onresize = function () {
@@ -132,9 +133,9 @@ function create_add_tool() {
     node_style_settings.addEventListener(
         "mouseleave",
         _ => {
-            ghost.update(
-                node_size(node_style_reference.width),
-                node_size(node_style_reference.height)
+            ghost.set_dimensions(
+                node_style_reference.width,
+                node_style_reference.height
             );
         }
     );
@@ -204,11 +205,49 @@ function create_add_tool() {
 
 function create_group_tool() {
     let group = create_tool("clone.png");
-    
     let ghost = create_preview_ghost(1, 1);
+    let sheet = document.getElementById("sheet");
 
+    let sheet_click_handler = e => {
+        if (ghost.pin) {
+            let group = create_node_ghost(null, ghost.width, ghost.height);
+            snap_to_grid(group, ghost.x, ghost.y);
+            sheet.appendChild(group);
+            end_group();
+            ghost.pin = null;
+            ghost.set_dimensions(1, 1);
+        }
+        else {
+            ghost.set_pin(e);
+        }
+    };
+
+    let handle_esc = e => {
+        if (e.key == "Escape") {
+            end_group();
+        }
+    };
+
+    let end_group = () => {
+        document.removeEventListener("keyup", handle_esc);
+        sheet.removeEventListener("click", sheet_click_handler);
+        ghost.end_preview();
+        group.querySelector("img").src = icon_path("clone.png");
+        grouping = false;
+    };
+
+    let grouping = false;
     group.onclick = _ => {
-        ghost.start_preview();
+        if (grouping) {
+            end_group();
+        }
+        else {
+            document.addEventListener("keyup", handle_esc);
+            sheet.addEventListener("click", sheet_click_handler);
+            ghost.start_preview();
+            group.querySelector("img").src = icon_path("cross.png");
+            grouping = true;
+        }
     };
 
     return group;
@@ -794,7 +833,7 @@ function create_node_settings(node) {
 
             let ghost = node.querySelector(".node_ghost");
             if (ghost) {
-                ghost.update(node_size(new_width), -1);
+                ghost.set_dimensions(new_width, -1);
             }
         }
     };
@@ -1392,6 +1431,12 @@ function create_node_ghost(node = null, width = 2, height = 2) {
         }
     };
 
+    ghost.set_dimensions = (w, h) => {
+        ghost.width = w;
+        ghost.height = h;
+        ghost.update(node_size(w), node_size(h));
+    };
+
     if (node) {
         node.appendChild(ghost);
         ghost.width = node.width;
@@ -1414,7 +1459,16 @@ function create_preview_ghost(width = 2, height = 2) {
     let ghost = create_node_ghost(null, width, height);
     ghost.style.display = "none";
 
-    ghost.pin = [5, 5];
+    ghost.pin = null;
+
+    ghost.set_pin = (e) => {
+        ghost.pin = sheet_offset_to_grid_coord(
+            e.offsetX,
+            e.offsetY,
+            ghost.width == 1 ? 0.5 : 0,
+            ghost.height == 1 ? 0.5 : 0      
+        );
+    };
 
     function move_ghost(e) {
         if (e.target != sheet) {
@@ -1433,18 +1487,20 @@ function create_preview_ghost(width = 2, height = 2) {
         );
 
         if (ghost.pin !== null) {
-            let [t, l] = ghost.pin;
+            let [l, t] = ghost.pin;
 
-            ghost.update(
-                node_size(Math.max(Math.abs(x - l), 1)),
-                node_size(Math.max(Math.abs(y - t), 1))
+            ghost.set_dimensions(
+                Math.max(Math.abs(x - l), 1),
+                Math.max(Math.abs(y - t), 1)
             );
 
-            x = Math.min(x, l);
-            y = Math.min(y, t);
+            x = Math.min(x, l) + 1;
+            y = Math.min(y, t) + 1;
         }
 
         snap_to_grid(ghost, x, y);
+        ghost.x = x;
+        ghost.y = y;
     }
 
     function hide_ghost(e) {
