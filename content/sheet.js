@@ -209,10 +209,16 @@ function create_group_tool() {
     let sheet = document.getElementById("sheet");
 
     let sheet_click_handler = e => {
+        if (!(e.target == sheet)) {
+            return;
+        }
+        
         if (ghost.pin) {
             let group = create_node_ghost(null, ghost.width, ghost.height);
             snap_to_grid(group, ghost.x, ghost.y);
             sheet.appendChild(group);
+            group.managed_nodes = [];
+            collect_group_nodes(group);
             end_group();
             ghost.pin = null;
             ghost.set_dimensions(1, 1);
@@ -1516,6 +1522,7 @@ function create_preview_ghost(width = 2, height = 2) {
     };
 
     ghost.end_preview = _ => {
+        ghost.pin = null;
         ghost.style.display = "none";
         sheet.removeEventListener("mousemove", move_ghost);
         sheet.removeEventListener("mouseleave", hide_ghost);
@@ -1757,6 +1764,20 @@ function position_node(node) {
         if ((x2 > nx1 && x1 < nx2) && (y2 > ny1 && y1 < ny2)) {
             // if possible, position to the right of this node, else
             // position down
+        }
+    });
+}
+
+function collect_group_nodes(group) {
+    let sheet = document.getElementById("sheet");
+
+    let [x1, x2, y1, y2] = parse_grid_area(group);
+
+    sheet.querySelectorAll(".node").forEach(n => {
+        let [nx1, nx2, ny1, ny2] = parse_grid_area(n);
+
+        if (x1 <= nx1 && x2 >= nx2 && y1 <= ny1 && y2 >= ny2) {
+            group.managed_nodes.push(n);
         }
     });
 }
