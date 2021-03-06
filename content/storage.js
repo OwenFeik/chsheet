@@ -249,10 +249,9 @@ function node_from_dict(dict) {
 }
 
 function build_sheet(sheet, save) {
-    sheet.innerHTML = "";
+    sheet.querySelectorAll(".node").forEach(n => n.remove());
     sheet.save_title = save.title;
-    sheet.width = Math.max.apply(null, save.data.map((n) => n.x + n.width));
-    sheet.resize();
+    sheet.resize(Math.max.apply(null, save.data.map((n) => n.x + n.width)));
 
     save.data.forEach(n => {
         let node = node_from_dict(n);

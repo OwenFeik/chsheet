@@ -54,6 +54,8 @@
 
 #sheet {
     display: grid;
+    position: absolute;
+    z-index: -1000;
 }
 
 #sheet.placing .node > .content {

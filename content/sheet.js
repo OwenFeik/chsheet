@@ -24,26 +24,19 @@ function set_up_shortcuts() {
 function set_up_sheet() {    
     let sheet = document.getElementById("sheet");
 
-    sheet.resize = function (w = null, h = null) {
-        if (w !== null) {
-            sheet.width = w;
-        }
-        if (h !== null) {
-            sheet.height = h;
-        }
-
-        if (sheet.width === 0) {
-            sheet.width = Math.floor(
+    sheet.resize = function (w = 0, h = 0) {
+        sheet.width = Math.max(
+            w,
+            Math.floor(
                 (window.innerWidth - TOOLBAR_WIDTH) / (NODESIZE + GAP)
-            );    
-        }
-        if (sheet.height === 0) {
-            sheet.height = Math.max(
-                Math.floor(window.innerHeight / (NODESIZE + GAP)) - 1,
-                20
-            );
-        }
-        
+            )
+        );
+        sheet.height = Math.max(
+            h,
+            Math.floor(window.innerHeight / (NODESIZE + GAP)) - 1,
+            20
+        );
+
         sheet.style.width = sheet.width * (NODESIZE + GAP) - GAP + "px";
         sheet.style.gridGap = GAP + "px";
         sheet.style.gridTemplateColumns = 
@@ -113,6 +106,14 @@ function create_tool(icon) {
     return tool;
 }
 
+function end_all_tool_processes() {
+    document.getElementById("toolbar").querySelectorAll(".tool").forEach(t => {
+        if (t.active === true) {
+            t.click();
+        }
+    });
+}
+
 function create_add_tool() {
     let add = create_tool("add.png");
     add.classList.add("toggle");
@@ -163,7 +164,7 @@ function create_add_tool() {
         }
     };
 
-    let adding = false;
+    add.active = false;
     add.onclick = e => {
         if (e.target == node_style_settings) {
             NODE_TYPES.forEach(t => {
@@ -175,8 +176,8 @@ function create_add_tool() {
                 }
             });
         }
-        else if (adding) {
-            adding = false;
+        else if (add.active) {
+            add.active = false;
             ghost.end_preview();
 
             sheet.removeEventListener("click", place_node);
@@ -187,7 +188,9 @@ function create_add_tool() {
             add.querySelector("img").src = icon_path("add.png");
         }
         else {
-            adding = true;
+            end_all_tool_processes();
+
+            add.active = true;
             ghost.start_preview();
             
             sheet.classList.add("placing");
@@ -236,23 +239,27 @@ function create_group_tool() {
 
     let end_group = () => {
         document.removeEventListener("keyup", handle_esc);
+        sheet.classList.remove("placing");
         sheet.removeEventListener("click", sheet_click_handler);
         ghost.end_preview();
         group.querySelector("img").src = icon_path("clone.png");
         grouping = false;
     };
 
-    let grouping = false;
+    group.active = false;
     group.onclick = _ => {
-        if (grouping) {
+        if (group.active) {
             end_group();
         }
         else {
+            end_all_tool_processes();
+
             document.addEventListener("keyup", handle_esc);
+            sheet.classList.add("placing");
             sheet.addEventListener("click", sheet_click_handler);
             ghost.start_preview();
             group.querySelector("img").src = icon_path("cross.png");
-            grouping = true;
+            group.active = true;
         }
     };
 
@@ -855,7 +862,7 @@ function create_node_settings(node) {
     height_input.min = "1";
     height_input.value = node.height.toString();
     height_input.oninput = function () {
-        let new_height = parseInt(height_input.value, 10);
+        let new_height = parseInt(height_input.value);
         if (new_height > 0) /* NaN > 0 === false */ {
             node.height = new_height;
             node.style.height = node_size(new_height) + "px";
@@ -914,7 +921,7 @@ function create_node_settings(node) {
 
     let font_input = document.createElement("input");
     font_input.type = "number";
-    font_input.value = parseInt(content.style.fontSize, 10).toString();
+    font_input.value = parseInt(content.style.fontSize).toString();
     font_input.oninput = function () {
         let new_size = Math.max(0, font_input.value);
         if (new_size >= 0) {
