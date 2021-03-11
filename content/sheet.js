@@ -143,17 +143,12 @@ function create_add_tool() {
 
     let sheet = document.getElementById("sheet");
     let place_node = e => {
-        if (e.target != sheet) {
+        if (e.target != sheet && e.target != ghost) {
             return;
         }
 
         let data = node_to_dict(node_style_reference);
-        [data.x, data.y] = sheet_offset_to_grid_coord(
-            e.offsetX,
-            e.offsetY,
-            data.width == 1 ? 0.5 : 0,
-            data.height == 1 ? 0.5 : 0      
-        );
+        [data.x, data.y] = placement_click_to_grid_coord(e, ghost);
         node = node_from_dict(data);
         snap_to_grid(node, data.x, data.y);
     };
@@ -212,7 +207,7 @@ function create_group_tool() {
     let sheet = document.getElementById("sheet");
 
     let sheet_click_handler = e => {
-        if (!(e.target == sheet)) {
+        if (e.target != sheet && e.target != ghost) {
             return;
         }
         
@@ -243,7 +238,7 @@ function create_group_tool() {
         sheet.removeEventListener("click", sheet_click_handler);
         ghost.end_preview();
         group.querySelector("img").src = icon_path("clone.png");
-        grouping = false;
+        group.active = false;
     };
 
     group.active = false;
@@ -1468,6 +1463,22 @@ function create_node_ghost(node = null, width = 2, height = 2) {
     return ghost;
 }
 
+function placement_click_to_grid_coord(e, ghost) {
+    offset_x = e.offsetX;
+    offset_y = e.offsetY;
+    if (e.target == ghost) {
+        offset_x += ghost.offsetLeft;
+        offset_y += ghost.offsetTop;
+    }
+
+    return sheet_offset_to_grid_coord(
+        offset_x,
+        offset_y,
+        ghost.width == 1 ? 0.5 : 0,
+        ghost.height == 1 ? 0.5 : 0      
+    );
+}
+
 function create_preview_ghost(width = 2, height = 2) {
     let ghost = create_node_ghost(null, width, height);
     ghost.style.display = "none";
@@ -1475,16 +1486,11 @@ function create_preview_ghost(width = 2, height = 2) {
     ghost.pin = null;
 
     ghost.set_pin = (e) => {
-        ghost.pin = sheet_offset_to_grid_coord(
-            e.offsetX,
-            e.offsetY,
-            ghost.width == 1 ? 0.5 : 0,
-            ghost.height == 1 ? 0.5 : 0      
-        );
+        ghost.pin = placement_click_to_grid_coord(e, ghost);
     };
 
     function move_ghost(e) {
-        if (e.target != sheet) {
+        if (e.target != sheet && e.target != ghost) {
             ghost.style.display = "none";
             return;
         }
@@ -1492,12 +1498,7 @@ function create_preview_ghost(width = 2, height = 2) {
             ghost.style.display = "block";
         }
 
-        let [x, y] = sheet_offset_to_grid_coord(
-            e.offsetX,
-            e.offsetY,
-            ghost.width == 1 ? 0.5 : 0,
-            ghost.height == 1 ? 0.5 : 0      
-        );
+        let [x, y] = placement_click_to_grid_coord(e, ghost);
 
         if (ghost.pin !== null) {
             let [l, t] = ghost.pin;
@@ -1517,7 +1518,9 @@ function create_preview_ghost(width = 2, height = 2) {
     }
 
     function hide_ghost(e) {
-        ghost.style.display = "none";
+        if (e.target != ghost) {
+            ghost.style.display = "none";
+        }
     }
     
     let sheet = document.getElementById("sheet");
