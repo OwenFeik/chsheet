@@ -149,6 +149,7 @@ function create_add_tool() {
 
         let data = node_to_dict(node_style_reference);
         [data.x, data.y] = placement_click_to_grid_coord(e, ghost);
+
         node = node_from_dict(data);
         snap_to_grid(node, data.x, data.y);
     };
@@ -1464,12 +1465,9 @@ function create_node_ghost(node = null, width = 2, height = 2) {
 }
 
 function placement_click_to_grid_coord(e, ghost) {
-    offset_x = e.offsetX;
-    offset_y = e.offsetY;
-    if (e.target == ghost) {
-        offset_x += ghost.offsetLeft;
-        offset_y += ghost.offsetTop;
-    }
+    let rect = document.getElementById("sheet").getBoundingClientRect();
+    offset_x = e.clientX - rect.left;
+    offset_y = e.clientY - rect.top;
 
     return sheet_offset_to_grid_coord(
         offset_x,
@@ -1504,12 +1502,12 @@ function create_preview_ghost(width = 2, height = 2) {
             let [l, t] = ghost.pin;
 
             ghost.set_dimensions(
-                Math.max(Math.abs(x - l), 1),
-                Math.max(Math.abs(y - t), 1)
+                Math.max(Math.abs(x - l), 1) + (x > l ? 1 : 0),
+                Math.max(Math.abs(y - t), 1) + (y > t ? 1 : 0)
             );
 
-            x = Math.min(x, l) + 1;
-            y = Math.min(y, t) + 1;
+            x = Math.min(x, l - 1) + 1;
+            y = Math.min(y, t - 1) + 1;
         }
 
         snap_to_grid(ghost, x, y);
