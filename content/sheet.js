@@ -213,11 +213,7 @@ function create_group_tool() {
         }
         
         if (ghost.pin) {
-            let group = create_node_ghost(null, ghost.width, ghost.height);
-            snap_to_grid(group, ghost.x, ghost.y);
-            sheet.appendChild(group);
-            group.managed_nodes = [];
-            collect_group_nodes(group);
+            let group = create_node_group(ghost);
             end_group();
             ghost.pin = null;
             ghost.set_dimensions(1, 1);
@@ -1464,6 +1460,28 @@ function create_node_ghost(node = null, width = 2, height = 2) {
     return ghost;
 }
 
+function create_node_group(from_ghost = null, x = 0, y = 0, w = 0, h = 0) {
+    if (from_ghost != null) {
+        x = x ? x : from_ghost.x;
+        y = y ? y : from_ghost.y;
+        w = w ? w : from_ghost.width;
+        h = h ? h : from_ghost.height;
+    }
+
+
+    let group = create_node_ghost(null, w, h);
+    let handle = create_control("handle.png", "handle");
+    group.appendChild(handle);
+
+    snap_to_grid(group, x, y);
+    document.getElementById("sheet").appendChild(group);
+    group.managed_nodes = [];
+    collect_group_nodes(group);
+
+    make_node_draggable(group);
+
+}
+
 function placement_click_to_grid_coord(e, ghost) {
     let rect = document.getElementById("sheet").getBoundingClientRect();
     offset_x = e.clientX - rect.left;
@@ -1674,7 +1692,7 @@ function add_node_to_sheet(e) {
 function make_node_draggable(el) {
     let x1 = 0, y1 = 0, x2 = 0, y2 = 0;
 
-    handle = el.querySelector("img.handle");
+    handle = el.querySelector(".handle");
     handle.onmousedown = start_drag;
 
     function start_drag(e) {
@@ -1691,8 +1709,8 @@ function make_node_draggable(el) {
         x2 = e.clientX;
         y2 = e.clientY;
         
-        document.onmouseup = end_drag;
-        document.onmousemove = drag;
+        document.addEventListener("mouseup", end_drag);
+        document.addEventListener("mousemove", drag);
     }
 
     function drag(e) {
@@ -1710,8 +1728,8 @@ function make_node_draggable(el) {
     }
 
     function end_drag() {
-        document.onmouseup = null;
-        document.onmousemove = null;
+        document.removeEventListener("mouseup");
+        document.removeEventListener("mousemove");
 
         snap_to_grid(el);
     }
