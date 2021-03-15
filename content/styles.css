@@ -76,13 +76,29 @@
     z-index: 10;
 }
 
+.offset {
+    top: -4px;
+    left: -4px;
+}
+
 .node_ghost {
     border-radius: var(--border-rad);
     border: dashed 2px var(--bg-secondary);
     z-index: -100;
     position: absolute;
-    top: -4px;
-    left: -4px;
+}
+
+.node_group {
+    border: solid 2px var(--bg-secondary);
+}
+
+.node_group .handle {
+    display: none;
+    z-index: 200;
+}
+
+.node_group:hover .handle {
+    display: block;
 }
 
 .node.locked > .header > .control {

@@ -1423,7 +1423,7 @@ function make_list_item_draggable(el, handle) {
 }
 
 function create_node_ghost(node = null, width = 2, height = 2) {
-    let ghost = create_element("div", ["node_ghost"]);
+    let ghost = create_element("div", ["node_ghost", "rounded", "offset"]);
 
     ghost.update = function (new_width, new_height) {
         if (new_width >= 0) {
@@ -1468,18 +1468,32 @@ function create_node_group(from_ghost = null, x = 0, y = 0, w = 0, h = 0) {
         h = h ? h : from_ghost.height;
     }
 
-
     let group = create_node_ghost(null, w, h);
+    group.classList.remove("node_ghost");
+    group.classList.add("node_group");
     let handle = create_control("handle.png", "handle");
     group.appendChild(handle);
 
     snap_to_grid(group, x, y);
     document.getElementById("sheet").appendChild(group);
-    group.managed_nodes = [];
-    collect_group_nodes(group);
 
-    make_node_draggable(group);
-
+    make_node_draggable(
+        group,
+        () => {
+            collect_group_nodes(group);
+            group.managed_nodes.forEach(n => { n.style.opacity = 0.5; })
+        },
+        () => {
+            let [x1, _, y1, _] = parse_grid_area(group);
+            group.managed_nodes.forEach(n => {
+                n.style.gridColumn = (x1 + n.dx).toString() + "/" +
+                    (x1 + n.dx + n.width).toString();
+                n.style.gridRow = (y1 + n.dy).toString() + "/" +
+                    (y1 + n.dy + n.height).toString();
+                n.style.opacity = 1;
+            });
+        }
+    );
 }
 
 function placement_click_to_grid_coord(e, ghost) {
@@ -1689,7 +1703,7 @@ function add_node_to_sheet(e) {
     create_node(2, 2);    
 }
 
-function make_node_draggable(el) {
+function make_node_draggable(el, start_fn = null, end_fn = null) {
     let x1 = 0, y1 = 0, x2 = 0, y2 = 0;
 
     handle = el.querySelector(".handle");
@@ -1698,17 +1712,21 @@ function make_node_draggable(el) {
     function start_drag(e) {
         e.preventDefault();
 
+        if (start_fn !== null) {
+            start_fn();
+        }
+
         let top = el.offsetTop;
         let left = el.offsetLeft;
 
         el.style.position = "absolute";
-
         el.style.top = top + "px";
         el.style.left = left + "px";
+        el.style.gridArea = "";
 
         x2 = e.clientX;
         y2 = e.clientY;
-        
+
         document.addEventListener("mouseup", end_drag);
         document.addEventListener("mousemove", drag);
     }
@@ -1728,10 +1746,14 @@ function make_node_draggable(el) {
     }
 
     function end_drag() {
-        document.removeEventListener("mouseup");
-        document.removeEventListener("mousemove");
+        document.removeEventListener("mouseup", end_drag);
+        document.removeEventListener("mousemove", drag);
 
         snap_to_grid(el);
+
+        if (end_fn !== null) {
+            end_fn();
+        }
     }
 }
 
@@ -1795,15 +1817,19 @@ function position_node(node) {
 }
 
 function collect_group_nodes(group) {
-    let sheet = document.getElementById("sheet");
+    console.log("called");
+    group.managed_nodes = [];
 
     let [x1, x2, y1, y2] = parse_grid_area(group);
 
+    let sheet = document.getElementById("sheet");
     sheet.querySelectorAll(".node").forEach(n => {
         let [nx1, nx2, ny1, ny2] = parse_grid_area(n);
 
         if (x1 <= nx1 && x2 >= nx2 && y1 <= ny1 && y2 >= ny2) {
             group.managed_nodes.push(n);
+            n.dx = nx1 - x1;
+            n.dy = ny1 - y1;
         }
     });
 }
