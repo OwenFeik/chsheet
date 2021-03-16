@@ -5,7 +5,6 @@
     border-bottom-right-radius: var(--border-rad);
     display: flex;
     flex-direction: column;
-    height: 40px;
     margin-left: 20px;
     position: relative;
     top: 0px;
@@ -13,9 +12,10 @@
 }
 
 .toolbar_toggle {
-    margin-top: 5px;
-    transition: all 0.5s;
     cursor: pointer;
+    margin-top: 5px;
+    order: 0;
+    transition: all 0.5s;
 }
 
 .toolbar.telescoped > .toolbar_toggle {
@@ -26,6 +26,11 @@
     display: none;
 }
 
+.tools {
+    order: 1;
+    position: relative;
+}
+
 .toolbar.telescoping > .tools {
     overflow: hidden !important;
 }
@@ -34,28 +39,24 @@
     overflow: visible;
 }
 
-.toolbar.telescoped {
-    height: 300px;
-}
-
 #toolbox {
     display: flex;
     position: fixed;
-    right: 10px;
+    right: 20px;
     top: 0px;
 }
 
 .tool {
-    width: 50px;
-    height: 50px;
+    background: var(--bg-primary);
     border: 5px var(--bg-primary);
     border-radius: var(--border-rad);
-    background: var(--bg-primary);
-    user-select: none;
-    margin-top: 10px;
-    flex-shrink: 0;
     cursor: pointer;
+    flex-shrink: 0;
+    height: 50px;
+    margin-top: 10px;
     position: relative;
+    width: 50px;
+    user-select: none;
 }
 
 #sheet {
@@ -66,6 +67,24 @@
 
 #sheet.placing .node > .content {
     user-select: none;
+}
+
+#sheet.grouping .node {
+    user-select: none;
+    pointer-events: none;
+    z-index: 0;
+}
+
+#sheet.grouping .node_group {
+    z-index: 100;
+    visibility: visible;
+    cursor: pointer;
+}
+
+.node_group {
+    background-color: var(--fg-secondary-transparent);
+    visibility: hidden;
+    z-index: -100;
 }
 
 .node {
@@ -92,25 +111,6 @@
     border: dashed 2px var(--bg-secondary);
     z-index: -100;
     position: absolute;
-}
-
-.node_group {
-    border: solid 2px var(--bg-secondary);
-    background-color: var(--bg-secondary);
-    opacity: 0;
-}
-
-.node_group:hover {
-    opacity: 0.5;
-}
-
-.node_group .handle {
-    display: none;
-    z-index: 200;
-}
-
-.node_group:hover .handle {
-    display: block;
 }
 
 .node.locked > .header > .control {
@@ -677,7 +677,8 @@ button {
     --bg-primary: #393e46;
     --bg-secondary: #222831;
     --fg-primary: #eeeeee;
-    --fg-secondary: #32e0c4;
+    --fg-secondary: rgb(50, 224, 196);
+    --fg-secondary-transparent: rgba(50, 224, 196, 0.2);
     --border-rad: 3px;
 }
 

@@ -22,8 +22,6 @@ function set_up_shortcuts() {
 }
 
 function set_up_sheet() {    
-    let sheet = document.getElementById("sheet");
-
     sheet.resize = function (w = 0, h = 0) {
         sheet.width = Math.max(
             w,
@@ -90,9 +88,15 @@ function set_up_toolbox() {
 function create_toolbar(order = 1, hidden = false) {
     const TOOLBAR_TRANSITION_TIME = 500;
     const TOOLBAR_CLOSED_HEIGHT = 40;
+    const TOOL_HEIGHT = 60;
 
     let toolbar = create_element("div", ["toolbar"]);
+    
+    let tools = create_element("div", ["tools"]);
+    toolbar.appendChild(tools);
+
     toolbar.style.order = order;
+    toolbar.style.height = TOOLBAR_CLOSED_HEIGHT + "px";
     toolbar.style.transition = "all " + TOOLBAR_TRANSITION_TIME / 1000 + "s";
 
     if (hidden) {
@@ -107,6 +111,14 @@ function create_toolbar(order = 1, hidden = false) {
     toolbar.telescope = function () {
         toolbar.classList.add("telescoping");
         toolbar.classList.toggle("telescoped");
+        if (toolbar.classList.contains("telescoped")) {
+            toolbar.style.height = TOOL_HEIGHT * tools.childElementCount +
+                TOOLBAR_CLOSED_HEIGHT + "px";
+        }
+        else {
+            toolbar.style.height = TOOLBAR_CLOSED_HEIGHT + "px";
+        }
+
         setTimeout(() => {
             toolbar.classList.remove("telescoping");
         }, TOOLBAR_TRANSITION_TIME);
@@ -136,7 +148,6 @@ function create_toolbar(order = 1, hidden = false) {
     toggle.onclick = toolbar.telescope;
     toolbar.appendChild(toggle);
 
-    toolbar.appendChild(create_element("div", ["tools"]));
     return toolbar;
 }
 
@@ -186,7 +197,6 @@ function create_add_tool() {
         }
     );
 
-    let sheet = document.getElementById("sheet");
     let place_node = e => {
         if (e.target != sheet && e.target != ghost) {
             return;
@@ -248,9 +258,8 @@ function create_add_tool() {
 }
 
 function create_new_group_tool() {
-    let group = create_tool("clone.png");
+    let group = create_tool("add.png");
     let ghost = create_preview_ghost(1, 1);
-    let sheet = document.getElementById("sheet");
 
     let sheet_click_handler = e => {
         if (e.target != sheet && e.target != ghost) {
@@ -258,7 +267,7 @@ function create_new_group_tool() {
         }
         
         if (ghost.pin) {
-            let group = create_node_group(ghost);
+            create_node_group(ghost);
             end_group();
             ghost.pin = null;
             ghost.set_dimensions(1, 1);
@@ -279,7 +288,7 @@ function create_new_group_tool() {
         sheet.classList.remove("placing");
         sheet.removeEventListener("click", sheet_click_handler);
         ghost.end_preview();
-        group.querySelector("img").src = icon_path("clone.png");
+        group.querySelector("img").src = icon_path("add.png");
         group.active = false;
     };
 
@@ -293,7 +302,7 @@ function create_new_group_tool() {
             sheet.classList.add("placing");
             sheet.addEventListener("click", sheet_click_handler);
             ghost.start_preview();
-            group.querySelector("img").src = icon_path("cross.png");
+            group.querySelector("img").src = icon_path("tick.png");
             group.active = true;
         }
     };
@@ -303,7 +312,8 @@ function create_new_group_tool() {
 
 function create_group_tool() {
     let toolbar = create_toolbar(0, true);
-    toolbar.querySelector(".tools").appendChild(create_new_group_tool());
+    let new_group = create_new_group_tool();
+    toolbar.querySelector(".tools").appendChild(new_group);
 
     let group = create_tool("clone.png");
     group.active = false;
@@ -323,7 +333,9 @@ function create_group_tool() {
             toolbar.style.display = "inherit";
             refresh_css(toolbar);
             toolbar.show();
+            new_group.click();
         }
+        sheet.classList.toggle("grouping");
     };
 
     return group;
@@ -378,7 +390,7 @@ function create_document_settings() {
         let new_size = node_size_input.value;
         if (new_size >= MIN_NODESIZE && new_size <= MAX_NODESIZE) {
             NODESIZE = new_size;
-            document.getElementById("sheet").resize();
+            sheet.resize();
             resize_all_nodes();
         }
     };
@@ -401,7 +413,7 @@ function create_document_settings() {
         let new_size = gap_size_input.value;
         if (new_size >= MIN_GAP && new_size <= MAX_GAP) {
             GAP = new_size;
-            document.getElementById("sheet").resize();
+            sheet.resize();
             resize_all_nodes();
         }
     };
@@ -420,9 +432,7 @@ function resize_node(node) {
 }
 
 function resize_all_nodes() {
-    document.getElementById("sheet").querySelectorAll(".node").forEach(
-        resize_node
-    );
+    sheet.querySelectorAll(".node").forEach(resize_node);
 }
 
 function create_node(w, h, type = "text", add_to_sheet = true) {
@@ -526,7 +536,7 @@ function create_node(w, h, type = "text", add_to_sheet = true) {
                         let new_node = node_from_dict(node_to_dict(node));
                         new_node.style.gridArea = "";
                         snap_to_grid(new_node);
-                        document.getElementById("sheet").appendChild(new_node);
+                        sheet.appendChild(new_node);
                     }
                 ]
             ],
@@ -535,7 +545,7 @@ function create_node(w, h, type = "text", add_to_sheet = true) {
     };
 
     if (add_to_sheet) {
-        document.getElementById("sheet").appendChild(node);
+        sheet.appendChild(node);
         position_node(node);
     }
 
@@ -901,7 +911,7 @@ function create_node_settings(node) {
     width_input.value = node.width.toString();
     width_input.oninput = function () {
         let new_width = parseInt(width_input.value, 10);
-        new_width = Math.min(new_width, document.getElementById("sheet").width);
+        new_width = Math.min(new_width, sheet.width);
         if (new_width > 0) /* NaN > 0 === false */ {
             node.width = new_width;
             node.style.width = node_size(new_width) + "px";
@@ -1163,8 +1173,6 @@ function create_node_settings(node) {
 }
 
 function create_save_menu() {
-    let sheet = document.getElementById("sheet");
-
     let menu = document.getElementById("save_menu");
     menu.innerHTML = "";
     menu.style.display = "none";
@@ -1493,16 +1501,16 @@ function make_list_item_draggable(el, handle) {
     handle.onmousedown = start_drag;
 }
 
-function create_node_ghost(node = null, width = 2, height = 2) {
+function create_node_ghost(node = null, width = 2, height = 2, border = 2) {
     let ghost = create_element("div", ["node_ghost", "rounded", "offset"]);
 
     ghost.update = function (new_width, new_height) {
         if (new_width >= 0) {
-            ghost.style.width = new_width + 4 + "px";
+            ghost.style.width = new_width + (8 - 2 * border) + "px";
             resize_to_grid(ghost, true, false, 4);
         }
         if (new_height >= 0) {
-            ghost.style.height = new_height + 4 + "px";
+            ghost.style.height = new_height + (8 - 2 * border) + "px";
             resize_to_grid(ghost, false, true, 4);
         }
     };
@@ -1517,15 +1525,15 @@ function create_node_ghost(node = null, width = 2, height = 2) {
         node.appendChild(ghost);
         ghost.width = node.width;
         ghost.height = node.height;
-        ghost.style.width = parseInt(node.style.width, 10) + 4 + "px";
-        ghost.style.height = parseInt(node.style.height, 10) + 4 + "px";
+        ghost.style.width = parseInt(node.style.width, 10) + (8 - 2 * border) + "px";
+        ghost.style.height = parseInt(node.style.height, 10) + (8 - 2 * border) + "px";
     }
     else {
-        document.getElementById("sheet").appendChild(ghost);
+        sheet.appendChild(ghost);
         ghost.width = width;
         ghost.height = height;
-        ghost.style.width = node_size(width) + 4 + "px";
-        ghost.style.height = node_size(height) + 4 + "px";
+        ghost.style.width = node_size(width) + (8 - 2 * border) + "px";
+        ghost.style.height = node_size(height) + (8 - 2 * border) + "px";
     }
 
     return ghost;
@@ -1539,14 +1547,11 @@ function create_node_group(from_ghost = null, x = 0, y = 0, w = 0, h = 0) {
         h = h ? h : from_ghost.height;
     }
 
-    let group = create_node_ghost(null, w, h);
+    let group = create_node_ghost(null, w, h, 0);
     group.classList.remove("node_ghost");
     group.classList.add("node_group");
-    let handle = create_control("handle.png", "handle");
-    group.appendChild(handle);
 
     snap_to_grid(group, x, y);
-    let sheet = document.getElementById("sheet");
     sheet.appendChild(group);
 
     group.collect_nodes = function () {
@@ -1580,10 +1585,15 @@ function create_node_group(from_ghost = null, x = 0, y = 0, w = 0, h = 0) {
             });
         }
     );
+
+    create_context_menu(
+        group,
+        [["cross.png", "Delete", () => { group.remove() }, false]]
+    );
 }
 
 function placement_click_to_grid_coord(e, ghost) {
-    let rect = document.getElementById("sheet").getBoundingClientRect();
+    let rect = sheet.getBoundingClientRect();
     offset_x = e.clientX - rect.left;
     offset_y = e.clientY - rect.top;
 
@@ -1639,8 +1649,6 @@ function create_preview_ghost(width = 2, height = 2) {
         }
     }
     
-    let sheet = document.getElementById("sheet");
-
     ghost.start_preview = _ => {
         ghost.style.display = "block";
         sheet.addEventListener("mousemove", move_ghost);
@@ -1793,10 +1801,15 @@ function make_node_draggable(el, start_fn = null, end_fn = null) {
     let x1 = 0, y1 = 0, x2 = 0, y2 = 0;
 
     handle = el.querySelector(".handle");
-    handle.onmousedown = start_drag;
+    if (!handle) {
+        handle = el;
+    }
 
     function start_drag(e) {
         e.preventDefault();
+        if (e.which !== 1) {
+            return;
+        }
 
         if (start_fn !== null) {
             start_fn();
@@ -1841,6 +1854,8 @@ function make_node_draggable(el, start_fn = null, end_fn = null) {
             end_fn();
         }
     }
+
+    handle.addEventListener("mousedown", start_drag);
 }
 
 function snap_to_grid(e, x = null, y = null) {
@@ -1854,7 +1869,6 @@ function snap_to_grid(e, x = null, y = null) {
     x = Math.max(x, 1);
     y = Math.max(y, 1);
 
-    let sheet = document.getElementById("sheet");
     if (y > sheet.height) {
         sheet.height = y + e.height;
         sheet.resize();
@@ -1882,7 +1896,6 @@ function parse_grid_area(node) {
 }
 
 function position_node(node) {
-    let sheet = document.getElementById("sheet");
     snap_to_grid(node);
     refresh_css(node);
 
