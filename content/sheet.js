@@ -1475,16 +1475,31 @@ function create_node_group(from_ghost = null, x = 0, y = 0, w = 0, h = 0) {
     group.appendChild(handle);
 
     snap_to_grid(group, x, y);
-    document.getElementById("sheet").appendChild(group);
+    let sheet = document.getElementById("sheet");
+    sheet.appendChild(group);
+
+    group.collect_nodes = function () {
+        group.managed_nodes = [];
+        let [x1, x2, y1, y2] = parse_grid_area(group);
+        sheet.querySelectorAll(".node").forEach(n => {
+            let [nx1, nx2, ny1, ny2] = parse_grid_area(n);
+
+            if (x1 <= nx1 && x2 >= nx2 && y1 <= ny1 && y2 >= ny2) {
+                group.managed_nodes.push(n);
+                n.dx = nx1 - x1;
+                n.dy = ny1 - y1;
+            }
+        });
+    }
 
     make_node_draggable(
         group,
         () => {
-            collect_group_nodes(group);
+            group.collect_nodes();
             group.managed_nodes.forEach(n => { n.style.opacity = 0.5; })
         },
         () => {
-            let [x1, _, y1, _] = parse_grid_area(group);
+            let [x1, _, y1, __] = parse_grid_area(group);
             group.managed_nodes.forEach(n => {
                 n.style.gridColumn = (x1 + n.dx).toString() + "/" +
                     (x1 + n.dx + n.width).toString();
@@ -1812,24 +1827,6 @@ function position_node(node) {
         if ((x2 > nx1 && x1 < nx2) && (y2 > ny1 && y1 < ny2)) {
             // if possible, position to the right of this node, else
             // position down
-        }
-    });
-}
-
-function collect_group_nodes(group) {
-    console.log("called");
-    group.managed_nodes = [];
-
-    let [x1, x2, y1, y2] = parse_grid_area(group);
-
-    let sheet = document.getElementById("sheet");
-    sheet.querySelectorAll(".node").forEach(n => {
-        let [nx1, nx2, ny1, ny2] = parse_grid_area(n);
-
-        if (x1 <= nx1 && x2 >= nx2 && y1 <= ny1 && y2 >= ny2) {
-            group.managed_nodes.push(n);
-            n.dx = nx1 - x1;
-            n.dy = ny1 - y1;
         }
     });
 }
