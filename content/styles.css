@@ -1,42 +1,49 @@
-#toolbar {
-    position: fixed;
-    display: flex;
-    top: 0px;
-    right: 10px;
-    flex-direction: column;
-    background-color: var(--bg-secondary);
+.toolbar {
     align-items: center;
-    width: 40px;
-    height: 40px;
+    background-color: var(--bg-secondary);
     border-bottom-left-radius: var(--border-rad);
     border-bottom-right-radius: var(--border-rad);
+    display: flex;
+    flex-direction: column;
+    height: 40px;
+    margin-left: 20px;
+    position: relative;
+    top: 0px;
     transition: all 0.5s;
+    width: 40px;
 }
 
-#tools_toggle {
+.toolbar_toggle {
     margin-top: 5px;
     transition: all 0.5s;
     cursor: pointer;
 }
 
-#toolbar.telescoped > #tools_toggle {
+.toolbar.telescoped > .toolbar_toggle {
     transform: rotate(180deg);
 }
 
-#toolbar:not(.telescoped):not(.telescoping) > #tools > .tool {
+.toolbar:not(.telescoped):not(.telescoping) > .tools > .tool {
     display: none;
 }
 
-#toolbar.telescoping > #tools {
+.toolbar.telescoping > .tools {
     overflow: hidden !important;
 }
 
-#toolbar.telescoped > #tools {
+.toolbar.telescoped > .tools {
     overflow: visible;
 }
 
-#toolbar.telescoped {
+.toolbar.telescoped {
     height: 300px;
+}
+
+#toolbox {
+    display: flex;
+    position: fixed;
+    right: 10px;
+    top: 0px;
 }
 
 .tool {
@@ -90,6 +97,12 @@
 
 .node_group {
     border: solid 2px var(--bg-secondary);
+    background-color: var(--bg-secondary);
+    opacity: 0;
+}
+
+.node_group:hover {
+    opacity: 0.5;
 }
 
 .node_group .handle {

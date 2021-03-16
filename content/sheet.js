@@ -62,26 +62,16 @@ function set_up_sheet() {
     // };
 }
 
-function set_up_toolbar() {
-    let toolbar = document.getElementById("toolbar");
-    let tools = document.getElementById("tools");
+function set_up_toolbox() {
+    let main = create_toolbar();
+    let main_tools = main.querySelector(".tools");
 
-    let toggle = document.getElementById("tools_toggle");
-    let toggle_img = document.createElement("img");
-    toggle_img.src = icon_path("chevron_down.png"); 
-    toggle.appendChild(toggle_img);
-    toggle.onclick = function () {
-        toolbar.classList.add("telescoping");
-        toolbar.classList.toggle("telescoped");
-        setTimeout(() => toolbar.classList.remove("telescoping"), 500);
-    };
-
-    tools.appendChild(create_add_tool());
-    tools.appendChild(create_group_tool());
+    main_tools.appendChild(create_add_tool());
+    main_tools.appendChild(create_group_tool());
 
     let save = create_tool("save.png");
     save.classList.add("toggle");
-    tools.appendChild(save);
+    main_tools.appendChild(save);
     let save_menu = create_save_menu();
     save.onclick = function () {
         save_menu.show();
@@ -92,7 +82,33 @@ function set_up_toolbar() {
     settings.onclick = function () {
         settings_panel.show();
     };
-    tools.appendChild(settings);
+    main_tools.appendChild(settings);
+
+    let group = create_toolbar();
+
+    group.querySelector(".tools").appendChild(create_tool("clone.png"));
+
+    main.style.order = 1;
+    group.style.order = 0;
+}
+
+function create_toolbar() {
+    let toolbar = create_element("div", ["toolbar"]);
+    document.getElementById("toolbox").appendChild(toolbar);
+
+    let toggle = create_element("div", ["toolbar_toggle"]);
+    let toggle_img = create_element("img");
+    toggle_img.src = icon_path("chevron_down.png"); 
+    toggle.appendChild(toggle_img);
+    toggle.onclick = function () {
+        toolbar.classList.add("telescoping");
+        toolbar.classList.toggle("telescoped");
+        setTimeout(() => toolbar.classList.remove("telescoping"), 500);
+    };
+    toolbar.appendChild(toggle);
+
+    toolbar.appendChild(create_element("div", ["tools"]));
+    return toolbar;
 }
 
 function create_tool(icon) {
@@ -107,7 +123,7 @@ function create_tool(icon) {
 }
 
 function end_all_tool_processes() {
-    document.getElementById("toolbar").querySelectorAll(".tool").forEach(t => {
+    document.querySelectorAll(".tool").forEach(t => {
         if (t.active === true) {
             t.click();
         }
