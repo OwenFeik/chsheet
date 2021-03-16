@@ -569,6 +569,7 @@ function set_content_type(node, type = "text") {
 
     NODE_TYPES.forEach(c => {
         content.classList.remove(c);
+        content.classList.remove(c + "_holder");
         node.classList.remove(c + "_content");
     });
     
@@ -603,18 +604,30 @@ function set_content_type(node, type = "text") {
         
         content.onkeydown = key_press_is_num;
 
+        let calc_delta = (e) => {
+            let d = 1;
+            if (e.ctrlKey) {
+                d *= 10;
+            }
+            if (e.shiftKey) {
+                d *= 100;
+            }
+            
+            return d;
+        };
+
         let increment_btn = create_control("add.png", "toggle", "background");
-        increment_btn.onclick = function () {
+        increment_btn.onclick = function (e) {
             content.innerHTML 
-                = (parseInt(content.innerHTML, 10) + 1).toString();
+                = (parseInt(content.innerHTML, 10) + calc_delta(e)).toString();
         };
         header.appendChild(increment_btn);
 
         let decrement_btn 
             = create_control("subtract.png", "toggle", "background");
-        decrement_btn.onclick = function () {
+        decrement_btn.onclick = function (e) {
             content.innerHTML
-                = (parseInt(content.innerHTML, 10) - 1).toString();
+                = (parseInt(content.innerHTML, 10) - calc_delta(e)).toString();
         };
         header.appendChild(decrement_btn);
     }
