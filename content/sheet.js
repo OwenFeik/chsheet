@@ -84,27 +84,56 @@ function set_up_toolbox() {
     };
     main_tools.appendChild(settings);
 
-    let group = create_toolbar();
-
-    group.querySelector(".tools").appendChild(create_tool("clone.png"));
-
     main.style.order = 1;
-    group.style.order = 0;
 }
 
-function create_toolbar() {
+function create_toolbar(order = 1, hidden = false) {
+    const TOOLBAR_TRANSITION_TIME = 500;
+    const TOOLBAR_CLOSED_HEIGHT = 40;
+
     let toolbar = create_element("div", ["toolbar"]);
+    toolbar.style.order = order;
+    toolbar.style.transition = "all " + TOOLBAR_TRANSITION_TIME / 1000 + "s";
+
+    if (hidden) {
+        no_transition(toolbar, () => {
+            toolbar.style.top = "-" + TOOLBAR_CLOSED_HEIGHT + "px";
+            toolbar.style.display = "none";
+        });
+    }
+
     document.getElementById("toolbox").appendChild(toolbar);
+
+    toolbar.telescope = function () {
+        toolbar.classList.add("telescoping");
+        toolbar.classList.toggle("telescoped");
+        setTimeout(() => {
+            toolbar.classList.remove("telescoping");
+        }, TOOLBAR_TRANSITION_TIME);
+    };
+
+    toolbar.hide = function () {
+        if (toolbar.classList.contains("telescoped")) {
+            toolbar.telescope()
+        }
+
+        toolbar.style.top = "-" + TOOLBAR_CLOSED_HEIGHT + "px";
+    };
+
+    toolbar.show = function (telescope=true) {
+        toolbar.style.display = "inherit";
+        toolbar.style.top = "0px";
+
+        if (telescope) {
+            toolbar.telescope()
+        }
+    }
 
     let toggle = create_element("div", ["toolbar_toggle"]);
     let toggle_img = create_element("img");
     toggle_img.src = icon_path("chevron_down.png"); 
     toggle.appendChild(toggle_img);
-    toggle.onclick = function () {
-        toolbar.classList.add("telescoping");
-        toolbar.classList.toggle("telescoped");
-        setTimeout(() => toolbar.classList.remove("telescoping"), 500);
-    };
+    toggle.onclick = toolbar.telescope;
     toolbar.appendChild(toggle);
 
     toolbar.appendChild(create_element("div", ["tools"]));
@@ -218,7 +247,7 @@ function create_add_tool() {
     return add;
 }
 
-function create_group_tool() {
+function create_new_group_tool() {
     let group = create_tool("clone.png");
     let ghost = create_preview_ghost(1, 1);
     let sheet = document.getElementById("sheet");
@@ -260,14 +289,40 @@ function create_group_tool() {
             end_group();
         }
         else {
-            end_all_tool_processes();
-
             document.addEventListener("keyup", handle_esc);
             sheet.classList.add("placing");
             sheet.addEventListener("click", sheet_click_handler);
             ghost.start_preview();
             group.querySelector("img").src = icon_path("cross.png");
             group.active = true;
+        }
+    };
+
+    return group;
+}
+
+function create_group_tool() {
+    let toolbar = create_toolbar(0, true);
+    toolbar.querySelector(".tools").appendChild(create_new_group_tool());
+
+    let group = create_tool("clone.png");
+    group.active = false;
+
+    let icon = group.querySelector("img");
+
+    group.onclick = function () {
+        if (group.active) {
+            icon.src = icon_path("clone.png");
+            group.active = false;
+            toolbar.hide();
+        }
+        else {
+            end_all_tool_processes();
+            group.active = true;
+            icon.src = icon_path("tick.png");
+            toolbar.style.display = "inherit";
+            refresh_css(toolbar);
+            toolbar.show();
         }
     };
 
