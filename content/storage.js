@@ -263,6 +263,7 @@ function node_from_dict(dict) {
 
 function build_sheet(save) {
     sheet.querySelectorAll(".node").forEach(n => n.remove());
+    sheet.querySelectorAll(".node_group").forEach(g => g.remove());
     sheet.save_title = save.title;
     sheet.resize(Math.max.apply(
         null,

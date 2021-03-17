@@ -302,7 +302,7 @@ function create_new_group_tool() {
             sheet.classList.add("placing");
             sheet.addEventListener("click", sheet_click_handler);
             ghost.start_preview();
-            group.querySelector("img").src = icon_path("tick.png");
+            group.querySelector("img").src = icon_path("cross.png");
             group.active = true;
         }
     };
@@ -324,6 +324,9 @@ function create_group_tool() {
         if (group.active) {
             icon.src = icon_path("clone.png");
             group.active = false;
+            if (new_group.active) {
+                new_group.click();
+            }
             toolbar.hide();
         }
         else {
@@ -333,7 +336,6 @@ function create_group_tool() {
             toolbar.style.display = "inherit";
             refresh_css(toolbar);
             toolbar.show();
-            new_group.click();
         }
         sheet.classList.toggle("grouping");
     };
@@ -1250,6 +1252,18 @@ function create_save_menu() {
         }
     };
     header.appendChild(save);
+
+    let example = create_control("clone.png", "background");
+    example.title = "Load Example";
+    example.onclick = function () {
+        fetch("/example.json").then(resp => resp.json()).then(data => {
+            build_sheet({
+                title: "example",
+                data: data
+            });
+        });
+    };
+    header.appendChild(example);
 
     let upload = document.createElement("div");
     upload.classList.add("control", "input_holder");
