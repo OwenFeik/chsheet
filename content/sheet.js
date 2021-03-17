@@ -1245,7 +1245,7 @@ function create_save_menu() {
             header_input.addEventListener("keyup", check_for_input);
         }
         else {
-            save_sheet(sheet, header_input.value, reload_saves);
+            save_sheet(header_input.value, reload_saves);
             sheet.save_title = header_input.value;
         }
     };
@@ -1333,7 +1333,7 @@ function create_save_list_item(save, load_callback) {
     title.title = `Load "${save.title}"`;
     title.innerText = save.title;
     title.onclick = function () {
-        load_sheet(sheet, save.title, load_callback);
+        load_sheet(save.title, load_callback);
     };
 
     list_item.appendChild(title);
@@ -1345,7 +1345,7 @@ function create_save_list_item(save, load_callback) {
 
     let node_count = document.createElement("span");
     node_count.classList.add("label");
-    node_count.innerText = save.data.length.toString() + " nodes";
+    node_count.innerText = get_nodes(save).length.toString() + " nodes";
     list_item.appendChild(node_count);
 
     let trash = create_control("trash.png", "background");

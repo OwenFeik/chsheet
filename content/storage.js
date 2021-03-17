@@ -31,22 +31,35 @@ function set_up_db() {
     };
 }
 
-function save_sheet(sheet, title=null, callback=null) {
-    let sheet_data = [];
+function save_sheet(title=null, callback=null) {
+    let nodes = [];
     sheet.querySelectorAll(".node").forEach(node => {
-        sheet_data.push(node_to_dict(node));
+        nodes.push(node_to_dict(node));
+    });
+
+    let groups = [];
+    sheet.querySelectorAll(".node_group").forEach( g => {
+        groups.push({
+            width: g.width,
+            height: g.height,
+            x: parseInt(g.style.gridColumnStart),
+            y: parseInt(g.style.gridRowStart)
+        })
     });
     
     insert_to_db({
         title: title,
         time: new Date().getTime(),
-        data: sheet_data
+        data: {
+            nodes: nodes,
+            groups: groups
+        }
     }, callback);    
 }
 
-function load_sheet(sheet, title, callback) {
+function load_sheet(title, callback) {
     get_sheet_from_db(title, data => {
-        build_sheet(sheet, data);
+        build_sheet(data);
         callback();
     });
 }
@@ -248,24 +261,38 @@ function node_from_dict(dict) {
     return node;
 }
 
-function build_sheet(sheet, save) {
+function build_sheet(save) {
     sheet.querySelectorAll(".node").forEach(n => n.remove());
     sheet.save_title = save.title;
-    sheet.resize(Math.max.apply(null, save.data.map((n) => n.x + n.width)));
+    sheet.resize(Math.max.apply(
+        null,
+        get_nodes(save).map((n) => n.x + n.width)
+    ));
 
-    save.data.forEach(n => {
+
+    if (Array.isArray(save.data)) {
+        nodes = save.data;
+    }
+    else {
+        nodes = save.data.nodes;
+        save.data.groups.forEach(
+            g => create_node_group(null, g.x, g.y, g.width, g.height)
+        );
+    }
+
+    nodes.forEach(n => {
         let node = node_from_dict(n);
         sheet.appendChild(node);
         snap_to_grid(node, n.x, n.y);
-    });
+    });    
 
     set_document_title(save.title);
 }
 
 function download_sheet(title) {
-    get_sheet_from_db(title, sheet => {
+    get_sheet_from_db(title, save => {
         let blob = new Blob(
-            [JSON.stringify(sheet.data)], 
+            [JSON.stringify(save.data)], 
             {type: "text/plain"}
         );
 
@@ -311,7 +338,7 @@ function update_image_store(all_sheets) {
     let image_names = [];
 
     all_sheets.forEach(s => {
-        s.data.forEach(n => {
+        get_nodes(s).forEach(n => {
             if (n.type === "image" && n.content.blob) {
                 if (image_names.indexOf(n.content.uri) < 0) {
                     image_names.push(n.content.uri);
@@ -409,4 +436,11 @@ function upload_sheet(file, callback=null) {
     };
     
     file_reader.readAsText(file, "UTF-8");
+}
+
+function get_nodes(save) {
+    if (Array.isArray(save.data)) {
+        return save.data;
+    }
+    return save.data.nodes;
 }
