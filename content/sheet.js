@@ -606,17 +606,15 @@ function set_content_type(node, type = "text") {
         
         content.onkeydown = key_press_is_num;
 
-        let calc_delta = (e) => {
-            let d = 1;
-            if (e.ctrlKey) {
-                d *= 10;
+        let reset_btn = create_control("reset.png", "toggle", "background");
+        reset_btn.onclick == function (e) {
+            if (!isNaN(node.default_value)) {
+                node.innerHTML = node.default_value.toString();
             }
-            if (e.shiftKey) {
-                d *= 100;
-            }
-            
-            return d;
         };
+        header.appendChild(reset_btn);
+
+        let calc_delta = e => (e.ctrlKey ? 10 : 1) * (e.shiftKey ? 100 : 1);
 
         let increment_btn = create_control("add.png", "toggle", "background");
         increment_btn.onclick = function (e) {
@@ -997,6 +995,20 @@ function create_node_settings(node) {
         node.classList.toggle("controls_inactive");
     };
     type.appendChild(controls_active);
+
+    let reset = create_element("div", ["setting", "number_content"]);
+    reset.appendChild(create_label("Reset"));
+    settings.appendChild(reset);
+
+    let reset_input = create_element("input");
+    reset_input.type = "checkbox";
+    reset_input.checked = node.default_value !== undefined;
+    reset.appendChild(reset_input);
+
+    reset.appendChild(create_label("Default"));
+
+    let reset_default = create_element("input", null, {type: "number"});
+    reset.appendChild(reset_default);
 
     let font = document.createElement("div");
     font.classList.add("setting", "font_content");
@@ -1986,13 +1998,19 @@ function set_document_title(text = "") {
     document.title = "chsheet: " + text;
 }
 
-function create_element(tagname, classes) {
+function create_element(tagname, classes, attributes) {
     let el = document.createElement(tagname);
 
     if (classes) {
         classes.forEach(c => {
             el.classList.add(c);
         });
+    }
+
+    if (attributes) {
+        for ([k, v] of Object.entries(attributes)) {
+            el.setAttribute(k, v);
+        }
     }
 
     return el;

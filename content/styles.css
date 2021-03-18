@@ -409,6 +409,10 @@
     display: none;
 }
 
+:not(.number_content) > .settings > .setting.number_content {
+    display: none;
+}
+
 .image_content > .settings > .setting.font_content {
     display: none;
 }
