@@ -574,6 +574,7 @@ function set_content_type(node, type = "text") {
         content.classList.remove(c + "_holder");
         node.classList.remove(c + "_content");
     });
+    node.classList.remove("has_default");
     
     if (type === "text") {
         content.classList.add("text");
@@ -606,10 +607,15 @@ function set_content_type(node, type = "text") {
         
         content.onkeydown = key_press_is_num;
 
-        let reset_btn = create_control("reset.png", "toggle", "background");
-        reset_btn.onclick == function (e) {
-            if (!isNaN(node.default_value)) {
-                node.innerHTML = node.default_value.toString();
+        let reset_btn = create_control(
+            "reset.png",
+            "toggle",
+            "background",
+            "number_reset"
+        );
+        reset_btn.onclick = function (e) {
+            if (!isNaN(content.default_value)) {
+                content.innerHTML = content.default_value.toString();
             }
         };
         header.appendChild(reset_btn);
@@ -1001,13 +1007,33 @@ function create_node_settings(node) {
     settings.appendChild(reset);
 
     let reset_input = create_element("input");
+    let reset_default = create_element("input", null, {type: "number"});
     reset_input.type = "checkbox";
-    reset_input.checked = node.default_value !== undefined;
+    reset_input.checked = node.classList.contains("has_default");
+    reset_input.oninput = function () {
+        if (reset_input.checked) {
+            node.classList.add("has_default");
+            if (!reset_default.values == "" && !isNaN(reset_default.value)) {
+                content.default_value = parseInt(reset_default.value);
+            }
+            else {
+                content.default_value = 1;
+                reset_default.value = "1";
+            }
+        }
+        else {
+            node.classList.remove("has_default");
+        }
+    };
     reset.appendChild(reset_input);
 
     reset.appendChild(create_label("Default"));
 
-    let reset_default = create_element("input", null, {type: "number"});
+    reset_default.oninput = function () {
+        if (!isNaN(reset_default.value)) {
+            content.default_value = parseInt(reset_default.value);
+        }
+    };
     reset.appendChild(reset_default);
 
     let font = document.createElement("div");

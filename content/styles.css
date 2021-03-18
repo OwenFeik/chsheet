@@ -417,6 +417,10 @@
     display: none;
 }
 
+.number_content:not(.has_default) .control.number_reset {
+    display: none;
+}
+
 .settings > .setting > input, .settings > .setting > select {
     flex-shrink: 1;
     min-width: 10px;

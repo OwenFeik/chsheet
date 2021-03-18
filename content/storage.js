@@ -127,6 +127,8 @@ function node_to_dict(node) {
     }
     else if (node.type === "number") {
         node_info.content = node_content.innerText.replace(/\n/g, "");
+        node_info.default_value = node_content.default_value;
+        node_info.has_default = node.classList.contains("has_default");
     }
     else if (node.type === "list") {
         let list_items = [];
@@ -215,8 +217,15 @@ function node_from_dict(dict) {
         node.classList.add("locked");
     }
 
-    if (dict.type === "text" || dict.type === "number") {
+    if (dict.type === "text") {
         content.innerText = dict.content;
+    }
+    else if (dict.type === "number") {
+        content.innerText = dict.content;
+        content.default_value = dict.default_value;
+        if (dict.has_default) {
+            node.classList.add("has_default");
+        }
     }
     else if (dict.type === "list") {
         if (dict.content.checkboxes_active) {
