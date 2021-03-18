@@ -1018,6 +1018,22 @@ function create_node_settings(node) {
     };
     font.appendChild(font_input);
 
+    let text_align = create_element("span", ["setting", "font_content"]);
+    settings.appendChild(text_align);
+
+    text_align.appendChild(create_label("Text align"));
+
+    let text_align_dropdown = create_element("select");
+    ["left", "right", "center", "justify"].forEach(t => {
+        let option = create_element("option");
+        option.innerHTML = t;
+        text_align_dropdown.appendChild(option);
+    });
+    text_align_dropdown.onchange = function () {
+        content.style.textAlign = text_align_dropdown.value;
+    };
+    text_align.appendChild(text_align_dropdown);
+
     let list_options = create_element("div", ["setting", "list_content"]);
     settings.appendChild(list_options);
 

@@ -103,6 +103,7 @@ function node_to_dict(node) {
         y: parseInt(node.style.gridRowStart, 10),
         controls_active: !node.classList.contains("controls_inactive"),
         font_size: parseInt(node_content.style.fontSize),
+        text_align: node_content.style.textAlign,
         locked: node.classList.contains("locked")
     }
 
@@ -193,6 +194,7 @@ function node_from_dict(dict) {
     }
 
     content.style.fontSize = dict.font_size + "pt";
+    content.style.textAlign = dict.text_align;
 
     if (dict.locked) {
         node.classList.add("locked");
