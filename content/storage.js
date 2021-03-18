@@ -64,6 +64,21 @@ function load_sheet(title, callback) {
     });
 }
 
+function sheet_exists_in_db(title, callback) {
+    let sheet_store = db.transaction("sheets").objectStore("sheets");
+    let request = sheet_store.count(title);
+
+    request.onsuccess = function (count) {
+        console.log(request.result);
+        if (request.result > 0) {
+            callback(true);
+        }
+        else {
+            callback(false);
+        }
+    };
+}
+
 function get_sheet_from_db(title, callback) {
     let sheet_store = db.transaction("sheets").objectStore("sheets");
     let request = sheet_store.get(title);
@@ -426,16 +441,24 @@ function insert_blob(blob_obj, callback=null) {
 function upload_sheet(file, callback=null) {
     let file_reader = new FileReader();
     file_reader.onload = function (e) {
-        try {
-            insert_to_db({
-                title: file.name.slice(0, -1 * ".json".length),
-                time: file.lastModified,
-                data: JSON.parse(e.target.result)
-            }, callback);
-        }
-        catch {
-            console.log("Failed to read.");
-        }
+        let title = file.name.slice(0, -1 * ".json".length);
+        sheet_exists_in_db(title, exists => {
+            if (
+                !exists
+                || confirm(`Save "${title}" already exists. Replace?`)
+            ) {
+                try {
+                    insert_to_db({
+                        title: title,
+                        time: file.lastModified,
+                        data: JSON.parse(e.target.result)
+                    }, callback);
+                }
+                catch {
+                    console.log("Failed to read.");
+                }        
+            }
+        });
     };
     
     file_reader.readAsText(file, "UTF-8");
