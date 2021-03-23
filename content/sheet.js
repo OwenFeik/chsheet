@@ -738,6 +738,13 @@ function set_list_content_from_dict(node, dict) {
         content.classList.add("checkboxes_active");
     }
 
+    if (!dict["controls"]) {
+        node.classList.remove("controls_inactive");
+    }
+    else {
+        node.classList.add("controls_inactive");
+    }
+
     node.querySelector(".title").innerHTML = dict["title"];
 }
 
