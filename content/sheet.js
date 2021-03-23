@@ -1125,6 +1125,23 @@ function create_node_settings(node) {
     };
     die_size.appendChild(die_size_input);
 
+    let die_mods = create_element("div", ["setting", "list_setting", "die_content"]);
+    settings.appendChild(die_mods);
+
+    let die_mods_list = create_element("div", ["entry_list"]);
+
+    let die_mods_header = create_element("div", ["header"]);
+    die_mods_header.appendChild(create_label("Mods"));
+    let die_mods_add = create_control("add.png");
+    die_mods_add.querySelector("img").classList.add("background");
+    die_mods_add.onclick = function () {
+        die_mods_list.appendChild(create_element("div", ["list_item"]));
+    };
+    die_mods_header.appendChild(die_mods_add);
+    die_mods.appendChild(die_mods_header);
+
+    die_mods.appendChild(die_mods_list);
+
     let image_src = create_element("div", ["setting", "image_content"]);
     settings.appendChild(image_src);
 
