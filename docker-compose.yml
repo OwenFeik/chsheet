@@ -1,0 +1,10 @@
+version: "3.2"
+services:
+  server:
+    build: .
+    image: chsheet_server
+    ports:
+      - target: 8080
+        published: 80
+        protocol: tcp
+        mode: host
