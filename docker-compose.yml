@@ -4,7 +4,11 @@ services:
     build: .
     image: chsheet_server
     ports:
-      - target: 8080
-        published: 80
-        protocol: tcp
-        mode: host
+    - target: 8080
+      published: 80
+      protocol: tcp
+      mode: host
+  db:
+    image: postgres
+    environment:
+      POSTGRES_PASSWORD: example

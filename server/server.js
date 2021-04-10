@@ -2,6 +2,10 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
+const postgres = require("postgres");
+
+const sql = postgres();
+
 const CONTENT_ROOT = __dirname.replace("/server", "/content");
 
 function validate_file_name(string) {
