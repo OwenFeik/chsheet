@@ -568,6 +568,7 @@ function set_content_type(node, type = "text") {
 
     content.onkeydown = null;
     content.add_item = null;
+    node.modifiers = null;
 
     NODE_TYPES.forEach(c => {
         content.classList.remove(c);
@@ -689,6 +690,7 @@ function set_content_type(node, type = "text") {
         content.contentEditable = false;
         content.style.fontSize = "20pt";
 
+        node.modifiers = [];
         node.die_size = 20;
         
         let roll_btn = create_control("die.png", "background");
@@ -1125,7 +1127,10 @@ function create_node_settings(node) {
     };
     die_size.appendChild(die_size_input);
 
-    let die_mods = create_element("div", ["setting", "list_setting", "die_content"]);
+    let die_mods = create_element(
+        "div",
+        ["setting", "list_setting", "die_content"]
+    );
     settings.appendChild(die_mods);
 
     let die_mods_list = create_element("div", ["entry_list"]);
@@ -1135,7 +1140,8 @@ function create_node_settings(node) {
     let die_mods_add = create_control("add.png");
     die_mods_add.querySelector("img").classList.add("background");
     die_mods_add.onclick = function () {
-        die_mods_list.appendChild(create_element("div", ["list_item"]));
+        let mod = create_element("div", ["list_item"]);
+        die_mods_list.appendChild(mod);
     };
     die_mods_header.appendChild(die_mods_add);
     die_mods.appendChild(die_mods_header);
