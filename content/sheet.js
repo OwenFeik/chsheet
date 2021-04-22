@@ -5,6 +5,116 @@ const NODE_HEADER_HEIGHT = 20;
 const LIST_ITEM_HEIGHT = 29;
 const NODE_TYPES = ["text", "number", "list", "die", "image", "checkbox"];
 
+const NodeTypes = {
+    CHECKBOX: "checkbox",
+    DIE: "die",
+    IMAGE: "image",
+    LIST: "list",
+    NONE: "none",
+    NUMBER: "number",
+    TEXT: "text",
+};
+
+class ElementWrapper {
+    constructor(tagname, classes) {
+        this.element = create_element(tagname, classes);
+    }
+}
+
+class NodeControl extends ElementWrapper {
+    
+}
+
+class NodeControls extends ElementWrapper {
+    constructor() {
+        super("div", ["controls"]);
+    }
+}
+
+class NodeHeader extends ElementWrapper {
+    constructor(options) {
+        super("div", ["header"]);
+        this.title_element = create_element("span", ["title"]);
+        this.controls = new NodeControls();
+
+        this.title = options.title || "Title";
+
+    }
+
+    set title(title) {
+        this.title = title;
+        this.title_element.title = title;
+    }
+}
+
+class Node extends ElementWrapper {
+    constructor(options) {
+        super("div", ["node"]);
+
+        this.width = options.width || 2;
+        this.height = options.height || 2;
+        this.type = options.type || NodeTypes.NONE;
+        
+        this.header = new NodeHeader();
+
+        this.content = null;
+        this.set_up_content();
+
+        this.element.appendChild(this.header);
+        this.element.appendChild(this.content);
+    }
+
+    get w() {
+        return this.width;
+    }
+
+    get h() {
+        return this.height;
+    }
+
+    set_up_content() {
+        this.content = create_element("div", ["content"]);
+        this.element.appendChild(this.content);
+    }
+}
+
+class TextNode extends Node {
+    constructor(options) {
+        super(options);
+    }
+}
+
+class NumberNode extends Node {
+    constructor(options) {
+        super(options);
+    }
+}
+
+class ListNode extends Node {
+    constructor(options) {
+        super(options);
+    }
+}
+
+class DieNode extends Node {
+    constructor(options) {
+        super(options);
+    }
+}
+
+class ImageNode extends Node {
+    constructor(options) {
+        super(options);
+    }
+}
+
+class CheckboxNode extends Node {
+    constructor(options) {
+        super(options);
+    }
+}
+
+
 function set_up_shortcuts() {
     document.onkeydown = function (e) {
         // https://stackoverflow.com/a/19589671
