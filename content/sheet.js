@@ -114,6 +114,12 @@ class CheckboxNode extends Node {
     }
 }
 
+class Sheet {
+    constructor() {
+        this.element = document.getElementById("sheet");
+    }
+}
+
 
 function set_up_shortcuts() {
     document.onkeydown = function (e) {
