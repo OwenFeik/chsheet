@@ -236,15 +236,15 @@
     white-space: nowrap;
 }
 
-.node > .content.list > .list_item .controls_box {
+.node > .content.list > .list_item .control_box {
     display: none;
 }
 
-.node > .content.list > .list_item:hover .controls_box {
+.node > .content.list > .list_item:hover .control_box {
     display: flex;
 }
 
-.list_item .controls_box {
+.list_item .control_box {
     display: flex;
     flex-direction: row;
     justify-content: right;
@@ -271,7 +271,7 @@
     justify-content: center;
 }
 
-.controls_box > .control {
+.control_box > .control {
     margin-left: 0px;
 }
 

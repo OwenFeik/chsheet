@@ -18,6 +18,24 @@ const NodeTypes = {
 class ElementWrapper {
     constructor(tagname, classes) {
         this.element = create_element(tagname, classes);
+    
+        this._visible = true;
+        this.visible = true;
+    }
+
+    get visible() {
+        return this._visible;
+    }
+
+    set visible(visible) {
+        this._visible = visible;
+
+        if (this._visible) {
+            this.element.style.display = "inline-block";
+        }
+        else {
+            this.element.style.display = "none";
+        }
     }
 }
 
@@ -126,22 +144,24 @@ class Title extends ElementWrapper {
     constructor(options) {
         super("span", ["title"]);
         
-        this._title = "";
-        this.title = options.title || "Title";
+        this._text = "";
+        this.text = options.title || "Title";
+        
+        this.visible = options.title_active || true;
 
         this.locked = options.locked || false;
 
         this.make_double_click_editable();
     }
 
-    get title() {
-        return this._title;
+    get text() {
+        return this._text;
     }
 
-    set title(title) {
-        this._title = title;
-        this.title_element.title = this._title;
-        this.title_element.innerText = this._title;
+    set text(text) {
+        this._text = text;
+        this.element.title = this._text;
+        this.element.innerText = this._text;
     }
 
     make_double_click_editable() {
@@ -171,10 +191,14 @@ class Title extends ElementWrapper {
 }
 
 class Icon extends ElementWrapper {
-    constructor(name) {
+    constructor(name, background = true) {
         super("img", ["icon"]);
 
         this.element.src = Icon.icon_path(name); 
+        
+        if (background) {
+            this.element.classList.add("background");
+        }
     }
 
     static icon_path(name) {
@@ -182,21 +206,62 @@ class Icon extends ElementWrapper {
     }
 }
 
+class Checkbox extends ElementWrapper {
+    constructor(checked = true, classes = []) {
+        super("div", ["checkbox"].concat(classes));
+
+        this.element.appendChild(new Icon("tick"));
+
+        this._value = null;
+        this.value = checked;
+
+        this.element.onclick = () => this.toggle();
+    }
+
+    get value() {
+        return this._value;
+    }
+
+    set value(checked) {
+        this._value = checked;
+
+        if (this._value) {
+            this.classList.add("checked");
+        }
+        else {
+            this.classList.remove("checked");
+        }
+    }
+
+    toggle() {
+        this.value = !this.value;
+    }
+}
+
 class Control extends ElementWrapper {
     constructor(options) {
         super("div", ["control"]);
         
+        if (options.toggle) {
+            this.element.classList.add("toggle");
+        }
+
         this.icon = new Icon(options.icon);
         this.element.appendChild(this.icon.element);
 
-        this.element.title = options.title;
+        if (options.title) {
+            this.element.title = options.title;
+        }
+    
+        this.onclick = e => this.action(e);
     }
+
+    action(event) {}
 }
 
 class NodeControl extends Control {
     constructor(node, options) {
         super(options);
-
         this.node = node;
     }
 }
@@ -205,14 +270,160 @@ class DragControl extends NodeControl {
     constructor(node) {
         super(node, {
             icon: "handle.png",
-            title: "Move"
-        })
+            title: "Move",
+            toggle: true
+        });
+
+        this.element.classList.add("handle")
     }
 }
 
-class NodeControls extends ElementWrapper {
+class NumberControl extends NodeControl {
+    constructor(node, positive) {
+        super(node, {
+            icon: positive ? "add.png" : "subtract.png",
+            title: positive ? "Increase" : "Decrease",
+            toggle: true
+        });
+
+        this.multiplier = positive ? 1 : -1;
+    }
+
+    action(e) {
+        let delta = 
+            (e.ctrlKey ? 10 : 1) * (e.shiftKey ? 100 : 1) * this.multiplier;
+        this.node.value = this.node.value + delta;
+    }
+}
+
+class NumberResetControl extends NodeControl {
     constructor(node) {
-        super("div", ["controls"]);
+        super(node, {
+            icon: "reset.png",
+            title: "Reset",
+            toggle: true
+        });
+    }
+
+    action(e) {
+        this.node.value = this.node.default_value;
+    }
+}
+
+class ListAddItemControl extends NodeControl {
+    constructor(node) {
+        super(node, {
+            icon: "add.png",
+            title: "Add item",
+            toggle: true
+        });
+
+        create_context_menu(
+            this.element,
+            [
+                [
+                    "add.png",
+                    "Item",
+                    function (_) {
+                        add_item(false);
+                    }
+                ],
+                [
+                    "handle.png",
+                    "Break",
+                    function (_) {
+                        add_item(true);
+                    }
+                ]
+            ]
+        );
+    }
+
+    action(e) {
+        this.node.add_item();
+    }
+}
+
+class ControlBox extends ElementWrapper {
+    constructor(options) {
+        super("div", ["control_box"]);
+        this.visible = options.active || true;
+        this.controls = [];
+    
+        this.set_up_controls();
+    }
+
+    add_control(control) {
+        this.controls.push(control);
+        this.element.appendChild(control.element);
+    }
+
+    set_up_controls() {}
+}
+
+class NodeControlBox extends ControlBox {
+    constructor(node, options) {
+        this.node = node;
+
+        super(options);    
+    }
+
+    set_up_controls() {
+        if (node.type === NodeTypes.NUMBER) {
+            this.add_control(new NumberControl(this.node, true));
+            this.add_control(new NumberControl(this.node, false));
+            this.add_control(new NumberResetControl(this.node));        
+        }
+        else if (this.node.type === NodeTypes.LIST) {
+            this.add_control(new ListAddItemControl(this.node));
+        }
+
+        this.add_control(new DragControl(this.node));
+    }
+}
+
+class ListItemControl extends Control {
+    constructor(list_item, options) {
+        super(options);
+
+        this.list_item = list_item;
+    }
+}
+
+class ListItemDragControl extends ListItemControl {
+    constructor(list_item) {
+        super(list_item, {
+            icon: "handle.png",
+            toggle: true
+        });
+    }
+
+    action(event) {}
+}
+
+class ListItemRemoveControl extends ListItemControl {
+    constructor(list_item) {
+        super(list_item, {
+            icon: "cross.png",
+            toggle: true
+        });
+    }
+
+    action(event) {
+        this.list_item.remove();
+    }
+}
+
+class ListItemControlBox extends ControlBox {
+    constructor(list_item, options) {
+        this.list_item = list_item;
+
+        super(options);
+    }
+
+    set_up_controls() {
+        this.add_control(new ListItemRemoveControl(this.list_item));
+        this.add_control(new ListItemDragControl(this.list_item));
     }
 }
 
@@ -223,12 +434,12 @@ class NodeHeader extends ElementWrapper {
         this.title = new Title(options);
         this.element.appendChild(this.title.element);
 
-        this.controls = new NodeControls(node);
+        this.controls = new NodeControls(node, options);
         this.element.appendChild(this.controls.element);
     }
 }
 
-class Node extends SheetElement {
+class SheetNode extends SheetElement {
     constructor(options) {
         super("div", ["node"]);
 
@@ -238,47 +449,185 @@ class Node extends SheetElement {
         this.element.appendChild(this.header.element);
 
         this.content = null;
+        this.create_content_element();
         this.set_up_content();
-        this.element.appendChild(this.content.element);
     }
 
-    set_up_content() {
+    set value(data) {
+        return;
+    }
+
+    get value() {
+        return null;
+    }
+
+    create_content_element() {
         this.content = create_element("div", ["content"]);
         this.element.appendChild(this.content);
     }
+
+    set_up_content() {
+        // Subclasses have differing content formats, so they configure the
+        // content element when this is called.
+
+        return;
+    }
+
+    content_json() {
+        return this.value;
+    }
+
+    to_json() {
+        return {
+            title: this.header.title.text,
+            title_active: this.header.title.visible,
+            type: this.type,
+            width: this.width,
+            height: this.height,
+            x: this.x,
+            y: this.y,
+            controls_active: this.controls.visible,
+            font_size: this.content.style.fontSize,
+            text_align: this.content.style.textAlign,
+            locked: this.locked,
+            content: this.content_json()
+        }
+    }
 }
 
-class TextNode extends Node {
+class TextNode extends SheetNode {
+    static DEFAULT_FONT_SIZE = "10pt"; 
+    static DEFAULT_VALUE = "Lorem ipsum dolor sit amet";
+
+    constructor(options) {
+        super(options);
+    }
+
+    set value(text) {
+        this.content.innerText = text;
+    }
+
+    get value() {
+        return this.content.innerText;
+    }
+
+    set_up_content() {
+        this.content.classList.append("text");
+        this.content.innerHTML = "";
+        this.value = TextNode.DEFAULT_VALUE;
+        this.content.contentEditable = true;
+        this.content.spellcheck = false;
+        this.content.style.fontSize = TextNode.DEFAULT_FONT_SIZE;
+        this.content.style.textAlign = "left";
+    }
+}
+
+class NumberNode extends SheetNode {
+    static DEFAULT_FONT_SIZE = "20pt";
+    static DEFAULT_VALUE = 1;
+
+    constructor(options) {
+        this.default_value = options.default_value || NumberNode.DEFAULT_VALUE;
+
+        super(options);    
+    }
+
+    set value(number) {
+        this.content.innerText = number.toString();
+    }
+
+    get value() {
+        return parseInt(this.content.innerText);
+    }
+
+    set_up_content() {
+        this.content.classList.add("number");
+        this.content.innerHTML = this.default_value.toString();
+        this.content.contentEditable = true;
+        this.content.spellcheck = false;
+        this.content.style.fontSize = NumberNode.DEFAULT_FONT_SIZE;
+        this.content.style.textAlign = "center";
+
+        // Prevent non numeric characters from being entered into number
+        // field.
+        this.content.onkeydown = e => {
+            if (
+                e.keyCode === 8 /* Backspace */ 
+                || e.keyCode === 9 /* Tab */
+                || (e.keyCode >= 48 && e.keyCode <= 57) /* 0-9 */
+                || (e.keyCode >= 37 && e.keyCode <= 40) /* Arrows */
+                || (e.key == "+" || e.key == "-")
+            ) {
+                return;
+            }
+            e.preventDefault();
+        }
+    }
+}
+
+class ListNode extends SheetNode {
+    static DEFAULT_FONT_SIZE = "10pt";
+    static DEFAULT_BREAK_TITLE = "Break";
+    static DEFAULT_ITEM_TEXT = "New item";
+
+    constructor(options) {
+        super(options);
+    }
+
+    set_up_content() {
+        this.content.classList.add("list");
+        this.content.innerHTML = "";
+        this.content.contentEditable = false;
+        this.content.style.fontSize = ListNode.DEFAULT_FONT_SIZE;
+    }
+
+    // Creates a new list_item or list_break and adds it to the list's content.
+    add_item(is_break = false, text = "") {
+        if (is_break) {
+            let new_item = create_element("div", ["list_item", "list_break"]);
+            new_item.appendChild(create_element("div", ["padding"]));
+            
+            let title = new Title();
+            title.text = text || ListNode.DEFAULT_ITEM_TEXT;
+            title.element.classList.add("list_item_content");
+            new_item.appendChild(title);
+
+            new_item.appendChild(create_element("div", ["padding"]));
+            new_item.appendChild(new ListItemControlBox(new_item));
+        }
+        else {
+            let new_item = create_element("div", ["list_item"]);
+            new_item.appendChild(new Checkbox());
+            new_item.appendChild(create_element(
+                "span",
+                ["list_item_content"],
+                {
+                    contentEditable: true,
+                    spellcheck: false,
+                    innterText: ListNode.DEFAULT_ITEM_TEXT
+                }
+            ));
+            new_item.appendChild(new ListItemControlBox(new_item));
+        }
+
+        new_item.style.order = this.content.children.length;
+        this.content.appendChild(new_item);
+    }
+}
+
+class DieNode extends SheetNode {
     constructor(options) {
         super(options);
     }
 }
 
-class NumberNode extends Node {
+class ImageNode extends SheetNode {
     constructor(options) {
         super(options);
     }
 }
 
-class ListNode extends Node {
-    constructor(options) {
-        super(options);
-    }
-}
-
-class DieNode extends Node {
-    constructor(options) {
-        super(options);
-    }
-}
-
-class ImageNode extends Node {
-    constructor(options) {
-        super(options);
-    }
-}
-
-class CheckboxNode extends Node {
+class CheckboxNode extends SheetNode {
     constructor(options) {
         super(options);
     }
