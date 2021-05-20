@@ -122,26 +122,16 @@ class SheetElement extends ElementWrapper {
     }
 }
 
-class NodeControl extends ElementWrapper {
-    
-}
-
-class NodeControls extends ElementWrapper {
-    constructor() {
-        super("div", ["controls"]);
-    }
-}
-
-class NodeHeader extends ElementWrapper {
+class Title extends ElementWrapper {
     constructor(options) {
-        super("div", ["header"]);
+        super("span", ["title"]);
         
-
-        this.title_element = create_element("span", ["title"]);
+        this._title = "";
         this.title = options.title || "Title";
-        this.element.appendChild(this.title_element);
 
-        this.controls = new NodeControls();
+        this.locked = options.locked || false;
+
+        this.make_double_click_editable();
     }
 
     get title() {
@@ -153,6 +143,89 @@ class NodeHeader extends ElementWrapper {
         this.title_element.title = this._title;
         this.title_element.innerText = this._title;
     }
+
+    make_double_click_editable() {
+        el = this.element;
+
+        el.contentEditable = "false";
+        el.spellcheck = "false";
+        el.tabIndex = "0";
+
+        el.ondblclick = () => {
+            if (this.locked) {
+                return;
+            }
+
+            el.spellcheck = "true";
+            el.contentEditable = "true";
+            el.focus();
+
+            el.onblur = () => {
+                el.spellcheck = "false";
+                el.contentEditable = "false";
+                el.scrollLeft = 0;
+                el.onblur = null;
+            };
+        };
+    }
+}
+
+class Icon extends ElementWrapper {
+    constructor(name) {
+        super("img", ["icon"]);
+
+        this.element.src = Icon.icon_path(name); 
+    }
+
+    static icon_path(name) {
+        return "icons/" + name;
+    }
+}
+
+class Control extends ElementWrapper {
+    constructor(options) {
+        super("div", ["control"]);
+        
+        this.icon = new Icon(options.icon);
+        this.element.appendChild(this.icon.element);
+
+        this.element.title = options.title;
+    }
+}
+
+class NodeControl extends Control {
+    constructor(node, options) {
+        super(options);
+
+        this.node = node;
+    }
+}
+
+class DragControl extends NodeControl {
+    constructor(node) {
+        super(node, {
+            icon: "handle.png",
+            title: "Move"
+        })
+    }
+}
+
+class NodeControls extends ElementWrapper {
+    constructor(node) {
+        super("div", ["controls"]);
+    }
+}
+
+class NodeHeader extends ElementWrapper {
+    constructor(node, options) {
+        super("div", ["header"]);
+
+        this.title = new Title(options);
+        this.element.appendChild(this.title.element);
+
+        this.controls = new NodeControls(node);
+        this.element.appendChild(this.controls.element);
+    }
 }
 
 class Node extends SheetElement {
@@ -161,7 +234,7 @@ class Node extends SheetElement {
 
         this.type = options.type || NodeTypes.NONE;
         
-        this.header = new NodeHeader();
+        this.header = new NodeHeader(options);
         this.element.appendChild(this.header.element);
 
         this.content = null;
