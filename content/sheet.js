@@ -1,5 +1,5 @@
-var NODESIZE = 32;
-var GAP = 10;
+const INITIAL_GRID_SIZE = 32;
+const INITIAL_GRID_GAP = 10;
 const TOOLBAR_WIDTH = 70;
 const NODE_HEADER_HEIGHT = 20;
 const LIST_ITEM_HEIGHT = 29;
@@ -21,6 +21,107 @@ class ElementWrapper {
     }
 }
 
+class SheetElement extends ElementWrapper {
+    constructor(options) {
+        this._x = options.x || 0;
+        this._y = options.y || 0;
+
+        this._width = options.width || 2;
+        this._height = options.height || 2;
+    }
+
+    static grid_size = INITIAL_GRID_SIZE;
+    static grid_gap = INITIAL_GRID_GAP;
+
+    static set_grid_size(val) {
+        SheetElement.grid_size = val; 
+    }
+
+    static set_grid_gap(val) {
+        SheetElement.grid_gap = val;
+    }
+
+    static grid_size_to_px(size) {
+        return (
+            size * SheetElement.grid_size
+            + (size - 1) * SheetElement.grid_gap
+        ) + "px";
+    }
+
+    get x() {
+        return this._x;
+    }
+
+    set x(val) {
+        this._x = val;
+        this.update_grid_area();
+    }
+
+    get y() {
+        return this._y;
+    }
+
+    set y(val) {
+        this._y = val;
+        this.update_grid_area();
+    }
+
+    get width() {
+        return this._width;
+    }
+
+    set width(val) {
+        this._width = val;
+        this.update_grid_area();
+    }
+
+    get height() {
+        return this._height;
+    }
+
+    set height(val) {
+        this._height = val;
+        this.update_grid_area();
+    }
+
+    get w() {
+        return this._width;
+    }
+
+    set w(val) {
+        this._width = val;
+        this.update_grid_area();
+    }
+
+    get h() {
+        return this._height;
+    }
+
+    set h(val) {
+        this._height = val;
+        this.update_grid_area();
+    }
+
+    update_grid_area() {
+        this.element.style.gridRowStart = this.x;
+        this.element.style.gridRowEnd = this.x + this.width;
+        this.element.style.gridColumnStart = this.y;
+        this.element.style.gridColumnEnd = this.y + this.height;
+
+        this.element.style.width = SheetElement.grid_size_to_px(this.width);
+        this.element.style.height = SheetElement.grid_size_to_px(this.height);
+    }
+
+    contains(other) {
+        return (
+            (this.x <= other.x)
+            && (this.x + this.width >= other.x + other.width)
+            && (this.y <= other.y)
+            && (this.y + this.height >= other.y + other.height)
+        );
+    }
+}
+
 class NodeControl extends ElementWrapper {
     
 }
@@ -34,42 +135,38 @@ class NodeControls extends ElementWrapper {
 class NodeHeader extends ElementWrapper {
     constructor(options) {
         super("div", ["header"]);
+        
+
         this.title_element = create_element("span", ["title"]);
-        this.controls = new NodeControls();
-
         this.title = options.title || "Title";
+        this.element.appendChild(this.title_element);
 
+        this.controls = new NodeControls();
+    }
+
+    get title() {
+        return this._title;
     }
 
     set title(title) {
-        this.title = title;
-        this.title_element.title = title;
+        this._title = title;
+        this.title_element.title = this._title;
+        this.title_element.innerText = this._title;
     }
 }
 
-class Node extends ElementWrapper {
+class Node extends SheetElement {
     constructor(options) {
         super("div", ["node"]);
 
-        this.width = options.width || 2;
-        this.height = options.height || 2;
         this.type = options.type || NodeTypes.NONE;
         
         this.header = new NodeHeader();
+        this.element.appendChild(this.header.element);
 
         this.content = null;
         this.set_up_content();
-
-        this.element.appendChild(this.header);
-        this.element.appendChild(this.content);
-    }
-
-    get w() {
-        return this.width;
-    }
-
-    get h() {
-        return this.height;
+        this.element.appendChild(this.content.element);
     }
 
     set_up_content() {
@@ -2188,7 +2285,7 @@ function create_element(tagname, classes, attributes) {
     return el;
 }
 
-function sheet_offset_to_grid_coord(off_x, off_y, delta_x = 0, delta_y = 0) {    
+function sheet_offset_to_grid_coord(off_x, off_y, delta_x = 0, delta_y = 0) {
     return [
         Math.round(off_x / (NODESIZE + GAP) + delta_x),
         Math.round(off_y / (NODESIZE + GAP) + delta_y)
