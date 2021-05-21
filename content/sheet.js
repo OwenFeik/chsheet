@@ -344,6 +344,20 @@ class ListAddItemControl extends NodeControl {
     }
 }
 
+class DieRollControl extends NodeControl {
+    constructor(node) {
+        super(node, {
+            icon: "die.png",
+            title: "Roll",
+            toggle: false
+        });
+    }
+
+    action(e) {
+        this.node.roll();
+    }
+}
+
 class ControlBox extends ElementWrapper {
     constructor(options) {
         super("div", ["control_box"]);
@@ -513,7 +527,6 @@ class TextNode extends SheetNode {
 
     set_up_content() {
         this.content.classList.append("text");
-        this.content.innerHTML = "";
         this.value = TextNode.DEFAULT_VALUE;
         this.content.contentEditable = true;
         this.content.spellcheck = false;
@@ -532,12 +545,12 @@ class NumberNode extends SheetNode {
         super(options);    
     }
 
-    set value(number) {
-        this.content.innerText = number.toString();
-    }
-
     get value() {
         return parseInt(this.content.innerText);
+    }
+
+    set value(number) {
+        this.content.innerText = number.toString();
     }
 
     set_up_content() {
@@ -576,7 +589,6 @@ class ListNode extends SheetNode {
 
     set_up_content() {
         this.content.classList.add("list");
-        this.content.innerHTML = "";
         this.content.contentEditable = false;
         this.content.style.fontSize = ListNode.DEFAULT_FONT_SIZE;
     }
@@ -616,20 +628,81 @@ class ListNode extends SheetNode {
 }
 
 class DieNode extends SheetNode {
+    static DEFAULT_FONT_SIZE = "20pt";
+    static DEFAULT_VALUE = 0;
+    static DEFAULT_DIE_SIZE = 20;
+
     constructor(options) {
         super(options);
+
+        this.modifiers = [];
+        this.die_size = DieNode.DEFAULT_DIE_SIZE;
+    }
+
+    get value() {
+        return parseInt(this.content.innerText);
+    }
+
+    set value(number) {
+        this.content.innerText = number.toString();
+    }
+
+    set_up_content() {
+        this.content.classList.add("die");
+        this.content.contentEditable = false;
+        this.contentEditable.fontSize = DieNode.DEFAULT_FONT_SIZE;
+        this.value = DieNode.DEFAULT_VALUE;
+    }
+
+    roll() {
+        this.value = Math.ceil(Math.random() * this.die_size);
     }
 }
 
 class ImageNode extends SheetNode {
+    static DEFAULT_IMAGE = Icon.icon_path("cross.png");
+
     constructor(options) {
+        this.image = create_element("img");
+        this.image.src = ImageNode.DEFAULT_IMAGE;
+
         super(options);
+    }
+
+    get value() {
+        return this.image.src;
+    }
+
+    set value(url) {
+        this.image.src = url;
+    }
+
+    set_up_content() {
+        this.content.classList.add("image_holder");
+        this.content.contentEditable = false;
+        this.content.appendChild(this.image);
     }
 }
 
 class CheckboxNode extends SheetNode {
     constructor(options) {
+        this.checkbox = new Checkbox(true, ["inverted"]);
+
         super(options);
+    }
+
+    get value() {
+        return this.checkbox.value;
+    }
+
+    set value(bool) {
+        this.checkbox.value = bool;
+    }
+
+    set_up_content() {
+        this.content.classList.add("checkbox_holder");
+        this.content.contentEditable = false;
+        this.content.appendChild(this.checkbox);
     }
 }
 
