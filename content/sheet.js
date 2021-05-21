@@ -467,12 +467,12 @@ class SheetNode extends SheetElement {
         this.set_up_content();
     }
 
-    set value(data) {
-        return;
-    }
-
     get value() {
         return null;
+    }
+
+    set value(data) {
+        return;
     }
 
     create_content_element() {
@@ -491,7 +491,9 @@ class SheetNode extends SheetElement {
         return this.value;
     }
 
-    to_json() {
+    // Seperate method to to_json so subclasses can update this data for their
+    // own to_json methods easily.
+    _to_json() {
         return {
             title: this.header.title.text,
             title_active: this.header.title.visible,
@@ -507,6 +509,29 @@ class SheetNode extends SheetElement {
             content: this.content_json()
         }
     }
+
+    to_json() {
+        return this._to_json();
+    }
+
+    from_json(options) {
+        switch (options.type) {
+            case NodeTypes.CHECKBOX:
+                return new CheckboxNode(options);
+            case NodeTypes.DIE:
+                return new DieNode(options);
+            case NodeTypes.IMAGE:
+                return new ImageNode(options);
+            case NodeTypes.LIST:
+                return new ListNode(options);
+            case NodeTypes.NONE:
+                return new SheetNode(options);
+            case NodeTypes.NUMBER:
+                return new NumberNode(options);
+            case NodeTypes.TEXT:
+                return new TextNode(options);
+        }
+    }
 }
 
 class TextNode extends SheetNode {
@@ -517,12 +542,12 @@ class TextNode extends SheetNode {
         super(options);
     }
 
-    set value(text) {
-        this.content.innerText = text;
-    }
-
     get value() {
         return this.content.innerText;
+    }
+
+    set value(text) {
+        this.content.innerText = text;
     }
 
     set_up_content() {
@@ -576,6 +601,13 @@ class NumberNode extends SheetNode {
             e.preventDefault();
         }
     }
+
+    to_json() {
+        let json = this._to_json();
+        json.default_value = this.default_value;
+
+        return json;
+    }
 }
 
 class ListNode extends SheetNode {
@@ -585,6 +617,24 @@ class ListNode extends SheetNode {
 
     constructor(options) {
         super(options);
+
+        this._checkboxes_active = (options.checkboxes_active !== undefined) ?
+            options.checkboxes_active : true;
+    }
+
+    get checkboxes_active() {
+        return this._checkboxes_active;
+    }
+
+    set checkboxes_active(bool) {
+        this._checkboxes_active = bool;
+
+        if (this._checkboxes_active) {
+            this.content.classList.add("checkboxes_active");
+        }
+        else {
+            this.content.classList.remove("checkboxes_active");
+        }
     }
 
     set_up_content() {
@@ -625,6 +675,35 @@ class ListNode extends SheetNode {
         new_item.style.order = this.content.children.length;
         this.content.appendChild(new_item);
     }
+
+    to_json() {
+        let json = this._to_json();
+
+        let list_items = [];
+        Array.prototype.slice.call(this.content.children).sort((a, b) =>
+            (a.style.order - b.style.order)
+        ).forEach(i => {
+            if (i.classList.contains("list_break")) {
+                list_items.push({
+                    type: "break",
+                    title: i.querySelector(".title").innerText
+                });
+            }
+            else {
+                list_items.push({
+                    type: "item",
+                    content: i.querySelector(".list_item_content").innerText,
+                    checkbox_checked: i.querySelector(".checkbox")
+                        .classList.contains("checked")
+                });
+            }
+        });
+
+        json.content = list_items;
+        json.checkboxes_active = this.checkboxes_active;
+
+        return json;
+    }
 }
 
 class DieNode extends SheetNode {
@@ -636,7 +715,7 @@ class DieNode extends SheetNode {
         super(options);
 
         this.modifiers = [];
-        this.die_size = DieNode.DEFAULT_DIE_SIZE;
+        this.die_size = options.die_size || DieNode.DEFAULT_DIE_SIZE;
     }
 
     get value() {
@@ -657,6 +736,13 @@ class DieNode extends SheetNode {
     roll() {
         this.value = Math.ceil(Math.random() * this.die_size);
     }
+
+    to_json() {
+        let json = this._to_json();
+        json.die_size = this.die_size;
+
+        return json;
+    }
 }
 
 class ImageNode extends SheetNode {
@@ -664,7 +750,8 @@ class ImageNode extends SheetNode {
 
     constructor(options) {
         this.image = create_element("img");
-        this.image.src = ImageNode.DEFAULT_IMAGE;
+        this.image.src = options.content?.uri || ImageNode.DEFAULT_IMAGE;
+        this.image_name = this.image.src;
 
         super(options);
     }
@@ -682,6 +769,23 @@ class ImageNode extends SheetNode {
         this.content.contentEditable = false;
         this.content.appendChild(this.image);
     }
+
+    to_json() {
+        let json = this._to_json();
+
+        // TODO : save and load images in indexeddb
+        // probably happens in storage.js rather than here, but
+        // needs to happen somewhere.
+
+        let is_local = this.image.src.startsWith("blob:null/"); 
+        json.content = {
+            uri: is_local ? this.image_name : this.image.src,
+            blob: is_local,
+            crop: this.image.style.objectFit
+        };
+
+        return json;
+    }
 }
 
 class CheckboxNode extends SheetNode {
@@ -689,6 +793,7 @@ class CheckboxNode extends SheetNode {
         this.checkbox = new Checkbox(true, ["inverted"]);
 
         super(options);
+        this.value = (options.content !== undefined) ? options.content : true;
     }
 
     get value() {
