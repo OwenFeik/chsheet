@@ -43,6 +43,14 @@ class VisibilityManagedWrapper extends ElementWrapper {
             this.element.style.display = "none";
         }
     }
+
+    hide() {
+        this.visible = false;
+    }
+
+    show() {
+        this.visible = true;
+    }
 }
 
 class GridElement extends ElementWrapper {
@@ -258,6 +266,7 @@ class Checkbox extends ElementWrapper {
         this.value = checked;
 
         this.element.onclick = () => this.toggle();
+        this.oninput = null;
     }
 
     get value() {
@@ -272,6 +281,10 @@ class Checkbox extends ElementWrapper {
         }
         else {
             this.classList.remove("checked");
+        }
+
+        if (this.oninput) {
+            this.oninput(this.value);
         }
     }
 
@@ -370,6 +383,81 @@ class NodeHeader extends ElementWrapper {
 
         this.controls = new ControlBox(options);
         this.element.appendChild(this.controls.element);
+    }
+}
+
+class NodeSetting extends VisibilityManagedWrapper {
+    // A single setting can have multiple input types (for instance an "active"
+    // checkbox and a "value" input). For each handler function provided in the
+    // options, a DOM object of the relevant type will be created as part of the
+    // setting.
+    constructor(options) {
+        super("div", ["setting"]);
+
+        this.name = options.name || "";
+        this.label = options.label || this.name;
+        this.node_type = options.node_type || null;
+        
+        this.update_func = options.update || null;
+        
+        this.checkbox_func = options.checkbox || null;
+        this.checkbox = null;
+
+        this.number_func = options.number || null;
+        this.number_min = options.min;
+        this.number_max = options.max;
+        this.number = null;
+        
+        this.string_func = options.string || null;
+        this.string = null;
+
+        this.set_up_fields();
+    }
+
+    set_up_fields() {
+        if (this.checkbox_func) {
+            this.checkbox = new Checkbox(true);
+            this.checkbox.oninput = v => this.checkbox_func(v);
+            this.element.appendChild(this.checkbox.element);
+        }
+
+        if (this.label) {
+            this.element.appendChild(create_element("span", ["label"], {
+                innerText: this.label
+            }));
+        }
+
+        if (this.number_func) {
+            this.number = this.element.appendChild(create_element("input", [], {
+                type: "number",
+                min: this.number_min,
+                max: this.number_max
+            }));
+            this.number.oninput = e => {
+                let v = parseInt(e.data);
+                if (v === v) {
+                    this.number_func(v);
+                }
+            };
+        }
+
+        if (this.string_func) {
+            this.string = this.element.appendChild(create_element("input"));
+            this.string.oninput = e => this.string_func(e.data);
+        }
+    }
+
+    update() {
+        if (this.update_func) {
+            this.update_func();
+        }
+    }
+
+}
+
+class NodeSettings extends VisibilityManagedWrapper {
+    constructor(node) {
+        super("div", ["settings"]);
     }
 }
 
