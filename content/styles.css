@@ -59,23 +59,23 @@
     user-select: none;
 }
 
-#sheet {
+.sheet {
     display: grid;
     position: absolute;
     z-index: -1000;
 }
 
-#sheet.placing .node > .content {
+.sheet.placing .node > .content {
     user-select: none;
 }
 
-#sheet.grouping .node {
+.sheet.grouping .node {
     user-select: none;
     pointer-events: none;
     z-index: 0;
 }
 
-#sheet.grouping .node_group {
+.sheet.grouping .node_group {
     z-index: 100;
     visibility: visible;
     cursor: pointer;

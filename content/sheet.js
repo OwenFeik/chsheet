@@ -39,49 +39,38 @@ class ElementWrapper {
     }
 }
 
-class SheetElement extends ElementWrapper {
-    constructor(options) {
-        this._x = options.x || 0;
-        this._y = options.y || 0;
+class GridElement extends ElementWrapper {
+    constructor(tagname, classes, options) {
+        super(tagname, classes);
 
-        this._width = options.width || 2;
-        this._height = options.height || 2;
+        this._width = options?.width || 2;
+        this._height = options?.height || 2;
+
+        GridElement.grid_elements.push(this);
     }
 
     static grid_size = INITIAL_GRID_SIZE;
     static grid_gap = INITIAL_GRID_GAP;
 
+    // A list of all existing grid_elements is stored such that they can be
+    // each be resized to update the grid dimensions.
+    static grid_elements = [];
+
     static set_grid_size(val) {
-        SheetElement.grid_size = val; 
+        GridElement.grid_size = val;
+        GridElement.grid_elements.forEach(e => e.resize());
     }
 
     static set_grid_gap(val) {
-        SheetElement.grid_gap = val;
+        GridElement.grid_gap = val;
+        GridElement.grid_elements.forEach(e => e.resize());
     }
 
     static grid_size_to_px(size) {
         return (
-            size * SheetElement.grid_size
-            + (size - 1) * SheetElement.grid_gap
+            size * GridElement.grid_size
+            + (size - 1) * GridElement.grid_gap
         ) + "px";
-    }
-
-    get x() {
-        return this._x;
-    }
-
-    set x(val) {
-        this._x = val;
-        this.update_grid_area();
-    }
-
-    get y() {
-        return this._y;
-    }
-
-    set y(val) {
-        this._y = val;
-        this.update_grid_area();
     }
 
     get width() {
@@ -90,7 +79,7 @@ class SheetElement extends ElementWrapper {
 
     set width(val) {
         this._width = val;
-        this.update_grid_area();
+        this.resize();
     }
 
     get height() {
@@ -99,7 +88,7 @@ class SheetElement extends ElementWrapper {
 
     set height(val) {
         this._height = val;
-        this.update_grid_area();
+        this.resize();
     }
 
     get w() {
@@ -108,7 +97,7 @@ class SheetElement extends ElementWrapper {
 
     set w(val) {
         this._width = val;
-        this.update_grid_area();
+        this.resize();
     }
 
     get h() {
@@ -117,17 +106,59 @@ class SheetElement extends ElementWrapper {
 
     set h(val) {
         this._height = val;
+        this.resize();
+    }
+
+    _resize() {
+        this.element.style.width = SheetElement.grid_size_to_px(this.width);
+        this.element.style.height = SheetElement.grid_size_to_px(this.height);
+    }
+
+    // Subclasses will be non-abstract, and may want to update grid area or
+    // similar when resized, rather than just dimensions.
+    resize() {
+        this._resize();
+    }
+}
+
+class SheetElement extends GridElement {
+    constructor(tagname, classes, options) {
+        super(tagname, classes, options);
+
+        this._x = options?.x || 0;
+        this._y = options?.y || 0;
+
         this.update_grid_area();
     }
 
-    update_grid_area() {
-        this.element.style.gridRowStart = this.x;
-        this.element.style.gridRowEnd = this.x + this.width;
-        this.element.style.gridColumnStart = this.y;
-        this.element.style.gridColumnEnd = this.y + this.height;
+    get x() {
+        return this._x;
+    }
 
-        this.element.style.width = SheetElement.grid_size_to_px(this.width);
-        this.element.style.height = SheetElement.grid_size_to_px(this.height);
+    set x(val) {
+        this._x = val;
+        this.resize();
+    }
+
+    get y() {
+        return this._y;
+    }
+
+    set y(val) {
+        this._y = val;
+        this.resize();
+    }
+
+    resize() {
+        this._resize();
+        this.update_grid_area();
+    }
+    
+    update_grid_area() {
+        this.element.style.gridRowStart = this.y + 1;
+        this.element.style.gridRowEnd = this.y + this.height + 1;
+        this.element.style.gridColumnStart = this.x + 1;
+        this.element.style.gridColumnEnd = this.x + this.width + 1;
     }
 
     contains(other) {
@@ -145,11 +176,11 @@ class Title extends ElementWrapper {
         super("span", ["title"]);
         
         this._text = "";
-        this.text = options.title || "Title";
+        this.text = options?.title || "Title";
         
-        this.visible = options.title_active || true;
+        this.visible = options?.title_active || true;
 
-        this.locked = options.locked || false;
+        this.locked = options?.locked || false;
 
         this.make_double_click_editable();
     }
@@ -165,7 +196,7 @@ class Title extends ElementWrapper {
     }
 
     make_double_click_editable() {
-        el = this.element;
+        let el = this.element;
 
         el.contentEditable = "false";
         el.spellcheck = "false";
@@ -242,14 +273,14 @@ class Control extends ElementWrapper {
     constructor(options) {
         super("div", ["control"]);
         
-        if (options.toggle) {
+        if (options?.toggle) {
             this.element.classList.add("toggle");
         }
 
         this.icon = new Icon(options.icon);
         this.element.appendChild(this.icon.element);
 
-        if (options.title) {
+        if (options?.title) {
             this.element.title = options.title;
         }
     
@@ -361,10 +392,8 @@ class DieRollControl extends NodeControl {
 class ControlBox extends ElementWrapper {
     constructor(options) {
         super("div", ["control_box"]);
-        this.visible = options.active || true;
+        this.visible = options?.active || true;
         this.controls = [];
-    
-        this.set_up_controls();
     }
 
     add_control(control) {
@@ -377,13 +406,14 @@ class ControlBox extends ElementWrapper {
 
 class NodeControlBox extends ControlBox {
     constructor(node, options) {
-        this.node = node;
-
         super(options);    
+
+        this.node = node;
+        this.set_up_controls();
     }
 
     set_up_controls() {
-        if (node.type === NodeTypes.NUMBER) {
+        if (this.node.type === NodeTypes.NUMBER) {
             this.add_control(new NumberControl(this.node, true));
             this.add_control(new NumberControl(this.node, false));
             this.add_control(new NumberResetControl(this.node));        
@@ -430,9 +460,10 @@ class ListItemRemoveControl extends ListItemControl {
 
 class ListItemControlBox extends ControlBox {
     constructor(list_item, options) {
-        this.list_item = list_item;
-
         super(options);
+
+        this.list_item = list_item;
+        this.set_up_controls();
     }
 
     set_up_controls() {
@@ -448,18 +479,18 @@ class NodeHeader extends ElementWrapper {
         this.title = new Title(options);
         this.element.appendChild(this.title.element);
 
-        this.controls = new NodeControls(node, options);
+        this.controls = new NodeControlBox(node, options);
         this.element.appendChild(this.controls.element);
     }
 }
 
 class SheetNode extends SheetElement {
     constructor(options) {
-        super("div", ["node"]);
+        super("div", ["node"], options);
 
-        this.type = options.type || NodeTypes.NONE;
+        this.type = options?.type || NodeTypes.NONE;
         
-        this.header = new NodeHeader(options);
+        this.header = new NodeHeader(this, options);
         this.element.appendChild(this.header.element);
 
         this.content = null;
@@ -565,9 +596,10 @@ class NumberNode extends SheetNode {
     static DEFAULT_VALUE = 1;
 
     constructor(options) {
-        this.default_value = options.default_value || NumberNode.DEFAULT_VALUE;
-
         super(options);    
+
+        this.default_value = options?.default_value || NumberNode.DEFAULT_VALUE;
+        this.value = this.default_value;
     }
 
     get value() {
@@ -580,7 +612,6 @@ class NumberNode extends SheetNode {
 
     set_up_content() {
         this.content.classList.add("number");
-        this.content.innerHTML = this.default_value.toString();
         this.content.contentEditable = true;
         this.content.spellcheck = false;
         this.content.style.fontSize = NumberNode.DEFAULT_FONT_SIZE;
@@ -618,7 +649,8 @@ class ListNode extends SheetNode {
     constructor(options) {
         super(options);
 
-        this._checkboxes_active = (options.checkboxes_active !== undefined) ?
+        this._checkboxes_active = null;
+        this.checkboxes_active = (options?.checkboxes_active !== undefined) ?
             options.checkboxes_active : true;
     }
 
@@ -715,7 +747,7 @@ class DieNode extends SheetNode {
         super(options);
 
         this.modifiers = [];
-        this.die_size = options.die_size || DieNode.DEFAULT_DIE_SIZE;
+        this.die_size = options?.die_size || DieNode.DEFAULT_DIE_SIZE;
     }
 
     get value() {
@@ -749,11 +781,13 @@ class ImageNode extends SheetNode {
     static DEFAULT_IMAGE = Icon.icon_path("cross.png");
 
     constructor(options) {
-        this.image = create_element("img");
-        this.image.src = options.content?.uri || ImageNode.DEFAULT_IMAGE;
-        this.image_name = this.image.src;
-
         super(options);
+
+        this.image = create_element("img");
+        this.image.src = options?.content?.uri || ImageNode.DEFAULT_IMAGE;
+        this.content.appendChild(this.image);
+        
+        this.image_name = this.image.src;
     }
 
     get value() {
@@ -767,7 +801,6 @@ class ImageNode extends SheetNode {
     set_up_content() {
         this.content.classList.add("image_holder");
         this.content.contentEditable = false;
-        this.content.appendChild(this.image);
     }
 
     to_json() {
@@ -790,10 +823,12 @@ class ImageNode extends SheetNode {
 
 class CheckboxNode extends SheetNode {
     constructor(options) {
-        this.checkbox = new Checkbox(true, ["inverted"]);
-
         super(options);
-        this.value = (options.content !== undefined) ? options.content : true;
+
+        this.checkbox = new Checkbox(true, ["inverted"]);
+        this.content.appendChild(this.checkbox);
+
+        this.value = (options?.content !== undefined) ? options.content : true;
     }
 
     get value() {
@@ -807,13 +842,54 @@ class CheckboxNode extends SheetNode {
     set_up_content() {
         this.content.classList.add("checkbox_holder");
         this.content.contentEditable = false;
-        this.content.appendChild(this.checkbox);
     }
 }
 
-class Sheet {
+class Sheet extends GridElement {
     constructor() {
-        this.element = document.getElementById("sheet");
+        super("div", ["sheet"], {
+            width: 0,
+            height: 0
+        });
+
+        this.element.style.display = "grid";
+
+        this.resize_to_screen();
+    
+        this.elements = [];
+    }
+
+    add_element(sheet_element) {
+        if (sheet_element.x + sheet_element.width > this.width) {
+            this.width = sheet_element.x + sheet_element.width;
+        }
+
+        if (sheet_element.y + sheet_element.height > this.height) {
+            this.height = sheet_element.y + sheet_element.height;
+        }
+
+        this.elements.push(sheet_element);
+        this.element.appendChild(sheet_element.element);
+    }
+
+    resize() {
+        this._resize();
+        this.element.style.gridGap = GridElement.grid_gap + "px";
+
+        let cell = GridElement.grid_size + "px "; 
+        this.element.style.gridTemplateColumns =
+            cell.repeat(this.width).slice(0, -1);
+        this.element.style.gridTemplateRows =
+            cell.repeat(this.height).slice(0, -1);
+    }
+
+    resize_to_screen() {
+        this.width = Math.floor(
+            window.innerWidth / (GridElement.grid_size + GridElement.grid_gap)
+        ) - 1;
+        this.height = Math.floor(
+            window.innerHeight / (GridElement.grid_size + GridElement.grid_gap)
+        ) - 1;
     }
 }
 
@@ -832,45 +908,6 @@ function set_up_shortcuts() {
             document.getElementById("save_menu").show();
         }
     };
-}
-
-function set_up_sheet() {    
-    sheet.resize = function (w = 0, h = 0) {
-        sheet.width = Math.max(
-            w,
-            Math.floor(
-                (window.innerWidth - TOOLBAR_WIDTH) / (NODESIZE + GAP)
-            )
-        );
-        sheet.height = Math.max(
-            h,
-            Math.floor(window.innerHeight / (NODESIZE + GAP)) - 1,
-            20
-        );
-
-        sheet.style.width = sheet.width * (NODESIZE + GAP) - GAP + "px";
-        sheet.style.gridGap = GAP + "px";
-        sheet.style.gridTemplateColumns = 
-            (NODESIZE + "px ").repeat(sheet.width).slice(0, -1);
-        sheet.style.gridTemplateRows = 
-            (NODESIZE + "px ").repeat(sheet.height).slice(0, -1);
-            
-    };
-
-    sheet.width = 0;
-    sheet.height = 22;
-    sheet.resize();
-
-    window.onresize = function () {
-        sheet.width = 0;
-        sheet.resize();
-    };
-
-    sheet.save_title = "untitled";
-    set_document_title(sheet.save_title);
-    // window.onbeforeunload = function (e) {
-    //     save_sheet(sheet, sheet.save_title);
-    // };
 }
 
 function set_up_toolbox() {

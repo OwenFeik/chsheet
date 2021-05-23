@@ -2,10 +2,13 @@ const locale = "en-AU";
 
 "use strict";
 
+var sheet;
+
 window.onload = function() {
-    var sheet = document.getElementById("sheet");
+    sheet = new Sheet();
+    document.getElementById("container").appendChild(sheet.element);
+
     set_up_db();
-    set_up_sheet();
     set_up_toolbox();
     set_up_shortcuts();
 };
