@@ -18,7 +18,13 @@ const NodeTypes = {
 class ElementWrapper {
     constructor(tagname, classes) {
         this.element = create_element(tagname, classes);
-    
+    }
+}
+
+class VisibilityManagedWrapper extends ElementWrapper {
+    constructor(tagname, classes) {
+        super(tagname, classes);
+
         this._visible = true;
         this.visible = true;
     }
@@ -66,11 +72,16 @@ class GridElement extends ElementWrapper {
         GridElement.grid_elements.forEach(e => e.resize());
     }
 
-    static grid_size_to_px(size) {
-        return (
+    static grid_size_to_px(size, as_string = true) {
+        let px = (
             size * GridElement.grid_size
             + (size - 1) * GridElement.grid_gap
-        ) + "px";
+        );
+        
+        if (as_string) {
+            return px + "px";
+        }
+        return px;
     }
 
     get width() {
@@ -110,8 +121,8 @@ class GridElement extends ElementWrapper {
     }
 
     _resize() {
-        this.element.style.width = SheetElement.grid_size_to_px(this.width);
-        this.element.style.height = SheetElement.grid_size_to_px(this.height);
+        this.element.style.width = GridElement.grid_size_to_px(this.width);
+        this.element.style.height = GridElement.grid_size_to_px(this.height);
     }
 
     // Subclasses will be non-abstract, and may want to update grid area or
@@ -171,7 +182,7 @@ class SheetElement extends GridElement {
     }
 }
 
-class Title extends ElementWrapper {
+class Title extends VisibilityManagedWrapper {
     constructor(options) {
         super("span", ["title"]);
         
@@ -270,7 +281,7 @@ class Checkbox extends ElementWrapper {
 }
 
 class Control extends ElementWrapper {
-    constructor(options) {
+    constructor(func, options) {
         super("div", ["control"]);
         
         if (options?.toggle) {
@@ -284,115 +295,15 @@ class Control extends ElementWrapper {
             this.element.title = options.title;
         }
     
-        this.onclick = e => this.action(e);
-    }
-
-    action(event) {}
-}
-
-class NodeControl extends Control {
-    constructor(node, options) {
-        super(options);
-        this.node = node;
+        this.func = func;
+        this.element.onclick = e => this.func(e);
     }
 }
 
-class DragControl extends NodeControl {
-    constructor(node) {
-        super(node, {
-            icon: "handle.png",
-            title: "Move",
-            toggle: true
-        });
-
-        this.element.classList.add("handle")
-    }
-}
-
-class NumberControl extends NodeControl {
-    constructor(node, positive) {
-        super(node, {
-            icon: positive ? "add.png" : "subtract.png",
-            title: positive ? "Increase" : "Decrease",
-            toggle: true
-        });
-
-        this.multiplier = positive ? 1 : -1;
-    }
-
-    action(e) {
-        let delta = 
-            (e.ctrlKey ? 10 : 1) * (e.shiftKey ? 100 : 1) * this.multiplier;
-        this.node.value = this.node.value + delta;
-    }
-}
-
-class NumberResetControl extends NodeControl {
-    constructor(node) {
-        super(node, {
-            icon: "reset.png",
-            title: "Reset",
-            toggle: true
-        });
-    }
-
-    action(e) {
-        this.node.value = this.node.default_value;
-    }
-}
-
-class ListAddItemControl extends NodeControl {
-    constructor(node) {
-        super(node, {
-            icon: "add.png",
-            title: "Add item",
-            toggle: true
-        });
-
-        create_context_menu(
-            this.element,
-            [
-                [
-                    "add.png",
-                    "Item",
-                    function (_) {
-                        add_item(false);
-                    }
-                ],
-                [
-                    "handle.png",
-                    "Break",
-                    function (_) {
-                        add_item(true);
-                    }
-                ]
-            ]
-        );
-    }
-
-    action(e) {
-        this.node.add_item();
-    }
-}
-
-class DieRollControl extends NodeControl {
-    constructor(node) {
-        super(node, {
-            icon: "die.png",
-            title: "Roll",
-            toggle: false
-        });
-    }
-
-    action(e) {
-        this.node.roll();
-    }
-}
-
-class ControlBox extends ElementWrapper {
+class ControlBox extends VisibilityManagedWrapper {
     constructor(options) {
         super("div", ["control_box"]);
-        this.visible = options?.active || true;
+        this.visible = options?.controls_active || true;
         this.controls = [];
     }
 
@@ -402,28 +313,6 @@ class ControlBox extends ElementWrapper {
     }
 
     set_up_controls() {}
-}
-
-class NodeControlBox extends ControlBox {
-    constructor(node, options) {
-        super(options);    
-
-        this.node = node;
-        this.set_up_controls();
-    }
-
-    set_up_controls() {
-        if (this.node.type === NodeTypes.NUMBER) {
-            this.add_control(new NumberControl(this.node, true));
-            this.add_control(new NumberControl(this.node, false));
-            this.add_control(new NumberResetControl(this.node));        
-        }
-        else if (this.node.type === NodeTypes.LIST) {
-            this.add_control(new ListAddItemControl(this.node));
-        }
-
-        this.add_control(new DragControl(this.node));
-    }
 }
 
 class ListItemControl extends Control {
@@ -479,7 +368,7 @@ class NodeHeader extends ElementWrapper {
         this.title = new Title(options);
         this.element.appendChild(this.title.element);
 
-        this.controls = new NodeControlBox(node, options);
+        this.controls = new ControlBox(options);
         this.element.appendChild(this.controls.element);
     }
 }
@@ -492,6 +381,15 @@ class SheetNode extends SheetElement {
         
         this.header = new NodeHeader(this, options);
         this.element.appendChild(this.header.element);
+
+        this.header.controls.add_control(new Control(
+            e => console.log("start drag!", this),
+            {
+                icon: "handle.png",
+                title: "Move",
+                toggle: true
+            }
+        ));
 
         this.content = null;
         this.create_content_element();
@@ -600,6 +498,8 @@ class NumberNode extends SheetNode {
 
         this.default_value = options?.default_value || NumberNode.DEFAULT_VALUE;
         this.value = this.default_value;
+
+        this.set_up_controls();
     }
 
     get value() {
@@ -608,6 +508,10 @@ class NumberNode extends SheetNode {
 
     set value(number) {
         this.content.innerText = number.toString();
+    }
+
+    reset() {
+        this.value = this.default_value;
     }
 
     set_up_content() {
@@ -633,6 +537,39 @@ class NumberNode extends SheetNode {
         }
     }
 
+    set_up_controls() {
+        this.header.controls.add_control(new Control(
+            e => {
+                this.value = this.value +
+                    (e.ctrlKey ? 10 : 1) * (e.shiftKey ? 100 : 1)
+            },
+            {
+                icon: "add.png",
+                title: "Increase",
+                toggle: true
+            }
+        ));
+        this.header.controls.add_control(new Control(
+            e => {
+                this.value = this.value -
+                    (e.ctrlKey ? 10 : 1) * (e.shiftKey ? 100 : 1)
+            },
+            {
+                icon: "subtract.png",
+                title: "Decrease",
+                toggle: true
+            }
+        ));
+        this.header.controls.add_control(new Control(
+            e => this.reset(),
+            {
+                icon: "reset.png",
+                title: "Reset",
+                toggle: true
+            }
+        ));
+    }
+
     to_json() {
         let json = this._to_json();
         json.default_value = this.default_value;
@@ -652,6 +589,8 @@ class ListNode extends SheetNode {
         this._checkboxes_active = null;
         this.checkboxes_active = (options?.checkboxes_active !== undefined) ?
             options.checkboxes_active : true;
+
+        this.set_up_controls();
     }
 
     get checkboxes_active() {
@@ -673,6 +612,39 @@ class ListNode extends SheetNode {
         this.content.classList.add("list");
         this.content.contentEditable = false;
         this.content.style.fontSize = ListNode.DEFAULT_FONT_SIZE;
+    }
+
+    set_up_controls() {
+        let add_item = new Control(
+            e => this.add_item(),
+            {
+                icon: "add.png",
+                title: "Add item",
+                toggle: true
+            }
+        );
+
+        create_context_menu(
+            add_item.element,
+            [
+                [
+                    "add.png",
+                    "Add item",
+                    function (_) {
+                        this.add_item(false);
+                    }
+                ],
+                [
+                    "handle.png",
+                    "Add break",
+                    function (_) {
+                        this.add_item(true);
+                    }
+                ]
+            ]
+        );
+
+        this.header.controls.add_control(add_item);
     }
 
     // Creates a new list_item or list_break and adds it to the list's content.
@@ -748,6 +720,15 @@ class DieNode extends SheetNode {
 
         this.modifiers = [];
         this.die_size = options?.die_size || DieNode.DEFAULT_DIE_SIZE;
+
+        this.header.controls.add_control(new Control(
+            e => this.roll(),
+            {
+                icon: "die.png",
+                title: "Roll",
+                toggle :false
+            }
+        ));
     }
 
     get value() {
@@ -893,6 +874,105 @@ class Sheet extends GridElement {
     }
 }
 
+class Tool extends ElementWrapper {
+    static HEIGHT = 60;
+    
+    constructor(icon_name) {
+        super("button", ["tool"]);
+        this.element.appendChild(
+            create_element("img", [], {src: Icon.icon_path(icon_name)})
+        );
+    }
+}
+
+class Toolbar extends ElementWrapper {
+    static TRANSITION_TIME = 500;
+    static CLOSED_HEIGHT = 40;
+
+    constructor(order = 1, hidden = false) {
+        super("div", ["toolbar"]);
+
+        this._order = null;
+        this.order = order;
+
+        this.tools = [];
+
+        this.tools_element = create_element("div", ["tools"]);
+        this.element.appendChild(this.tools_element);
+
+        this.element.style.height = Toolbar.CLOSED_HEIGHT + "px";
+        this.element.style.transition =
+            "all " + Toolbar.TRANSITION_TIME / 1000 + "s";
+
+        this._telescoped = false;
+        this.telescoped = hidden;
+
+        this.toggle_element = create_element("div", ["toolbar_toggle"]);
+        this.toggle_element.appendChild(
+            create_element("img", [], {src: Icon.icon_path("chevron_down.png")})
+        );
+        this.toggle_element.onclick = () => this.toggle_telescoped();
+        this.element.appendChild(this.toggle_element);
+    }
+
+    get order() {
+        return this._order;
+    }
+
+    set order(new_order) {
+        this._order = new_order; 
+        this.element.style.order = this._order;
+    }
+
+    get telescoped() {
+        return this._telescoped;
+    }
+
+    set telescoped(bool) {
+        this._telescoped = bool;
+
+        if (this._telescoped) {
+            this.element.classList.add("telescoped");
+            this.element.style.height = (
+                Tool.HEIGHT * this.tools_element.childElementCount
+                + Toolbar.CLOSED_HEIGHT
+            ) + "px";
+        }
+        else {
+            this.element.classList.remove("telescoped");
+            this.element.style.height = Toolbar.CLOSED_HEIGHT + "px";
+        }
+    }
+
+    hide(transition = true) {
+        if (transition) {
+            this.element.style.top = "-" + Toolbar.CLOSED_HEIGHT + "px";
+            this.element.style.display = "none";
+        }
+        else {
+            no_transition(this.element, () => this.hide());
+        }
+    }
+
+    show(transition = true) {
+        if (transition) {
+            this.element.style.top = "0px";
+            this.element.style.display = "inherit";
+        }
+        else {
+            no_transition(this.element, () => this.show());
+        }
+    }
+
+    toggle_telescoped() {
+        this.telescoped = !this.telescoped;
+    }
+
+    add_tool(tool) {
+        this.tools.push(tool);
+        this.tools_element.appendChild(tool.element);
+    }
+}
 
 function set_up_shortcuts() {
     document.onkeydown = function (e) {
@@ -911,105 +991,32 @@ function set_up_shortcuts() {
 }
 
 function set_up_toolbox() {
-    let main = create_toolbar();
-    let main_tools = main.querySelector(".tools");
+    let toolbox = document.getElementById("toolbox");
 
-    main_tools.appendChild(create_add_tool());
-    main_tools.appendChild(create_group_tool());
+    let main = new Toolbar();
+    toolbox.appendChild(main.element);
 
-    let save = create_tool("save.png");
-    save.classList.add("toggle");
-    main_tools.appendChild(save);
-    let save_menu = create_save_menu();
-    save.onclick = function () {
-        save_menu.show();
-    };
+    main.add_tool(new Tool("add.png"));
 
-    let settings = create_tool("cog.png");
-    let settings_panel = create_document_settings();
-    settings.onclick = function () {
-        settings_panel.show();
-    };
-    main_tools.appendChild(settings);
+    // main_tools.appendChild(create_add_tool());
+    // main_tools.appendChild(create_group_tool());
 
-    main.style.order = 1;
-}
+    // let save = create_tool("save.png");
+    // save.classList.add("toggle");
+    // main_tools.appendChild(save);
+    // let save_menu = create_save_menu();
+    // save.onclick = function () {
+    //     save_menu.show();
+    // };
 
-function create_toolbar(order = 1, hidden = false) {
-    const TOOLBAR_TRANSITION_TIME = 500;
-    const TOOLBAR_CLOSED_HEIGHT = 40;
-    const TOOL_HEIGHT = 60;
+    // let settings = create_tool("cog.png");
+    // let settings_panel = create_document_settings();
+    // settings.onclick = function () {
+    //     settings_panel.show();
+    // };
+    // main_tools.appendChild(settings);
 
-    let toolbar = create_element("div", ["toolbar"]);
-    
-    let tools = create_element("div", ["tools"]);
-    toolbar.appendChild(tools);
-
-    toolbar.style.order = order;
-    toolbar.style.height = TOOLBAR_CLOSED_HEIGHT + "px";
-    toolbar.style.transition = "all " + TOOLBAR_TRANSITION_TIME / 1000 + "s";
-
-    if (hidden) {
-        no_transition(toolbar, () => {
-            toolbar.style.top = "-" + TOOLBAR_CLOSED_HEIGHT + "px";
-            toolbar.style.display = "none";
-        });
-    }
-
-    document.getElementById("toolbox").appendChild(toolbar);
-
-    toolbar.telescope = function () {
-        toolbar.classList.add("telescoping");
-        toolbar.classList.toggle("telescoped");
-        if (toolbar.classList.contains("telescoped")) {
-            toolbar.style.height = TOOL_HEIGHT * tools.childElementCount +
-                TOOLBAR_CLOSED_HEIGHT + "px";
-        }
-        else {
-            toolbar.style.height = TOOLBAR_CLOSED_HEIGHT + "px";
-        }
-
-        setTimeout(() => {
-            toolbar.classList.remove("telescoping");
-        }, TOOLBAR_TRANSITION_TIME);
-    };
-
-    toolbar.hide = function () {
-        if (toolbar.classList.contains("telescoped")) {
-            toolbar.telescope()
-        }
-
-        toolbar.style.top = "-" + TOOLBAR_CLOSED_HEIGHT + "px";
-    };
-
-    toolbar.show = function (telescope=true) {
-        toolbar.style.display = "inherit";
-        toolbar.style.top = "0px";
-
-        if (telescope) {
-            toolbar.telescope()
-        }
-    }
-
-    let toggle = create_element("div", ["toolbar_toggle"]);
-    let toggle_img = create_element("img");
-    toggle_img.src = icon_path("chevron_down.png"); 
-    toggle.appendChild(toggle_img);
-    toggle.onclick = toolbar.telescope;
-    toolbar.appendChild(toggle);
-
-    return toolbar;
-}
-
-function create_tool(icon) {
-    let tool = document.createElement("button");
-    tool.classList.add("tool");
-    
-    let img = document.createElement("img");
-    img.src = icon_path(icon);
-    tool.appendChild(img);
-
-    return tool;
+    // main.style.order = 1;
 }
 
 function end_all_tool_processes() {

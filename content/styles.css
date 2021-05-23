@@ -12,7 +12,10 @@
 }
 
 .toolbar_toggle {
+    align-items: center;
     cursor: pointer;
+    display: flex;
+    justify-content: center;
     margin-top: 5px;
     order: 0;
     transition: all 0.5s;
@@ -22,21 +25,14 @@
     transform: rotate(180deg);
 }
 
-.toolbar:not(.telescoped):not(.telescoping) > .tools > .tool {
-    display: none;
-}
-
 .tools {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
     order: 1;
+    overflow-y: hidden;
+    overflow-x: visible;
     position: relative;
-}
-
-.toolbar.telescoping > .tools {
-    overflow: hidden !important;
-}
-
-.toolbar.telescoped > .tools {
-    overflow: visible;
 }
 
 #toolbox {
