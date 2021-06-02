@@ -44,12 +44,20 @@ class VisibilityManagedWrapper extends ElementWrapper {
         }
     }
 
-    hide() {
+    _hide() {
         this.visible = false;
     }
 
-    show() {
+    hide() {
+        this._hide();
+    }
+
+    _show() {
         this.visible = true;
+    }
+
+    show() {
+        this._show();
     }
 }
 
@@ -144,6 +152,8 @@ class SheetElement extends GridElement {
     constructor(tagname, classes, options) {
         super(tagname, classes, options);
 
+        this.sheet = options?.sheet || null;
+
         this._x = options?.x || 0;
         this._y = options?.y || 0;
 
@@ -166,6 +176,19 @@ class SheetElement extends GridElement {
     set y(val) {
         this._y = val;
         this.resize();
+    }
+
+    add_to_sheet(sheet) {
+        sheet.add_element(this);
+    }
+
+    remove_from_sheet() {
+        this.sheet?.remove_element(this);
+    }
+
+    delete() {
+        this.remove_from_sheet();
+        this.element.remove();
     }
 
     resize() {
@@ -458,6 +481,20 @@ class NodeSetting extends VisibilityManagedWrapper {
 class NodeSettings extends VisibilityManagedWrapper {
     constructor(node) {
         super("div", ["settings"]);
+        this.element.onlick = e => e.stopPropagation();
+    }
+
+    click_off(e) {
+        if (e.target === this.element || this.element.contains(e.target)) {
+            return;
+        }
+        this.hide();
+        window.removeEventListener("mousedown", this.click_off);
+    }
+
+    show() {
+        this._show();
+        window.addEventListener("mousedown", this.click_off);
     }
 }
 
@@ -939,6 +976,13 @@ class Sheet extends GridElement {
 
         this.elements.push(sheet_element);
         this.element.appendChild(sheet_element.element);
+
+        sheet_element.sheet = this;
+    }
+
+    remove_element(sheet_element) {
+        this.elements.filter(e => e !== sheet_element);
+        this.element.removeChild(sheet_element.element);
     }
 
     resize() {
