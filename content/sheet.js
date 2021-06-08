@@ -100,6 +100,17 @@ class GridElement extends ElementWrapper {
         return px;
     }
 
+    static offset_to_grid_size(off_x, off_y, delta_x = 0, delta_y = 0) {
+        return [
+            Math.round(
+                off_x / (GridElement.grid_size + GridElement.grid_gap) + delta_x
+            ),
+            Math.round(
+                off_y / (GridElement.grid_size + GridElement.grid_gap) + delta_y
+            )
+        ];
+    }
+
     get width() {
         return this._width;
     }
@@ -148,16 +159,20 @@ class GridElement extends ElementWrapper {
     }
 }
 
-class SheetElement extends GridElement {
+class SheetElement extends VisibilityManagedWrapper {
     constructor(tagname, classes, options) {
         super(tagname, classes, options);
 
-        this.sheet = options?.sheet || null;
-
         this._x = options?.x || 0;
         this._y = options?.y || 0;
+        this._w = options?.width || options?.w || 1;
+        this._h = options?.height || options?.h || 1;
 
         this.update_grid_area();
+    
+        if (options?.sheet) {
+            this.add_to_sheet(options.sheet);
+        }
     }
 
     get x() {
@@ -178,6 +193,40 @@ class SheetElement extends GridElement {
         this.resize();
     }
 
+    get w() {
+        return this._w;
+    }
+
+    set w(val) {
+        this._w = val;
+        this.resize();
+    }
+
+    get width() {
+        return this._w;
+    }
+
+    set width(val) {
+        this.w = val;
+    }
+
+    get h() {
+        return this._h;
+    }
+
+    set h(val) {
+        this._h = val;
+        this.resize();
+    }
+
+    get height() {
+        return this._h;
+    }
+
+    set height(val) {
+        this.h = val;
+    }
+
     add_to_sheet(sheet) {
         sheet.add_element(this);
     }
@@ -186,13 +235,12 @@ class SheetElement extends GridElement {
         this.sheet?.remove_element(this);
     }
 
-    delete() {
+    remove() {
         this.remove_from_sheet();
         this.element.remove();
     }
 
     resize() {
-        this._resize();
         this.update_grid_area();
     }
     
@@ -482,6 +530,12 @@ class NodeSettings extends VisibilityManagedWrapper {
     constructor(node) {
         super("div", ["settings"]);
         this.element.onlick = e => e.stopPropagation();
+        this.settings = [];
+    }
+
+    add_setting(setting) {
+        this.settings.push(setting);
+        this.element.appendChild(setting.element);
     }
 
     click_off(e) {
@@ -492,8 +546,13 @@ class NodeSettings extends VisibilityManagedWrapper {
         window.removeEventListener("mousedown", this.click_off);
     }
 
+    update_settings() {
+        this.settings.forEach(s => s.update());
+    }
+
     show() {
         this._show();
+        this.update_settings();
         window.addEventListener("mousedown", this.click_off);
     }
 }
@@ -605,7 +664,7 @@ class TextNode extends SheetNode {
     }
 
     set_up_content() {
-        this.content.classList.append("text");
+        this.content.classList.add("text");
         this.value = TextNode.DEFAULT_VALUE;
         this.content.contentEditable = true;
         this.content.spellcheck = false;
@@ -951,6 +1010,62 @@ class CheckboxNode extends SheetNode {
     }
 }
 
+class NodeGhost extends SheetElement {
+    constructor(options) {
+        super("div", ["node_ghost", "rounded", "offset"], options);
+    }
+}
+
+class SizeablePreviewGhost extends NodeGhost {
+    constructor(options) {
+        super(options);
+
+        this.pin = null;
+
+        this.move_func = e => this.move_ghost(e);
+        this.leave_func = _ => this.hide();
+
+        this.start_preview();
+    }
+
+    move_ghost(e) {
+        if (e.target != this.sheet.element && e.target != this.element) {
+            this.hide();
+            return;
+        }
+        else {
+            this.show();
+        }
+
+        let [x, y] = this.sheet.placement_click_to_grid_coord(
+            e, -(this.w / 2), -(this.h / 2)
+        );
+
+        if (this.pin !== null) {
+            let [l, t] = this.pin;
+
+            this.w = Math.max(Math.abs(x - l), 1) + (x > l ? 1 : 0);
+            this.h = Math.max(Math.abs(y - t), 1) + (y > t ? 1 : 0);
+
+            x = Math.min(x, l - 1) + 1;
+            y = Math.min(y, t - 1) + 1;
+        }
+
+        this.x = x;
+        this.y = y;
+    }
+
+    start_preview() {
+        this.sheet.add_listener("mousemove", this.move_func);
+        this.sheet.add_listener("mouseleave", this.leave_func);
+    }
+
+    end_preview() {
+        this.sheet.remove_listener("mousemove", this.move_func);
+        this.sheet.remove_listener("mouseleave", this.leave_func);
+    }
+}
+
 class Sheet extends GridElement {
     constructor() {
         super("div", ["sheet"], {
@@ -1004,22 +1119,84 @@ class Sheet extends GridElement {
             window.innerHeight / (GridElement.grid_size + GridElement.grid_gap)
         ) - 1;
     }
+
+    placement_click_to_grid_coord(e, delta_x = 0, delta_y = 0) {
+        let rect = this.element.getBoundingClientRect();
+        let offset_x = e.clientX - rect.left;
+        let offset_y = e.clientY - rect.top;
+
+        return GridElement.offset_to_grid_size(
+            offset_x, offset_y, delta_x, delta_y
+        );
+    }
+
+    add_listener(event, func) {
+        this.element.addEventListener(event, func);
+    }
+
+    remove_listener(event, func) {
+        this.element.remove_listener(event, func);
+    }
 }
 
 class Tool extends ElementWrapper {
     static HEIGHT = 60;
     
-    constructor(icon_name) {
+    constructor(options) {
         super("button", ["tool"]);
         this.element.appendChild(
-            create_element("img", [], {src: Icon.icon_path(icon_name)})
+            create_element(
+                "img",
+                [],
+                {
+                    src: Icon.icon_path(options.icon_name || "cross.png"),
+                    title: options.title
+                }
+            )
         );
+        this.element.onclick = options.onclick;
+    }
+}
+
+class AddNodeTool extends Tool {
+    constructor(sheet) {
+        super(
+            {
+                icon_name: "add.png",
+                title: "Add node",
+                onclick: e => this.handle_click(e)
+            }
+        );
+
+        this.sheet = sheet;
+        this.adding = false;
+        this.preview_ghost = null;
+    }
+
+    handle_click(e) {
+        if (this.adding) {
+            this.end_add();
+        }
+        else {
+            this.start_add();
+        }
+    }
+
+    start_add() {
+        this.adding = true;
+        this.preview_ghost = new SizeablePreviewGhost({sheet: this.sheet, width: 2, height: 2});
+    }
+
+    end_add() {
+        this.adding = false;
+        this.preview_ghost.remove();
     }
 }
 
 class Toolbar extends ElementWrapper {
     static TRANSITION_TIME = 500;
     static CLOSED_HEIGHT = 40;
+    static END_LIP_HEIGHT = 5;
 
     constructor(order = 1, hidden = false) {
         super("div", ["toolbar"]);
@@ -1067,7 +1244,7 @@ class Toolbar extends ElementWrapper {
             this.element.classList.add("telescoped");
             this.element.style.height = (
                 Tool.HEIGHT * this.tools_element.childElementCount
-                + Toolbar.CLOSED_HEIGHT
+                + Toolbar.CLOSED_HEIGHT + Toolbar.END_LIP_HEIGHT
             ) + "px";
         }
         else {
@@ -1128,7 +1305,8 @@ function set_up_toolbox() {
     let main = new Toolbar();
     toolbox.appendChild(main.element);
 
-    main.add_tool(new Tool("add.png"));
+    main.add_tool(new Tool({icon_name: "clone.png", title: "Create group"}));
+    main.add_tool(new AddNodeTool(sheet));
 
     // main_tools.appendChild(create_add_tool());
     // main_tools.appendChild(create_group_tool());
