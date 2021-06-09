@@ -173,6 +173,8 @@ class SheetElement extends VisibilityManagedWrapper {
         if (options?.sheet) {
             this.add_to_sheet(options.sheet);
         }
+
+        this.removed = false;
     }
 
     get x() {
@@ -236,8 +238,13 @@ class SheetElement extends VisibilityManagedWrapper {
     }
 
     remove() {
+        if (this.removed) {
+            return;
+        }
+
         this.remove_from_sheet();
         this.element.remove();
+        this.removed = true;
     }
 
     resize() {
@@ -1020,49 +1027,120 @@ class SizeablePreviewGhost extends NodeGhost {
     constructor(options) {
         super(options);
 
-        this.pin = null;
-
         this.move_func = e => this.move_ghost(e);
         this.leave_func = _ => this.hide();
-
-        this.start_preview();
     }
 
-    move_ghost(e) {
+    target_check(e) {
         if (e.target != this.sheet.element && e.target != this.element) {
             this.hide();
-            return;
+            return false;
         }
         else {
             this.show();
+            return true;
         }
-
-        let [x, y] = this.sheet.placement_click_to_grid_coord(
-            e, -(this.w / 2), -(this.h / 2)
-        );
-
-        if (this.pin !== null) {
-            let [l, t] = this.pin;
-
-            this.w = Math.max(Math.abs(x - l), 1) + (x > l ? 1 : 0);
-            this.h = Math.max(Math.abs(y - t), 1) + (y > t ? 1 : 0);
-
-            x = Math.min(x, l - 1) + 1;
-            y = Math.min(y, t - 1) + 1;
-        }
-
-        this.x = x;
-        this.y = y;
     }
 
-    start_preview() {
+    get_click_target(e) {
+        return this.sheet.placement_click_to_grid_coord(
+            e, -(this.w / 2), -(this.h / 2)
+        );
+    }
+
+    move_ghost(e) {
+        if (this.target_check(e)) {
+            [this.x, this.y] = this.get_click_target(e);
+        }
+    }
+
+    _start_preview() {
         this.sheet.add_listener("mousemove", this.move_func);
         this.sheet.add_listener("mouseleave", this.leave_func);
     }
 
-    end_preview() {
+    start_preview() {
+        this._start_preview();
+        return this; // Chaining convenience
+    }
+
+    _end_preview() {
         this.sheet.remove_listener("mousemove", this.move_func);
         this.sheet.remove_listener("mouseleave", this.leave_func);
+    }
+
+    end_preview() {
+        this._end_preview();
+    }
+}
+
+class PinnablePreviewGhost extends SizeablePreviewGhost {
+    constructor(options) {
+        super(options);
+
+        this.pin = null;
+
+        this.click_func = e => this.handle_click(e);
+        
+        this.finish_func = options.onfinish;
+    }
+
+    update_dimensions(x, y, l, t) {
+        this.w = Math.max(Math.abs(x - l), 1) + (x > l ? 1 : 0);
+        this.h = Math.max(Math.abs(y - t), 1) + (y > t ? 1 : 0);
+
+        this.x = Math.min(x, l - 1) + 1;
+        this.y = Math.min(y, t - 1) + 1;
+    }
+
+    handle_click(e) {
+        if (!this.target_check(e)) {
+            return;
+        }
+
+        if (this.pin === null) {
+            this.pin = this.get_click_target(e);
+        }
+        else {
+            let [x, y] = this.get_click_target(e);
+            let [l, t] = this.pin;
+            
+            this.update_dimensions(x, y, l, t);
+            
+            if (this.finish_func) {
+                this.finish_func(this.x, this.y, this.w, this.h);
+            }
+
+            this.remove();
+        }
+    }
+
+    move_ghost(e) {
+        if (!this.target_check(e)) {
+            return;
+        }
+
+        let [x, y] = this.get_click_target(e);
+
+        if (this.pin !== null) {
+            let [l, t] = this.pin;
+            this.update_dimensions(x, y, l, t);
+        }
+        else {
+            this.x = x;
+            this.y = y;    
+        }
+    }
+
+    start_preview() {
+        this._start_preview();
+        this.sheet.add_listener("click", this.click_func);
+        return this;
+    }
+
+    end_preview() {
+        this._end_preview();
+        this.sheet.remove_listener("click", this.click_func);
     }
 }
 
@@ -1093,6 +1171,7 @@ class Sheet extends GridElement {
         this.element.appendChild(sheet_element.element);
 
         sheet_element.sheet = this;
+        sheet_element.removed = false;
     }
 
     remove_element(sheet_element) {
@@ -1135,7 +1214,7 @@ class Sheet extends GridElement {
     }
 
     remove_listener(event, func) {
-        this.element.remove_listener(event, func);
+        this.element.removeEventListener(event, func);
     }
 }
 
@@ -1144,7 +1223,7 @@ class Tool extends ElementWrapper {
     
     constructor(options) {
         super("button", ["tool"]);
-        this.element.appendChild(
+        this.image = this.element.appendChild(
             create_element(
                 "img",
                 [],
@@ -1158,37 +1237,84 @@ class Tool extends ElementWrapper {
     }
 }
 
-class AddNodeTool extends Tool {
-    constructor(sheet) {
-        super(
-            {
-                icon_name: "add.png",
-                title: "Add node",
-                onclick: e => this.handle_click(e)
-            }
-        );
+class ModeTool extends Tool {
+    // Tools which enter a behavioural mode like "Add node"
+    static END_MODE_IMAGE = "tick.png";
 
+    constructor(sheet, icon_name, title) {
+        super({
+            icon_name: icon_name,
+            title: title,
+            onclick: e => this.handle_click(e)
+        });
+
+        this.default_image = this.image.src;
         this.sheet = sheet;
-        this.adding = false;
-        this.preview_ghost = null;
+        this.in_mode = false;
     }
 
     handle_click(e) {
-        if (this.adding) {
-            this.end_add();
+        if (this.in_mode) {
+            this.end();
         }
         else {
-            this.start_add();
+            this.start();
         }
     }
 
-    start_add() {
-        this.adding = true;
-        this.preview_ghost = new SizeablePreviewGhost({sheet: this.sheet, width: 2, height: 2});
+    _start() {
+        // Implemented by subclasses.
     }
 
-    end_add() {
-        this.adding = false;
+    start() {
+        this.in_mode = true;
+        this.image.src = Icon.icon_path(ModeTool.END_MODE_IMAGE);
+        this._start();
+    }
+
+    _end() {
+        // Implemented by subclasses.
+    }
+
+    end() {
+        this.in_mode = false;
+        this.image.src = this.default_image;
+        this._end();
+    }
+}
+
+class AddNodeTool extends ModeTool {
+    constructor(sheet) {
+        super(sheet, "add.png", "Add node");
+
+        this.preview_ghost = null;
+    }
+
+    _start() {
+        this.preview_ghost = new SizeablePreviewGhost({
+            sheet: this.sheet, width: 2, height: 2
+        }).start_preview();
+    }
+
+    _end() {
+        this.preview_ghost.remove();
+    }
+}
+
+class CreateGroupTool extends ModeTool {
+    constructor(sheet) {
+        super(sheet, "clone.png", "Create group");
+
+        this.preview_ghost = null;
+    }
+
+    _start() {
+        this.preview_ghost = new PinnablePreviewGhost({
+            sheet: this.sheet
+        }).start_preview();
+    }
+
+    _end() {
         this.preview_ghost.remove();
     }
 }
@@ -1305,7 +1431,7 @@ function set_up_toolbox() {
     let main = new Toolbar();
     toolbox.appendChild(main.element);
 
-    main.add_tool(new Tool({icon_name: "clone.png", title: "Create group"}));
+    main.add_tool(new CreateGroupTool(sheet));
     main.add_tool(new AddNodeTool(sheet));
 
     // main_tools.appendChild(create_add_tool());
