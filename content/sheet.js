@@ -1029,6 +1029,9 @@ class SizeablePreviewGhost extends NodeGhost {
 
         this.move_func = e => this.move_ghost(e);
         this.leave_func = _ => this.hide();
+        this.click_func = e => this.handle_click(e);
+
+        this.finish_func = options.onfinish;
     }
 
     target_check(e) {
@@ -1054,9 +1057,20 @@ class SizeablePreviewGhost extends NodeGhost {
         }
     }
 
+    handle_click(e) {
+        if (this.target_check(e)) {
+            if (this.finish_func) {
+                this.finish_func()
+            }
+
+            this.end_preview();
+        }
+    }
+
     _start_preview() {
         this.sheet.add_listener("mousemove", this.move_func);
         this.sheet.add_listener("mouseleave", this.leave_func);
+        this.sheet.add_listener("click", this.click_func);
     }
 
     start_preview() {
@@ -1067,6 +1081,8 @@ class SizeablePreviewGhost extends NodeGhost {
     _end_preview() {
         this.sheet.remove_listener("mousemove", this.move_func);
         this.sheet.remove_listener("mouseleave", this.leave_func);
+        this.sheet.remove_listener("click", this.click_func);
+        this.remove();
     }
 
     end_preview() {
@@ -1079,18 +1095,20 @@ class PinnablePreviewGhost extends SizeablePreviewGhost {
         super(options);
 
         this.pin = null;
+    }
 
-        this.click_func = e => this.handle_click(e);
-        
-        this.finish_func = options.onfinish;
+    get_click_target(e) {
+        return this.sheet.placement_click_to_grid_coord(
+            e, this.w === 1 ? -0.5 : 0, this.h === 1 ? -0.5 : 0
+        );
     }
 
     update_dimensions(x, y, l, t) {
-        this.w = Math.max(Math.abs(x - l), 1) + (x > l ? 1 : 0);
-        this.h = Math.max(Math.abs(y - t), 1) + (y > t ? 1 : 0);
+        this.w = Math.max(Math.abs(x - l), 1);
+        this.h = Math.max(Math.abs(y - t), 1);
 
-        this.x = Math.min(x, l - 1) + 1;
-        this.y = Math.min(y, t - 1) + 1;
+        this.x = Math.min(x, l);
+        this.y = Math.min(y, t);
     }
 
     handle_click(e) {
@@ -1111,7 +1129,7 @@ class PinnablePreviewGhost extends SizeablePreviewGhost {
                 this.finish_func(this.x, this.y, this.w, this.h);
             }
 
-            this.remove();
+            this.end_preview();
         }
     }
 
@@ -1130,17 +1148,6 @@ class PinnablePreviewGhost extends SizeablePreviewGhost {
             this.x = x;
             this.y = y;    
         }
-    }
-
-    start_preview() {
-        this._start_preview();
-        this.sheet.add_listener("click", this.click_func);
-        return this;
-    }
-
-    end_preview() {
-        this._end_preview();
-        this.sheet.remove_listener("click", this.click_func);
     }
 }
 
@@ -1240,6 +1247,7 @@ class Tool extends ElementWrapper {
 class ModeTool extends Tool {
     // Tools which enter a behavioural mode like "Add node"
     static END_MODE_IMAGE = "tick.png";
+    static mode_tools = [];
 
     constructor(sheet, icon_name, title) {
         super({
@@ -1251,6 +1259,8 @@ class ModeTool extends Tool {
         this.default_image = this.image.src;
         this.sheet = sheet;
         this.in_mode = false;
+
+        ModeTool.mode_tools.push(this);
     }
 
     handle_click(e) {
@@ -1267,6 +1277,9 @@ class ModeTool extends Tool {
     }
 
     start() {
+        // Only one ModeTool can be active at a time. 
+        ModeTool.mode_tools.forEach(t => t.end());
+
         this.in_mode = true;
         this.image.src = Icon.icon_path(ModeTool.END_MODE_IMAGE);
         this._start();
@@ -1290,14 +1303,31 @@ class AddNodeTool extends ModeTool {
         this.preview_ghost = null;
     }
 
-    _start() {
+    create_preview_ghost() {
         this.preview_ghost = new SizeablePreviewGhost({
-            sheet: this.sheet, width: 2, height: 2
+            sheet: this.sheet,
+            width: 2,
+            height: 2,
+            onfinish: () => {
+                this.sheet.add_element(new SheetNode({
+                    x: this.preview_ghost.x,
+                    y: this.preview_ghost.y,
+                    width: this.preview_ghost.width,
+                    height: this.preview_ghost.height
+                }));
+                this.create_preview_ghost();
+            }
         }).start_preview();
     }
 
+    _start() {
+        this.create_preview_ghost();
+    }
+
     _end() {
-        this.preview_ghost.remove();
+        if (this.preview_ghost) {
+            this.preview_ghost.end_preview();
+        }
     }
 }
 
@@ -1315,7 +1345,9 @@ class CreateGroupTool extends ModeTool {
     }
 
     _end() {
-        this.preview_ghost.remove();
+        if (this.preview_ghost) {
+            this.preview_ghost.end_preview();
+        }
     }
 }
 
@@ -1336,8 +1368,7 @@ class Toolbar extends ElementWrapper {
         this.element.appendChild(this.tools_element);
 
         this.element.style.height = Toolbar.CLOSED_HEIGHT + "px";
-        this.element.style.transition =
-            "all " + Toolbar.TRANSITION_TIME / 1000 + "s";
+        this.element.style.transition = "all " + Toolbar.TRANSITION_TIME + "ms";
 
         this._telescoped = false;
         this.telescoped = hidden;
