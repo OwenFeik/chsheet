@@ -37,7 +37,7 @@ class VisibilityManagedWrapper extends ElementWrapper {
         this._visible = visible;
 
         if (this._visible) {
-            this.element.style.display = "inline-block";
+            this.element.style.display = null;
         }
         else {
             this.element.style.display = "none";
@@ -315,6 +315,10 @@ class Title extends VisibilityManagedWrapper {
                 el.onblur = null;
             };
         };
+
+        el.addEventListener(
+            "input", e => { this.text = this.element.innerText }
+        );
     }
 }
 
@@ -338,7 +342,7 @@ class Checkbox extends ElementWrapper {
     constructor(checked = true, classes = []) {
         super("div", ["checkbox"].concat(classes));
 
-        this.element.appendChild(new Icon("tick"));
+        this.element.appendChild(new Icon("tick.png").element);
 
         this._value = null;
         this.value = checked;
@@ -355,10 +359,10 @@ class Checkbox extends ElementWrapper {
         this._value = checked;
 
         if (this._value) {
-            this.classList.add("checked");
+            this.element.classList.add("checked");
         }
         else {
-            this.classList.remove("checked");
+            this.element.classList.remove("checked");
         }
 
         if (this.oninput) {
@@ -473,7 +477,9 @@ class NodeSetting extends VisibilityManagedWrapper {
         super("div", ["setting"]);
 
         this.name = options.name || "";
-        this.label = options.label || this.name;
+        this._text = this.name;
+        this.label = null;
+
         this.node_type = options.node_type || null;
         
         this.update_func = options.update || null;
@@ -492,17 +498,33 @@ class NodeSetting extends VisibilityManagedWrapper {
         this.set_up_fields();
     }
 
+    get text() {
+        return this._text;
+    }
+
+    set text(val) {
+        this._text = val;
+
+        if (this.label) {
+            this.label.innerText = val;
+        }
+        else if (val) {
+            this.label = this.element.appendChild(
+                create_element("span", ["label"])
+            );
+            this.label.innerText = val;
+        }
+    }
+
     set_up_fields() {
         if (this.checkbox_func) {
-            this.checkbox = new Checkbox(true);
+            this.checkbox = new Checkbox(true, ["background"]);
             this.checkbox.oninput = v => this.checkbox_func(v);
             this.element.appendChild(this.checkbox.element);
         }
 
-        if (this.label) {
-            this.element.appendChild(create_element("span", ["label"], {
-                innerText: this.label
-            }));
+        if (this._text) {
+            this.text = this._text;
         }
 
         if (this.number_func) {
@@ -521,13 +543,26 @@ class NodeSetting extends VisibilityManagedWrapper {
 
         if (this.string_func) {
             this.string = this.element.appendChild(create_element("input"));
-            this.string.oninput = e => this.string_func(e.data);
+            this.string.oninput = e => this.string_func(this.string.value);
         }
     }
 
     update() {
         if (this.update_func) {
-            this.update_func();
+            let data = this.update_func();
+            
+            if (this.checkbox && data.checkbox !== undefined) {
+                this.checkbox.value = data.checkbox;
+            }
+            if (this.number && data.number !== undefined) {
+                this.number.value = data.number;
+            }
+            if (this.string && data.string !== undefined) {
+                this.string.value = data.string;
+            }
+            if (data.text !== undefined) {
+                this.text = data.text;
+            }
         }
     }
 
@@ -536,8 +571,19 @@ class NodeSetting extends VisibilityManagedWrapper {
 class NodeSettings extends VisibilityManagedWrapper {
     constructor(node) {
         super("div", ["settings"]);
-        this.element.onlick = e => e.stopPropagation();
+
+        this.click_off_handler = e => this.click_off(e);
+        this.element.onclick = e => e.stopPropagation();
         this.settings = [];
+
+        node.element.appendChild(this.element);
+        node.element.addEventListener("contextmenu", e => {
+            e.preventDefault();
+            this.show();
+        });
+
+        this.hide();
+        this.update_settings();
     }
 
     add_setting(setting) {
@@ -549,8 +595,9 @@ class NodeSettings extends VisibilityManagedWrapper {
         if (e.target === this.element || this.element.contains(e.target)) {
             return;
         }
+
         this.hide();
-        window.removeEventListener("mousedown", this.click_off);
+        window.removeEventListener("mousedown", this.click_off_handler);
     }
 
     update_settings() {
@@ -560,7 +607,7 @@ class NodeSettings extends VisibilityManagedWrapper {
     show() {
         this._show();
         this.update_settings();
-        window.addEventListener("mousedown", this.click_off);
+        window.addEventListener("mousedown", this.click_off_handler);
     }
 }
 
@@ -585,6 +632,9 @@ class SheetNode extends SheetElement {
         this.content = null;
         this.create_content_element();
         this.set_up_content();
+
+        this.settings = null;
+        this.set_up_settings();
     }
 
     get value() {
@@ -605,6 +655,22 @@ class SheetNode extends SheetElement {
         // content element when this is called.
 
         return;
+    }
+
+    set_up_settings() {
+        this.settings = new NodeSettings(this);
+
+        this.settings.add_setting(new NodeSetting({
+            name: "Title",
+            checkbox: v => { this.header.title.visible = v },
+            string: v => { this.header.title.text = v },
+            update: () => {
+                return {
+                    checkbox: this.header.title.visible,
+                    string: this.header.title.text
+                };
+            } 
+        }));
     }
 
     content_json() {
@@ -997,7 +1063,7 @@ class CheckboxNode extends SheetNode {
     constructor(options) {
         super(options);
 
-        this.checkbox = new Checkbox(true, ["inverted"]);
+        this.checkbox = new Checkbox(true, ["background"]);
         this.content.appendChild(this.checkbox);
 
         this.value = (options?.content !== undefined) ? options.content : true;

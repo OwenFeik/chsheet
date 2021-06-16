@@ -291,10 +291,6 @@
     flex-shrink: 0;
 }
 
-.checkbox.inverted {
-    background-color: var(--bg-secondary);
-}
-
 .content.list > .list_item > .checkbox {
     margin-left: 2px;
 }
@@ -358,7 +354,7 @@
     padding: 2px;
 }
 
-.icon.background {
+.background {
     border-radius: var(--border-rad);
     background-color: var(--bg-secondary);
 }
@@ -395,24 +391,12 @@
     align-items: center;
 }
 
-:not(.list_content) > .settings > .setting.list_content {
-    display: none;
+.settings > .setting > * {
+    margin-left: 5px;
 }
 
-:not(.die_content) > .settings > .setting.die_content {
-    display: none;
-}
-
-:not(.image_content) > .settings > .setting.image_content {
-    display: none;
-}
-
-:not(.number_content) > .settings > .setting.number_content {
-    display: none;
-}
-
-.image_content > .settings > .setting.font_content {
-    display: none;
+.settings > .setting > :last-child {
+    margin-right: 5px;
 }
 
 .number_content:not(.has_default) .control.number_reset {
@@ -424,14 +408,19 @@
     min-width: 10px;
     border: none;
     height: 1.5em;
-    border-radius: 3px;
+    border-radius: var(--border-rad);
     color: var(--fg-secondary);
-    margin: 5px;
 }
 
 .settings > .setting .label {
+    background-color: var(--bg-secondary);
+    border-radius: var(--border-rad);
     color: var(--fg-secondary);
-    padding: 5px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    padding: 1.5px;
+    padding-left: 5px;
+    padding-right: 5px;
     white-space: nowrap;
 }
 
