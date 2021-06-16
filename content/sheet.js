@@ -19,6 +19,14 @@ class ElementWrapper {
     constructor(tagname, classes) {
         this.element = create_element(tagname, classes);
     }
+
+    add_listener(event, func) {
+        this.element.addEventListener(event, func);
+    }
+
+    remove_listener(event, func) {
+        this.element.removeEventListener(event, func);
+    }
 }
 
 class VisibilityManagedWrapper extends ElementWrapper {
@@ -316,9 +324,7 @@ class Title extends VisibilityManagedWrapper {
             };
         };
 
-        el.addEventListener(
-            "input", e => { this.text = this.element.innerText }
-        );
+        this.add_listener("input", e => { this.text = this.element.innerText });
     }
 }
 
@@ -372,6 +378,78 @@ class Checkbox extends ElementWrapper {
 
     toggle() {
         this.value = !this.value;
+    }
+}
+
+class ContextMenuEntry extends ElementWrapper {
+    constructor(icon_name, title, func, toggled = false) {
+        super("div", ["menuitem"]);
+
+        this.icon = new Icon(icon_name);
+        this.element.appendChild(this.icon.element);
+    
+        this._title = title;
+        this.label = create_element("span", ["label"]);
+        this.element.appendChild(this.label);
+        this.title = this._title;
+
+        if (toggled) {
+            this.element.classList.add("toggle");
+        }
+    
+        this.add_listener("click", _ => func(this));
+    }
+
+    get title() {
+        return this._title;
+    }
+
+    set title(val) {
+        this._title = val;
+        this.label.innerHTML = this._title;
+        this.element.title = this._title;
+    }
+}
+
+class ContextMenu extends VisibilityManagedWrapper {
+    constructor(parent) {
+        super("div", ["menu"]);
+
+        this.click_off_handler = e => this.handle_click_off(e);
+
+        parent.element.appendChild(this.element);
+        parent.add_listener("contextmenu", e => this.handle_context_menu(e));
+
+        this.hide();
+    }
+
+    add_entry(context_menu_entry) {
+        this.element.appendChild(context_menu_entry.element);
+    }
+
+    handle_click_off(e) {
+        if (e.target !== this.element) {
+            // If one of this elements entries is clicked, we still want to hide
+            // as it will perform its own action.
+
+            this.hide();
+        }
+    }
+
+    handle_context_menu(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.show();
+    }
+
+    hide() {
+        window.removeEventListener("click", this.click_off_handler);
+        this._hide();
+    }
+
+    show() {
+        window.addEventListener("click", this.click_off_handler);
+        this._show();
     }
 }
 
@@ -577,7 +655,7 @@ class NodeSettings extends VisibilityManagedWrapper {
         this.settings = [];
 
         node.element.appendChild(this.element);
-        node.element.addEventListener("contextmenu", e => {
+        node.add_listener("contextmenu", e => {
             e.preventDefault();
             this.show();
         });
@@ -881,24 +959,14 @@ class ListNode extends SheetNode {
             }
         );
 
-        create_context_menu(
-            add_item.element,
-            [
-                [
-                    "add.png",
-                    "Add item",
-                    function (_) {
-                        this.add_item(false);
-                    }
-                ],
-                [
-                    "handle.png",
-                    "Add break",
-                    function (_) {
-                        this.add_item(true);
-                    }
-                ]
-            ]
+        let menu = new ContextMenu(add_item);
+        menu.add_entry(
+            new ContextMenuEntry("add.png", "Add item", _ => this.add_item())
+        );
+        menu.add_entry(
+            new ContextMenuEntry(
+                "handle.png", "Add break", _ => this.add_item(true)
+            )
         );
 
         this.header.controls.add_control(add_item);
@@ -1281,14 +1349,6 @@ class Sheet extends GridElement {
             offset_x, offset_y, delta_x, delta_y
         );
     }
-
-    add_listener(event, func) {
-        this.element.addEventListener(event, func);
-    }
-
-    remove_listener(event, func) {
-        this.element.removeEventListener(event, func);
-    }
 }
 
 class Tool extends ElementWrapper {
@@ -1375,7 +1435,7 @@ class AddNodeTool extends ModeTool {
             width: 2,
             height: 2,
             onfinish: () => {
-                this.sheet.add_element(new SheetNode({
+                this.sheet.add_element(new ListNode({
                     x: this.preview_ghost.x,
                     y: this.preview_ghost.y,
                     width: this.preview_ghost.width,
