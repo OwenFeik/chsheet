@@ -269,6 +269,11 @@
     justify-content: center;
 }
 
+.control_box {
+    display: flex;
+    flex-direction: row;
+}
+
 .control_box > .control {
     margin-left: 0px;
 }

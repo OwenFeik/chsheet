@@ -345,10 +345,10 @@ class Icon extends ElementWrapper {
 }
 
 class Checkbox extends ElementWrapper {
-    constructor(checked = true, classes = []) {
+    constructor(checked = true, classes = [], background = true) {
         super("div", ["checkbox"].concat(classes));
 
-        this.element.appendChild(new Icon("tick.png").element);
+        this.element.appendChild(new Icon("tick.png", background).element);
 
         this._value = null;
         this.value = checked;
@@ -461,7 +461,7 @@ class Control extends ElementWrapper {
             this.element.classList.add("toggle");
         }
 
-        this.icon = new Icon(options.icon);
+        this.icon = new Icon(options.icon || options.icon_name);
         this.element.appendChild(this.icon.element);
 
         if (options?.title) {
@@ -490,7 +490,7 @@ class ControlBox extends VisibilityManagedWrapper {
 
 class ListItemControl extends Control {
     constructor(list_item, options) {
-        super(options);
+        super(e => this.action(e), options);
 
         this.list_item = list_item;
     }
@@ -974,8 +974,9 @@ class ListNode extends SheetNode {
 
     // Creates a new list_item or list_break and adds it to the list's content.
     add_item(is_break = false, text = "") {
+        let new_item;
         if (is_break) {
-            let new_item = create_element("div", ["list_item", "list_break"]);
+            new_item = create_element("div", ["list_item", "list_break"]);
             new_item.appendChild(create_element("div", ["padding"]));
             
             let title = new Title();
@@ -987,8 +988,8 @@ class ListNode extends SheetNode {
             new_item.appendChild(new ListItemControlBox(new_item));
         }
         else {
-            let new_item = create_element("div", ["list_item"]);
-            new_item.appendChild(new Checkbox());
+            new_item = create_element("div", ["list_item"]);
+            new_item.appendChild(new Checkbox(true, [], false).element);
             new_item.appendChild(create_element(
                 "span",
                 ["list_item_content"],
@@ -998,7 +999,7 @@ class ListNode extends SheetNode {
                     innterText: ListNode.DEFAULT_ITEM_TEXT
                 }
             ));
-            new_item.appendChild(new ListItemControlBox(new_item));
+            new_item.appendChild(new ListItemControlBox(new_item).element);
         }
 
         new_item.style.order = this.content.children.length;
