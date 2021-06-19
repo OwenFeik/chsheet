@@ -332,11 +332,21 @@ class Icon extends ElementWrapper {
     constructor(name, background = true) {
         super("img", ["icon"]);
 
-        this.element.src = Icon.icon_path(name); 
+        this._icon_name = null;
+        this.icon_name = name; 
         
         if (background) {
             this.element.classList.add("background");
         }
+    }
+
+    get icon_name() {
+        return this._icon_name;
+    }
+
+    set icon_name(val) {
+        this._icon_name = val;
+        this.element.src = Icon.icon_path(val);
     }
 
     static icon_path(name) {
@@ -655,10 +665,6 @@ class NodeSettings extends VisibilityManagedWrapper {
         this.settings = [];
 
         node.element.appendChild(this.element);
-        node.add_listener("contextmenu", e => {
-            e.preventDefault();
-            this.show();
-        });
 
         this.hide();
         this.update_settings();
@@ -694,6 +700,8 @@ class SheetNode extends SheetElement {
         super("div", ["node"], options);
 
         this.type = options?.type || NodeTypes.NONE;
+
+        this._locked = options?.locked || false;
         
         this.header = new NodeHeader(this, options);
         this.element.appendChild(this.header.element);
@@ -711,6 +719,9 @@ class SheetNode extends SheetElement {
         this.create_content_element();
         this.set_up_content();
 
+        this.menu = null;
+        this.set_up_menu();
+
         this.settings = null;
         this.set_up_settings();
     }
@@ -723,6 +734,23 @@ class SheetNode extends SheetElement {
         return;
     }
 
+    get locked() {
+        return this._locked;
+    }
+
+    set locked(val) {
+        this._locked = val;
+
+        if (this.locked) {
+            this.element.classList.add("locked");
+        }
+        else {
+            this.element.classList.remove("locked");
+        }
+
+        this.update_content_editable(this.locked);
+    }
+
     create_content_element() {
         this.content = create_element("div", ["content"]);
         this.element.appendChild(this.content);
@@ -733,6 +761,28 @@ class SheetNode extends SheetElement {
         // content element when this is called.
 
         return;
+    }
+
+    update_content_editable(editable) {
+        this.content.element.contentEditable = editable;
+    }
+
+    set_up_menu() {
+        this.menu = new ContextMenu(this);
+
+        // this.menu.add_entry(new ContextMenuEntry("resize.png"))
+        this.menu.add_entry(new ContextMenuEntry(
+            this.locked ? "unlock.png" : "lock.png",
+            this.locked ? "Unlock" : "Lock",
+            e => {
+                this.locked = !this.locked;
+                e.icon.icon_name = this.locked ? "unlock.png" : "lock.png";
+                e.title = this.locked ? "Unlock" : "Lock";
+            }
+        ));
+        this.menu.add_entry(new ContextMenuEntry(
+            "cog.png", "Settings", _ => this.settings.show()
+        ));
     }
 
     set_up_settings() {
@@ -949,6 +999,14 @@ class ListNode extends SheetNode {
         this.content.style.fontSize = ListNode.DEFAULT_FONT_SIZE;
     }
 
+    update_content_editable(editable) {
+        this.content.querySelectorAll(
+            ".list_item_content:not(.list_break)"
+        ).forEach(i => {
+            i.contentEditable = editable;
+        });
+    }
+
     set_up_controls() {
         let add_item = new Control(
             e => this.add_item(),
@@ -996,7 +1054,7 @@ class ListNode extends SheetNode {
                 {
                     contentEditable: true,
                     spellcheck: false,
-                    innterText: ListNode.DEFAULT_ITEM_TEXT
+                    innerText: ListNode.DEFAULT_ITEM_TEXT
                 }
             ));
             new_item.appendChild(new ListItemControlBox(new_item).element);
@@ -1072,6 +1130,10 @@ class DieNode extends SheetNode {
         this.value = DieNode.DEFAULT_VALUE;
     }
 
+    update_content_editable(editable) {
+        return;
+    }
+
     roll() {
         this.value = Math.ceil(Math.random() * this.die_size);
     }
@@ -1108,6 +1170,10 @@ class ImageNode extends SheetNode {
     set_up_content() {
         this.content.classList.add("image_holder");
         this.content.contentEditable = false;
+    }
+
+    update_content_editable(editable) {
+        return;
     }
 
     to_json() {
@@ -1149,6 +1215,10 @@ class CheckboxNode extends SheetNode {
     set_up_content() {
         this.content.classList.add("checkbox_holder");
         this.content.contentEditable = false;
+    }
+
+    update_content_editable(editable) {
+        return;
     }
 }
 
