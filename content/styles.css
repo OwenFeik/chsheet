@@ -35,6 +35,11 @@
     position: relative;
 }
 
+
+.toolbar.telescoped > .tools {
+    overflow-y: visible; /* TODO ; this prevents hiding of tools during scroll */
+}
+
 #toolbox {
     display: flex;
     position: fixed;

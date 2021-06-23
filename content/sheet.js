@@ -173,8 +173,8 @@ class SheetElement extends VisibilityManagedWrapper {
 
         this._x = options?.x || 0;
         this._y = options?.y || 0;
-        this._w = options?.width || options?.w || 1;
-        this._h = options?.height || options?.h || 1;
+        this._w = options?.width || options?.w || 2;
+        this._h = options?.height || options?.h || 2;
 
         this.update_grid_area();
     
@@ -183,6 +183,8 @@ class SheetElement extends VisibilityManagedWrapper {
         }
 
         this.removed = false;
+
+        this.dimension_handler = options?.dimension_handler || null;
     }
 
     get x() {
@@ -257,6 +259,9 @@ class SheetElement extends VisibilityManagedWrapper {
 
     resize() {
         this.update_grid_area();
+        if (this.dimension_handler) {
+            this.dimension_handler();
+        }
     }
     
     update_grid_area() {
@@ -799,6 +804,28 @@ class SheetNode extends SheetElement {
                 };
             } 
         }));
+        this.settings.add_setting(new NodeSetting({
+            name: "Width",
+            number: v => { this.width = v },
+            update: () => {
+                return {
+                    number: this.width
+                };
+            }
+        }));
+        this.settings.add_setting(new NodeSetting({
+            name: "Height",
+            number: v => { this.height = v },
+            update: () => {
+                return {
+                    number: this.height
+                };
+            }
+        }));
+    }
+
+    clone() {
+        return SheetNode.from_json(this.to_json());
     }
 
     content_json() {
@@ -816,7 +843,7 @@ class SheetNode extends SheetElement {
             height: this.height,
             x: this.x,
             y: this.y,
-            controls_active: this.controls.visible,
+            controls_active: this.header.controls.visible,
             font_size: this.content.style.fontSize,
             text_align: this.content.style.textAlign,
             locked: this.locked,
@@ -828,7 +855,7 @@ class SheetNode extends SheetElement {
         return this._to_json();
     }
 
-    from_json(options) {
+    static from_json(options) {
         switch (options.type) {
             case NodeTypes.CHECKBOX:
                 return new CheckboxNode(options);
@@ -1498,20 +1525,33 @@ class AddNodeTool extends ModeTool {
         super(sheet, "add.png", "Add node");
 
         this.preview_ghost = null;
+
+        this.node = new SheetNode();
+        this.node.dimension_handler = () => {
+            if (this.preview_ghost) {
+                this.preview_ghost.w = this.node.w;
+                this.preview_ghost.h = this.node.h;
+            }
+        };
+
+        this.node_settings = this.node.settings;
+        this.element.appendChild(this.node_settings.element);
+        this.node_settings.element.classList.add("left");
+        this.add_listener("contextmenu", e => {
+            e.preventDefault();
+            this.node_settings.show();
+        });
     }
 
     create_preview_ghost() {
         this.preview_ghost = new SizeablePreviewGhost({
             sheet: this.sheet,
-            width: 2,
-            height: 2,
+            width: this.node.w,
+            height: this.node.h,
             onfinish: () => {
-                this.sheet.add_element(new ListNode({
-                    x: this.preview_ghost.x,
-                    y: this.preview_ghost.y,
-                    width: this.preview_ghost.width,
-                    height: this.preview_ghost.height
-                }));
+                this.node.x = this.preview_ghost.x;
+                this.node.y = this.preview_ghost.y;
+                this.sheet.add_element(this.node.clone());
                 this.create_preview_ghost();
             }
         }).start_preview();
