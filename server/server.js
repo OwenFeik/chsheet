@@ -4,12 +4,12 @@ const path = require("path");
 
 const sql = require("./db.js");
 
-async function test() {
-    const [new_user] = await sql`INSERT INTO chsheet.mytable (val) VALUES('abc') RETURNING *`;
-    return new_user;
-}
+// async function test() {
+//     const [new_user] = await sql`INSERT INTO mytable (val) VALUES('abc') RETURNING *`;
+//     return new_user;
+// }
 
-test().then(d => console.log(d));
+// test().then(d => console.log(d));
 
 const CONTENT_ROOT = __dirname.replace("/server", "/content");
 

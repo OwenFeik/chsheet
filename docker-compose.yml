@@ -1,16 +1,32 @@
 version: "3.2"
 services:
   database:
-    build: ./database
-    image: chsheet_postgres
+    image: postgres
     restart: always
+    ports:
+        - "5432:5432"
+    environment:
+        - POSTGRES_USER=postgres
+        - POSTGRES_PASSWORD=password
+        - POSTGRES_DB=chsheet_db
+    healthcheck:
+      # note -U must be the same as POSTGRES_USER
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 1s
+      retries: 5
   server:
     build: .
     depends_on:
-      - database
+      database:
+        condition: service_healthy
     image: chsheet_server
     ports:
       - target: 8080
         published: 80
         protocol: tcp
-        mode: host
+    environment:
+        - POSTGRES_USER=postgres
+        - POSTGRES_PASSWORD=password
+        - POSTGRES_DB=chsheet_db
+        - POSTGRES_CONTAINER=database

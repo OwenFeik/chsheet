@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS mytable (
+    id INTEGER PRIMARY KEY,
+    val VARCHAR(64)
+);
