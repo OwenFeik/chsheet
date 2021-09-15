@@ -6,10 +6,12 @@
     display: flex;
     flex-direction: column;
     margin-left: 20px;
+    overflow-y: clip;
     position: relative;
     top: 0px;
     width: 40px;
 }
+
 
 .toolbar_toggle {
     align-items: center;
@@ -35,13 +37,9 @@
     position: relative;
 }
 
-
-.toolbar.telescoped > .tools {
-    overflow-y: visible; /* TODO ; this prevents hiding of tools during scroll */
-}
-
-#toolbox {
+.toolbox {
     display: flex;
+    flex-direction: row-reverse;
     position: fixed;
     right: 20px;
     top: 0px;

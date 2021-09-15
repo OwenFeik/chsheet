@@ -165,6 +165,15 @@ class GridElement extends ElementWrapper {
     resize() {
         this._resize();
     }
+
+    contains(other) {
+        return (
+            this.x <= other.x
+            && this.y <= other.y
+            && this.x + this.w >= other.x + other.w
+            && this.y + this.h >= other.y + other.h
+        );
+    }
 }
 
 class SheetElement extends VisibilityManagedWrapper {
@@ -423,6 +432,12 @@ class ContextMenuEntry extends ElementWrapper {
         this._title = val;
         this.label.innerHTML = this._title;
         this.element.title = this._title;
+    }
+}
+
+class DeleteContextMenuEntry extends ContextMenuEntry {
+    constructor(target) {
+        super("cross.png", "Delete", () => target.remove(), true);
     }
 }
 
@@ -776,6 +791,7 @@ class SheetNode extends SheetElement {
         this.menu = new ContextMenu(this);
 
         // this.menu.add_entry(new ContextMenuEntry("resize.png"))
+        this.menu.add_entry(new DeleteContextMenuEntry(this));
         this.menu.add_entry(new ContextMenuEntry(
             this.locked ? "unlock.png" : "lock.png",
             this.locked ? "Unlock" : "Lock",
@@ -1249,6 +1265,37 @@ class CheckboxNode extends SheetNode {
     }
 }
 
+class NodeGroup extends SheetElement {
+    constructor(options, from_ghost = null) {
+        super("div", ["node_group", "rounded", "offset"], options);
+    
+        if (from_ghost) {
+            this.x = options.x || from_ghost.x;
+            this.y = options.y || from_ghost.y;
+            this.w = options.width || options.w || from_ghost.w;
+            this.h = options.height || options.h || from_ghost.h;
+        }
+
+        this.managed_nodes = [];
+        this.gather_nodes();
+
+        this.menu = new ContextMenu(this);
+        this.menu.add_entry(new DeleteContextMenuEntry(this));
+    }
+
+    gather_nodes() {
+        if (this.sheet === null) {
+            return;
+        }
+
+        this.sheet.nodes().forEach(node => {
+            if (this.contains(node)) {
+                this.managed_nodes.push(node);
+            }
+        });
+    }
+}
+
 class NodeGhost extends SheetElement {
     constructor(options) {
         super("div", ["node_ghost", "rounded", "offset"], options);
@@ -1397,6 +1444,10 @@ class Sheet extends GridElement {
         this.elements = [];
     }
 
+    nodes() {
+        return this.elements.filter(e => e instanceof SheetNode);
+    }
+
     add_element(sheet_element) {
         if (sheet_element.x + sheet_element.width > this.width) {
             this.width = sheet_element.x + sheet_element.width;
@@ -1447,6 +1498,14 @@ class Sheet extends GridElement {
             offset_x, offset_y, delta_x, delta_y
         );
     }
+
+    add_mode(mode) {
+        this.element.classList.add(mode);
+    }
+
+    remove_mode(mode) {
+        this.element.classList.remove(mode);
+    }
 }
 
 class Tool extends ElementWrapper {
@@ -1473,7 +1532,7 @@ class ModeTool extends Tool {
     static END_MODE_IMAGE = "tick.png";
     static mode_tools = [];
 
-    constructor(sheet, icon_name, title) {
+    constructor(sheet, icon_name, title, super_mode = null) {
         super({
             icon_name: icon_name,
             title: title,
@@ -1483,6 +1542,7 @@ class ModeTool extends Tool {
         this.default_image = this.image.src;
         this.sheet = sheet;
         this.in_mode = false;
+        this.super_mode = super_mode;
 
         ModeTool.mode_tools.push(this);
     }
@@ -1502,7 +1562,11 @@ class ModeTool extends Tool {
 
     start() {
         // Only one ModeTool can be active at a time. 
-        ModeTool.mode_tools.forEach(t => t.end());
+        ModeTool.mode_tools.forEach(t => {
+            if (this.super_mode && !(t instanceof this.super_mode)) {
+                t.end();
+            }
+        });
 
         this.in_mode = true;
         this.image.src = Icon.icon_path(ModeTool.END_MODE_IMAGE);
@@ -1514,6 +1578,13 @@ class ModeTool extends Tool {
     }
 
     end() {
+        // End all submodes
+        ModeTool.mode_tools.forEach(t => {
+            if (t.super_mode && (this instanceof t.super_mode)) {
+                t.end();
+            }
+        });
+
         this.in_mode = false;
         this.image.src = this.default_image;
         this._end();
@@ -1568,16 +1639,41 @@ class AddNodeTool extends ModeTool {
     }
 }
 
+class GroupingTool extends ModeTool {
+    constructor(sheet, toolbar) {
+        super(sheet, "clone.png", "Group nodes");
+        this.toolbar = toolbar;
+    }
+
+    _start() {
+        this.sheet.add_mode("grouping");
+        this.toolbar.show();
+    }
+
+    _end() {
+        this.sheet.remove_mode("grouping");
+        this.toolbar.hide();
+    }
+}
+
 class CreateGroupTool extends ModeTool {
     constructor(sheet) {
-        super(sheet, "clone.png", "Create group");
+        super(sheet, "add.png", "Create group", GroupingTool);
 
         this.preview_ghost = null;
     }
 
     _start() {
         this.preview_ghost = new PinnablePreviewGhost({
-            sheet: this.sheet
+            sheet: this.sheet,
+            width: 1,
+            height: 1,
+            onfinish: () => {
+                this.sheet.add_element(
+                    new NodeGroup({sheet: this.sheet}, this.preview_ghost)
+                );
+                this._start();
+            }
         }).start_preview();
     }
 
@@ -1593,22 +1689,21 @@ class Toolbar extends ElementWrapper {
     static CLOSED_HEIGHT = 40;
     static END_LIP_HEIGHT = 5;
 
-    constructor(order = 1, hidden = false) {
-        super("div", ["toolbar"]);
+    constructor(hidden = false, classes = []) {
+        super("div", ["toolbar"].concat(classes));
 
         this._order = null;
-        this.order = order;
+        this.order = 0;
 
         this.tools = [];
 
-        this.tools_element = create_element("div", ["tools"]);
+        this.tools_element = create_element("div", ["tools", "hidden"]);
         this.element.appendChild(this.tools_element);
 
         this.element.style.height = Toolbar.CLOSED_HEIGHT + "px";
         this.element.style.transition = "all " + Toolbar.TRANSITION_TIME + "ms";
 
         this._telescoped = false;
-        this.telescoped = hidden;
 
         this.toggle_element = create_element("div", ["toolbar_toggle"]);
         this.toggle_element.appendChild(
@@ -1616,6 +1711,10 @@ class Toolbar extends ElementWrapper {
         );
         this.toggle_element.onclick = () => this.toggle_telescoped();
         this.element.appendChild(this.toggle_element);
+
+        if (hidden) {
+            this.hide();
+        }
     }
 
     get order() {
@@ -1635,6 +1734,7 @@ class Toolbar extends ElementWrapper {
         this._telescoped = bool;
 
         if (this._telescoped) {
+            this.show_tools();
             this.element.classList.add("telescoped");
             this.element.style.height = (
                 Tool.HEIGHT * this.tools_element.childElementCount
@@ -1649,8 +1749,8 @@ class Toolbar extends ElementWrapper {
 
     hide(transition = true) {
         if (transition) {
+            this.toggle_telescoped(false);
             this.element.style.top = "-" + Toolbar.CLOSED_HEIGHT + "px";
-            this.element.style.display = "none";
         }
         else {
             no_transition(this.element, () => this.hide());
@@ -1659,21 +1759,48 @@ class Toolbar extends ElementWrapper {
 
     show(transition = true) {
         if (transition) {
+            this.toggle_telescoped(true);
             this.element.style.top = "0px";
-            this.element.style.display = "inherit";
         }
         else {
-            no_transition(this.element, () => this.show());
+            no_transition(this.element, () => this.show(true));
         }
     }
 
-    toggle_telescoped() {
-        this.telescoped = !this.telescoped;
+    toggle_telescoped(to = null) {
+        if (to !== null) {
+            this.telescoped = to;
+        }
+        else {
+            this.telescoped = !this.telescoped;
+        }
     }
 
     add_tool(tool) {
         this.tools.push(tool);
         this.tools_element.appendChild(tool.element);
+    }
+
+    show_tools() {
+        this.tools_element.classList.remove("hidden");
+    }
+}
+
+class Toolbox extends ElementWrapper {
+    constructor(toolbars = null) {
+        super("div", ["toolbox"]);
+
+        this.toolbars = [];
+
+        if (toolbars) {
+            toolbars.forEach(t => this.add_toolbar(t));
+        }
+    }
+
+    add_toolbar(toolbar) {
+        this.toolbars.push(toolbar);
+        this.element.appendChild(toolbar.element);
+        toolbar.order = this.toolbars.length;
     }
 }
 
@@ -1694,13 +1821,16 @@ function set_up_shortcuts() {
 }
 
 function set_up_toolbox() {
-    let toolbox = document.getElementById("toolbox");
+    let group = new Toolbar(true, ["grouping"]);
+    group.add_tool(new CreateGroupTool(sheet));
 
     let main = new Toolbar();
-    toolbox.appendChild(main.element);
-
-    main.add_tool(new CreateGroupTool(sheet));
     main.add_tool(new AddNodeTool(sheet));
+    main.add_tool(new GroupingTool(sheet, group));
+
+    let toolbox = new Toolbox([main, group]);
+    let toolbox_node = document.getElementById("toolbox"); 
+    toolbox_node.parentNode.replaceChild(toolbox.element, toolbox_node);
 
     // main_tools.appendChild(create_add_tool());
     // main_tools.appendChild(create_group_tool());
