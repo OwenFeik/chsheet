@@ -2,15 +2,6 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
-const sql = require("./db.js");
-
-// async function test() {
-//     const [new_user] = await sql`INSERT INTO mytable (val) VALUES('abc') RETURNING *`;
-//     return new_user;
-// }
-
-// test().then(d => console.log(d));
-
 const CONTENT_ROOT = __dirname.replace("/server", "/content");
 
 function validate_file_name(string) {
