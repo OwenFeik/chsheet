@@ -45,10 +45,10 @@ class VisibilityManagedWrapper extends ElementWrapper {
         this._visible = visible;
 
         if (this._visible) {
-            this.element.classList.remove("hidden");
+            this.element.style.display = null;            
         }
         else {
-            this.element.classList.add("hidden");
+            this.element.style.display = "none";
         }
     }
 
@@ -70,6 +70,13 @@ class VisibilityManagedWrapper extends ElementWrapper {
 }
 
 class GridElement extends ElementWrapper {
+    static GRID_SIZE_INITIAL = 32;
+    static GRID_SIZE_MIN = 10;
+    static GRID_SIZE_MAX = 100;
+    static GRID_GAP_INITIAL = 10;
+    static GRID_GAP_MIN = 5;
+    static GRID_GAP_MAX = 25;
+
     constructor(tagname, classes, options) {
         super(tagname, classes);
 
@@ -79,20 +86,26 @@ class GridElement extends ElementWrapper {
         GridElement.grid_elements.push(this);
     }
 
-    static grid_size = INITIAL_GRID_SIZE;
-    static grid_gap = INITIAL_GRID_GAP;
+    static grid_size = GridElement.GRID_SIZE_INITIAL;
+    static grid_gap = GridElement.GRID_GAP_INITIAL;
 
     // A list of all existing grid_elements is stored such that they can be
     // each be resized to update the grid dimensions.
     static grid_elements = [];
 
     static set_grid_size(val) {
-        GridElement.grid_size = val;
+        GridElement.grid_size = Math.max(
+            Math.min(val, GridElement.GRID_SIZE_MAX),
+            GridElement.GRID_SIZE_MIN
+        );
         GridElement.grid_elements.forEach(e => e.resize());
     }
 
     static set_grid_gap(val) {
-        GridElement.grid_gap = val;
+        GridElement.grid_gap = Math.max(
+            Math.min(val, GridElement.GRID_GAP_MAX),
+            GridElement.GRID_GAP_MIN
+        );
         GridElement.grid_elements.forEach(e => e.resize());
     }
 
@@ -1831,7 +1844,7 @@ class PanelMenu extends VisibilityManagedWrapper {
     constructor() {
         super("div", ["panel"]);
         this.hide();
-
+        document.body.appendChild(this.element);
         PanelMenu.menus.push(this);
     }
 
@@ -1974,9 +1987,6 @@ class SaveMenu extends PanelMenu {
         this.set_up();
 
         this.save_title = this.sheet.save_title;
-
-        this.hide();
-        document.body.appendChild(this.element);
     }
 
     get save_title() {
@@ -2048,15 +2058,18 @@ class SaveMenu extends PanelMenu {
                 title: "Upload save"
             }
         );
-        let upload_input = create_element(
-            "input",
-            [],
-            {title: "Upload save", type: "file", accept: ".json"}
-        )
-        upload.element.appendChild(upload_input);
-        upload_input.oninput = () => {
-            upload_sheet(upload_input.files[0], this.callback);
-        }
+        upload.element.appendChild(
+            create_element(
+                "input",
+                [],
+                {
+                    title: "Upload save",
+                    type: "file",
+                    accept: ".json",
+                    oninput: e => upload_sheet(e.target.files[0], this.callback)
+                }
+            )
+        );
         controls.add_control(upload);
 
         controls.add_control(
@@ -2155,8 +2168,76 @@ class SaveMenu extends PanelMenu {
     }
 }
 
+class SettingsMenu extends PanelMenu {
+    constructor() {
+        super();
+
+        this.set_up();
+    }
+
+    set_up() {
+        let header = create_element("div", ["panel_header"]);
+        this.element.appendChild(header);
+
+        header.appendChild(
+            create_element("span", ["title"], { innerText: "Settings" })
+        );
+        let controls = new ControlBox();
+        controls.add_control(
+            new Control(
+                () => this.hide(),
+                {
+                    background: false,
+                    icon: "cross.png",
+                    title: "close"
+                }
+            )
+        );
+        header.appendChild(controls.element);
+
+        let settings = create_element("div", ["entry_list"]);
+        this.element.appendChild(settings);
+
+        let node_size = create_element("div", ["list_item"]);
+        settings.appendChild(node_size);
+        node_size.appendChild(
+            create_element("span", ["label"], { innerText: "Node size" })
+        );
+        node_size.appendChild(
+            create_element(
+                "input",
+                ["secondary"],
+                {
+                    max: GridElement.GRID_SIZE_MAX,
+                    min: GridElement.GRID_SIZE_MIN,
+                    oninput: e => GridElement.set_grid_size(e.target.value), 
+                    type: "number",
+                    value: GridElement.grid_size
+                }
+            )
+        );
+        node_size.appendChild(
+            create_element("span", ["label"], { innerText: "Gap" })
+        );
+        node_size.appendChild(
+            create_element(
+                "input",
+                ["secondary"],
+                {
+                    max: GridElement.GRID_GAP_MAX,
+                    min: GridElement.GRID_GAP_MIN,
+                    oninput: e => GridElement.set_grid_gap(e.target.value),
+                    type: "number",
+                    value: GridElement.grid_gap
+                }
+            )
+        );
+    }
+}
+
 function set_up_workspace(sheet) {
     let save_menu = new SaveMenu(sheet);
+    let settings_menu = new SettingsMenu();
 
     let group = new Toolbar(true, ["grouping"]);
     group.add_tool(new CreateGroupTool(sheet));
@@ -2168,6 +2249,11 @@ function set_up_workspace(sheet) {
         icon: "save.png",
         title: "Save",
         onclick: () => save_menu.show()
+    }));
+    main.add_tool(new Tool({
+        icon: "cog.png",
+        title: "Settings",
+        onclick: () => settings_menu.show()
     }));
 
     let toolbox = new Toolbox([main, group]);
@@ -2190,14 +2276,6 @@ function set_up_workspace(sheet) {
             save_menu.show();
         }
     };
-
-    // let save = create_tool("save.png");
-    // save.classList.add("toggle");
-    // main_tools.appendChild(save);
-    // let save_menu = create_save_menu();
-    // save.onclick = function () {
-    //     save_menu.show();
-    // };
 
     // let settings = create_tool("cog.png");
     // let settings_panel = create_document_settings();
@@ -4117,6 +4195,12 @@ function create_element(tagname, classes, attributes) {
             } 
             else if (k === "innerHTML") {
                 el.innerHTML = v;
+            }
+            else if (k === "onclick") {
+                el.onclick = v;
+            }
+            else if (k === "oninput") {
+                el.oninput = v;
             }
             else {
                 el.setAttribute(k, v);

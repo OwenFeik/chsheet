@@ -546,7 +546,7 @@
     padding-right: 5px;
 }
 
-.panel_header :not(:first-child) {
+.panel_header > :not(:first-child) {
     margin-left: 5px !important;
 }
 
@@ -556,7 +556,7 @@
     background-color: var(--bg-primary);
 }
 
-.panel_header > .control ~ .control {
+.panel_header .control ~ .control {
     margin-left: 5px;
 }
 
@@ -643,6 +643,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    z-index: 255;
 }
 
 .rounded {
@@ -654,6 +655,7 @@
 }
 
 .control > input {
+    cursor: pointer;
     position: absolute;
     left: 0px;
     top: 0px;
