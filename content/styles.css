@@ -532,8 +532,6 @@
 
 .panel_header > input {
     flex-grow: 1;
-    margin-left: 5px;
-    margin-right: 5px;
     border-radius: var(--border-rad);
     background-color: var(--bg-primary);
     height: 18px;

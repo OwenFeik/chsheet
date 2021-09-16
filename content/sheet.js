@@ -45,10 +45,10 @@ class VisibilityManagedWrapper extends ElementWrapper {
         this._visible = visible;
 
         if (this._visible) {
-            this.element.style.display = null;
+            this.element.classList.remove("hidden");
         }
         else {
-            this.element.style.display = "none";
+            this.element.classList.add("hidden");
         }
     }
 
@@ -485,13 +485,16 @@ class ContextMenu extends VisibilityManagedWrapper {
 
 class Control extends ElementWrapper {
     constructor(func, options) {
-        super("div", ["control"]);
+        super("div", ["control"].concat(options.classes || []));
         
         if (options?.toggle) {
             this.element.classList.add("toggle");
         }
 
-        this.icon = new Icon(options.icon || options.icon_name);
+        this.icon = new Icon(
+            options.icon || options.icon_name,
+            options.background !== undefined ? options.background : true
+        );
         this.element.appendChild(this.icon.element);
 
         if (options?.title) {
@@ -626,7 +629,7 @@ class NodeSetting extends VisibilityManagedWrapper {
 
     set_up_fields() {
         if (this.checkbox_func) {
-            this.checkbox = new Checkbox(true, ["background"]);
+            this.checkbox = new Checkbox(true);
             this.checkbox.oninput = v => this.checkbox_func(v);
             this.element.appendChild(this.checkbox.element);
         }
@@ -1431,17 +1434,31 @@ class PinnablePreviewGhost extends SizeablePreviewGhost {
 }
 
 class Sheet extends GridElement {
-    constructor() {
+    static DOCUMENT_TITLE_PREFIX = "chsheet: ";
+
+    constructor(save_title = "untitled") {
         super("div", ["sheet"], {
             width: 0,
             height: 0
         });
+
+        this._save_title = null;
+        this.save_title = save_title;
 
         this.element.style.display = "grid";
 
         this.resize_to_screen();
     
         this.elements = [];
+    }
+
+    get save_title() {
+        return this._save_title;
+    }
+
+    set save_title(new_title) {
+        this._save_title = new_title;
+        document.title = Sheet.DOCUMENT_TITLE_PREFIX + this._save_title;
     }
 
     nodes() {
@@ -1518,7 +1535,11 @@ class Tool extends ElementWrapper {
                 "img",
                 [],
                 {
-                    src: Icon.icon_path(options.icon_name || "cross.png"),
+                    src: Icon.icon_path(
+                        options.icon_name
+                        || options.icon
+                        || "cross.png"
+                    ),
                     title: options.title
                 }
             )
@@ -1563,7 +1584,7 @@ class ModeTool extends Tool {
     start() {
         // Only one ModeTool can be active at a time. 
         ModeTool.mode_tools.forEach(t => {
-            if (this.super_mode && !(t instanceof this.super_mode)) {
+            if (this.super_mode === null || !(t instanceof this.super_mode)) {
                 t.end();
             }
         });
@@ -1804,36 +1825,371 @@ class Toolbox extends ElementWrapper {
     }
 }
 
-function set_up_shortcuts() {
-    document.onkeydown = function (e) {
-        // https://stackoverflow.com/a/19589671
+class PanelMenu extends VisibilityManagedWrapper {
+    static menus = [];
+    
+    constructor() {
+        super("div", ["panel"]);
+        this.hide();
 
-        if (e.key == "Backspace" && !(e.target.tagName == "INPUT" ||
-            e.target.contentEditable == "true")) {
+        PanelMenu.menus.push(this);
+    }
 
-            e.preventDefault();
-        }
-        else if (e.key == "s" && e.ctrlKey) {
-            e.preventDefault();
-            document.getElementById("save_menu").show();
-        }
-    };
+    static get fade() {
+        return document.getElementById("fade");
+    }
+
+    static fade_in() {
+        PanelMenu.fade.classList.add("active");
+    }
+
+    static fade_out() {
+        PanelMenu.fade.classList.remove("active");
+    }
+
+    _show() {
+        PanelMenu.menus.forEach(menu => {
+            menu.hide();
+        });
+
+        PanelMenu.fade_in();
+        this.visible = true;
+    }
+
+    _hide() {
+        PanelMenu.fade_out();
+        this.visible = false;
+    }
 }
 
-function set_up_toolbox() {
+class SaveListItem extends ElementWrapper {
+    constructor(owner, save) {
+        super("div", ["list_item"]);
+
+        // Old saves didn't have ids
+        if (!save.id) {
+            save.id = save.title;
+        }
+
+        this.owner = owner;
+
+        this.checkbox = new Checkbox(false, [], false);
+        this.element.appendChild(this.checkbox.element);
+
+        this.title_label = create_element(
+            "span",
+            ["item_title", "label"],
+            {
+                title: "Load save",
+                innerText: save.title
+            }
+        );
+        this.title_label.onclick = () => {
+            load_sheet(save.id, () => { this.owner.save_title = save.title });
+        };
+
+        this.element.appendChild(this.title_label);
+        this.element.appendChild(
+            create_element(
+                "span",
+                ["label"],
+                {
+                    innerText: new Date(save.time)
+                        .toLocaleDateString("en-AU")
+                }
+            )
+        );
+        this.element.appendChild(
+            create_element(
+                "span",
+                ["label"],
+                {
+                    innerText: get_nodes(save).length.toString() + " nodes"
+                }
+            )
+        );
+
+        let controls = new ControlBox();
+        controls.add_control(
+            new Control(
+                // TODO this assuems that sheets have an id, not just a title
+                () => {
+                    delete_sheet(save.id);
+                    this.owner.remove_save(this);
+                },
+                {
+                    icon: "trash.png",
+                    classes: ["background"],
+                    title: "Delete"
+                }
+            )
+        );
+        controls.add_control(
+            new Control(
+                () => download_sheet(save.id),
+                {
+                    icon: "down.png",
+                    classes: ["background"],
+                    title: "Download"
+                }
+            )
+        );
+        this.element.appendChild(controls);
+
+        this._save_title = null;
+        this.save_title = save;
+    }
+
+    get selected() {
+        return this.checkbox.value;
+    }
+
+    set selected(bool) {
+        this.checkbox.value = bool;
+    }
+
+    get save_title() {
+        return this._save_title;
+    }
+
+    set save_title(new_title) {
+        this._save_title = new_title;
+        this.title_label.innerText = this._save_title;
+    }
+}
+
+class SaveMenu extends PanelMenu {
+    constructor(sheet) {
+        super();
+
+        this.sheet = sheet;
+
+        // TODO better way of handling images
+        this.image_names = [];
+
+        this.saves = [];
+
+        this.callback = () => this.reload_saves();
+
+        this.set_up();
+
+        this.save_title = this.sheet.save_title;
+
+        this.hide();
+        document.body.appendChild(this.element);
+    }
+
+    get save_title() {
+        return this.header_input.value;
+    }
+
+    set save_title(new_title) {
+        this.header_input.value = new_title;
+    }
+
+    get selected() {
+        return this.saves.filter(i => i.selected());
+    }
+
+    validate_title() {
+        if (this.save_title === "") {
+            this.header_input.setCustomValidity("Title required to save.");
+            this.header_input.keyup = () => this.validate_title();
+            return false;
+        }
+        else {
+            this.header_input.setCustomValidity("");
+            this.header_input.keyup = null;
+            return true;
+        }
+    }
+
+    set_up_controls() {
+        let controls = new ControlBox({
+            hidden: false
+        });
+        controls.add_control(
+            new Control(
+                () => {
+                    if (this.validate_title()) {
+                        save_sheet(this.save_title, this.callback);
+                        this.sheet.save_title = this.save_title;
+                    }
+                },
+                { background: false, icon: "save.png", title: "Save" }
+            )
+        );
+        controls.add_control(
+            new Control(
+                () => {
+                    // TODO load example properly
+                    fetch("/example.json").then(resp => resp.json()).then(
+                        data => {
+                            console.log("Loaded example.");
+                        }
+                    );
+                },
+                {
+                    background: false,
+                    icon: "clone.png",
+                    title: "Load Example"
+                }
+            )
+        );
+
+        // TODO displays wrong cursor on hover, input is slightly
+        // misaligned
+        let upload = new Control(
+            () => {},
+            {
+                background: false,
+                classes: ["input_holder"],
+                icon: "up.png",
+                title: "Upload save"
+            }
+        );
+        let upload_input = create_element(
+            "input",
+            [],
+            {title: "Upload save", type: "file", accept: ".json"}
+        )
+        upload.element.appendChild(upload_input);
+        upload_input.oninput = () => {
+            upload_sheet(upload_input.files[0], this.callback);
+        }
+        controls.add_control(upload);
+
+        controls.add_control(
+            new Control(
+                () => {
+                    let saves_to_delete = this.selected();
+                    if (saves_to_delete.length) {
+                        delete_sheets(saves_to_delete, this.callback);
+                        this.header_checkbox.value = false;
+                    }
+                },
+                {
+                    background: false,
+                    icon: "trash.png",
+                    title: "Delete selected"
+                }
+            )
+        );
+        controls.add_control(
+            new Control(
+                () => this.hide(),
+                { background: false, icon: "cross.png", title: "Close" }
+            )
+        );
+
+        return controls;
+    }
+
+    set_up_header() {
+        let header = create_element("div", ["panel_header"]);
+        this.element.appendChild(header);
+
+        this.header_checkbox = new Checkbox(false, [], false);
+        this.header_checkbox.oninput = v => this.set_all_checkboxes(v);
+        header.appendChild(this.header_checkbox.element);
+
+        this.header_input = create_element("input", [], {
+            minLength: 1,
+            maxLength: 32
+        });
+        header.appendChild(this.header_input);
+        header.appendChild(this.set_up_controls().element);
+    }
+
+    set_up_body() {
+        this.save_list = create_element("div", ["entry_list"]);
+        this.element.appendChild(this.save_list);
+
+        this.save_list.appendChild(
+            create_element(
+                "span",
+                ["label"],
+                { innerText: "No saves" }
+            )
+        );
+    }
+
+    set_up() {
+        this.set_up_header();
+        this.set_up_body();
+    }
+
+    set_all_checkboxes(bool = true) {
+        this.saves.forEach(i => {
+            i.selected = bool
+        });
+    }
+
+    remove_all_saves() {
+        this.saves.forEach(i => i.remove());
+        this.saves = [];
+    }
+
+    remove_save(save) {
+        this.saves = this.saves.filter(i => {
+            if (i === save) {
+                i.remove();
+                return false;
+            }
+            return true;
+        });
+    }
+
+    add_save(save) {
+        this.saves.push(save);
+    }
+
+    reload_saves() {
+        get_all_sheets(data => {
+            this.image_names = update_image_store(data);
+            data.sort((a, b) => b.time - a.time);
+            data.forEach(save => {
+                this.add_save(new SaveListItem(this, save));  
+            });
+        });
+    }
+}
+
+function set_up_workspace(sheet) {
+    let save_menu = new SaveMenu(sheet);
+
     let group = new Toolbar(true, ["grouping"]);
     group.add_tool(new CreateGroupTool(sheet));
 
     let main = new Toolbar();
     main.add_tool(new AddNodeTool(sheet));
     main.add_tool(new GroupingTool(sheet, group));
+    main.add_tool(new Tool({
+        icon: "save.png",
+        title: "Save",
+        onclick: () => save_menu.show()
+    }));
 
     let toolbox = new Toolbox([main, group]);
     let toolbox_node = document.getElementById("toolbox"); 
     toolbox_node.parentNode.replaceChild(toolbox.element, toolbox_node);
 
-    // main_tools.appendChild(create_add_tool());
-    // main_tools.appendChild(create_group_tool());
+    document.onkeydown = function (e) {
+        // https://stackoverflow.com/a/19589671
+        if (
+            e.key == "Backspace"
+            && !(
+                e.target.tagName == "INPUT"
+                || e.target.contentEditable == "true"
+            )
+        ) {
+            e.preventDefault();
+        }
+        else if (e.key == "s" && e.ctrlKey) {
+            e.preventDefault();
+            save_menu.show();
+        }
+    };
 
     // let save = create_tool("save.png");
     // save.classList.add("toggle");
@@ -3756,7 +4112,15 @@ function create_element(tagname, classes, attributes) {
 
     if (attributes) {
         for ([k, v] of Object.entries(attributes)) {
-            el.setAttribute(k, v);
+            if (k === "innerText") {
+                el.innerText = v;
+            } 
+            else if (k === "innerHTML") {
+                el.innerHTML = v;
+            }
+            else {
+                el.setAttribute(k, v);
+            }
         }
     }
 

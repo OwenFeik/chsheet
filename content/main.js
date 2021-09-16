@@ -9,6 +9,5 @@ window.onload = function() {
     document.getElementById("container").appendChild(sheet.element);
 
     // set_up_db();
-    set_up_toolbox();
-    set_up_shortcuts();
+    set_up_workspace(sheet);
 };
