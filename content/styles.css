@@ -32,7 +32,6 @@
     display: flex;
     flex-direction: column;
     order: 1;
-    overflow-y: hidden;
     overflow-x: visible;
     position: relative;
 }
@@ -391,15 +390,19 @@
 }
 
 .settings > .setting {
+    margin-top: 5px;
+}
+
+.settings .setting {
     background: var(--bg-primary);
     display: flex;
-    margin-top: 5px;
     border-radius: var(--border-rad);
+    min-width: 0;
     position: relative;
     align-items: center;
 }
 
-.settings > .setting > * {
+.settings .setting > :not(.setting) {
     margin-left: 5px;
 }
 
@@ -411,7 +414,7 @@
     display: none;
 }
 
-.settings > .setting input, .settings > .setting select {
+.settings .setting input, .settings .setting select {
     flex-shrink: 1;
     min-width: 10px;
     border: none;
@@ -420,7 +423,7 @@
     color: var(--fg-secondary);
 }
 
-.settings > .setting .label {
+.settings .setting .label {
     background-color: var(--bg-secondary);
     border-radius: var(--border-rad);
     color: var(--fg-secondary);
@@ -432,12 +435,12 @@
     white-space: nowrap;
 }
 
-.settings > .setting.list_setting {
+.settings .setting.list_setting {
     display: flex;
     flex-direction: column;
 }
 
-.settings > .setting.list_setting > .header {
+.settings .setting.list_setting > .header {
     width: 100%;
     height: 100%;
     display: flex;
@@ -445,21 +448,21 @@
     align-items: center;
 }
 
-.settings > .setting.list_setting > .header > .label {
+.settings .setting.list_setting > .header > .label {
     padding: 4px;
 }
 
-.settings > .setting.list_setting > .header > .control {
+.settings .setting.list_setting > .header > .control {
     margin-right: 5px;
 }
 
-.settings > .setting.list_setting > .entry_list {
+.settings .setting.list_setting > .entry_list {
     width: 100%;
     padding-bottom: 5px;
     padding-top: 0px;
 }
 
-.settings > .setting.list_setting > .entry_list > .list_item {
+.settings .setting.list_setting > .entry_list > .list_item {
     width: 90%;
     height: 10px;
 }

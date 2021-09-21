@@ -42,6 +42,10 @@ class VisibilityManagedWrapper extends ElementWrapper {
     }
 
     set visible(visible) {
+        if (typeof visible !== "boolean") {
+            return;
+        }
+
         this._visible = visible;
 
         if (this._visible) {
@@ -383,7 +387,12 @@ class Icon extends ElementWrapper {
 
 class Checkbox extends ElementWrapper {
     constructor(checked = true, classes = [], background = true) {
-        super("div", ["checkbox"].concat(classes));
+        super(
+            "div",
+            ["checkbox"]
+                .concat(classes)
+                .concat(background ? ["background"] : [])
+        );
 
         this.element.appendChild(new Icon("tick.png", background).element);
 
@@ -589,6 +598,11 @@ class NodeHeader extends ElementWrapper {
 
         this.controls = new ControlBox(options);
         this.element.appendChild(this.controls.element);
+
+        if (options) {
+            this.title.visible = options.title_active;
+            this.controls.visible = options.controls_active;    
+        }
     }
 }
 
@@ -618,6 +632,10 @@ class NodeSetting extends VisibilityManagedWrapper {
         
         this.string_func = options.string || null;
         this.string = null;
+
+        this.dropdown_func = options.dropdown || null;
+        this.dropdown_entries = options.dropdown_entries || [];
+        this.dropdown = null;
 
         this.set_up_fields();
     }
@@ -669,6 +687,20 @@ class NodeSetting extends VisibilityManagedWrapper {
             this.string = this.element.appendChild(create_element("input"));
             this.string.oninput = e => this.string_func(this.string.value);
         }
+
+        if (this.dropdown_func) {
+            this.dropdown = this.element.appendChild(create_element("select"));
+            this.dropdown_entries.forEach(e => {
+                this.dropdown.appendChild(create_element(
+                    "option",
+                    [],
+                    { innerText: e }
+                ));
+            });
+            this.dropdown.onchange = e => this.dropdown_func(
+                this.dropdown.value
+            );
+        }
     }
 
     update() {
@@ -684,12 +716,33 @@ class NodeSetting extends VisibilityManagedWrapper {
             if (this.string && data.string !== undefined) {
                 this.string.value = data.string;
             }
+            if (this.dropdown && data.dropdown !== undefined) {
+                this.dropdown.value = data.dropdown;
+            }
             if (data.text !== undefined) {
                 this.text = data.text;
             }
         }
     }
 
+}
+
+class MultiSetting extends VisibilityManagedWrapper {
+    constructor(settings) {
+        super("div", ["setting"]);
+        
+        this.settings = [];
+        settings.forEach(s => this.add_setting(s));
+    }
+
+    add_setting(setting) {
+        this.settings.push(setting);
+        this.element.appendChild(setting.element);
+    }
+
+    update() {
+        this.settings.forEach(s => s.update());
+    }
 }
 
 class NodeSettings extends VisibilityManagedWrapper {
@@ -738,6 +791,8 @@ class SheetNode extends SheetElement {
         this.type = options?.type || NodeTypes.NONE;
 
         this._locked = options?.locked || false;
+
+        this.replace_func = options?.replace_func || null;
         
         this.header = new NodeHeader(this, options);
         this.element.appendChild(this.header.element);
@@ -837,27 +892,70 @@ class SheetNode extends SheetElement {
             } 
         }));
         this.settings.add_setting(new NodeSetting({
-            name: "Width",
-            number: v => { this.width = v },
+            name: "Controls",
+            checkbox: v => { this.header.controls.visible = v },
             update: () => {
-                return {
-                    number: this.width
-                };
+                return { checkbox: this.header.controls.visible };
             }
         }));
         this.settings.add_setting(new NodeSetting({
-            name: "Height",
-            number: v => { this.height = v },
+            name: "Type",
+            dropdown: v => { this.switch_to_type(v) },
+            dropdown_entries: Object.values(NodeTypes),
             update: () => {
-                return {
-                    number: this.height
-                };
+                return { dropdown: this.type };
             }
         }));
+        this.settings.add_setting(new MultiSetting([
+            new NodeSetting({
+                name: "Width",
+                number: v => { this.width = v },
+                update: () => {
+                    return {
+                        number: this.width
+                    };
+                }
+            }),
+            new NodeSetting({
+                name: "Height",
+                number: v => { this.height = v },
+                update: () => {
+                    return {
+                        number: this.height
+                    };
+                }
+            })
+        ]));
+    }
+
+    replace(replacement) {
+        if (this.replace_func) {
+            this.replace_func(this, replacement);
+        }
+        else if (this.sheet) {
+            this.sheet.replace_element(this, replacement);
+        }
+        else {
+            console.error(
+                "SheetNode.replace called when no replace function available."
+            );
+        }
     }
 
     clone() {
         return SheetNode.from_json(this.to_json());
+    }
+
+    content_to_type(type) {
+        return null;
+    }
+
+    switch_to_type(type) {
+        let json = this.to_json();
+        json.content = this.content_to_type(type);
+        json.replace_func = this.replace_func;     
+        json.type = type; 
+        this.replace(SheetNode.from_json(json));
     }
 
     content_json() {
@@ -1185,7 +1283,7 @@ class DieNode extends SheetNode {
     set_up_content() {
         this.content.classList.add("die");
         this.content.contentEditable = false;
-        this.contentEditable.fontSize = DieNode.DEFAULT_FONT_SIZE;
+        this.content.fontSize = DieNode.DEFAULT_FONT_SIZE;
         this.value = DieNode.DEFAULT_VALUE;
     }
 
@@ -1499,6 +1597,11 @@ class Sheet extends GridElement {
         this.element.removeChild(sheet_element.element);
     }
 
+    replace_element(old_element, new_element) {
+        this.remove_element(old_element);
+        this.add_element(new_element);
+    }
+
     resize() {
         this._resize();
         this.element.style.gridGap = GridElement.grid_gap + "px";
@@ -1631,21 +1734,39 @@ class AddNodeTool extends ModeTool {
 
         this.preview_ghost = null;
 
-        this.node = new SheetNode();
-        this.node.dimension_handler = () => {
+        this.node_settings = null;
+        this._node = null;
+        this.node = new SheetNode({
+            replace_func: (_, new_node) => { this.node = new_node; }
+        });
+
+        this.add_listener("contextmenu", e => {
+            e.preventDefault();
+            if (this.node_settings) {
+                this.node_settings.show();
+            }
+        });
+    }
+    
+    set node(new_node) {
+        this._node = new_node;
+        this._node.dimension_handler = () => {
             if (this.preview_ghost) {
                 this.preview_ghost.w = this.node.w;
                 this.preview_ghost.h = this.node.h;
             }
         };
 
+        if (this.node_settings) {
+            this.element.removeChild(this.node_settings.element);
+        }
         this.node_settings = this.node.settings;
         this.element.appendChild(this.node_settings.element);
         this.node_settings.element.classList.add("left");
-        this.add_listener("contextmenu", e => {
-            e.preventDefault();
-            this.node_settings.show();
-        });
+    }
+
+    get node() {
+        return this._node;
     }
 
     create_preview_ghost() {
@@ -2276,15 +2397,6 @@ function set_up_workspace(sheet) {
             save_menu.show();
         }
     };
-
-    // let settings = create_tool("cog.png");
-    // let settings_panel = create_document_settings();
-    // settings.onclick = function () {
-    //     settings_panel.show();
-    // };
-    // main_tools.appendChild(settings);
-
-    // main.style.order = 1;
 }
 
 function end_all_tool_processes() {
