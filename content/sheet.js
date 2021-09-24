@@ -309,7 +309,7 @@ class SheetElement extends VisibilityManagedWrapper {
 
 class Title extends VisibilityManagedWrapper {
     constructor(options) {
-        super("span", ["title"]);
+        super("span", ["title"].concat(options?.classes || []));
         
         this._text = "";
         this.text = options?.title || "Title";
@@ -505,7 +505,7 @@ class ContextMenu extends VisibilityManagedWrapper {
     }
 }
 
-class Control extends ElementWrapper {
+class Control extends VisibilityManagedWrapper {
     constructor(func, options) {
         super("div", ["control"].concat(options.classes || []));
         
@@ -519,8 +519,9 @@ class Control extends ElementWrapper {
         );
         this.element.appendChild(this.icon.element);
 
-        if (options?.title) {
-            this.element.title = options.title;
+        this.title = options?.title;
+        if (this.title) {
+            this.element.title = this.title;
         }
     
         this.func = func;
@@ -541,6 +542,10 @@ class ControlBox extends VisibilityManagedWrapper {
     }
 
     set_up_controls() {}
+
+    get(title) {
+        return this.controls.filter(c => c.title === title)[0];
+    }
 }
 
 class ListItemControl extends Control {
@@ -685,7 +690,12 @@ class NodeSetting extends VisibilityManagedWrapper {
 
         if (this.string_func) {
             this.string = this.element.appendChild(create_element("input"));
-            this.string.oninput = e => this.string_func(this.string.value);
+            this.string.oninput = e => {
+                let validity = this.string_func(this.string.value);
+                if (typeof validity === "string") {
+                    this.string.setCustomValidity(validity);
+                }
+            };
         }
 
         if (this.dropdown_func) {
@@ -737,7 +747,18 @@ class MultiSetting extends VisibilityManagedWrapper {
 
     add_setting(setting) {
         this.settings.push(setting);
-        this.element.appendChild(setting.element);
+
+        if (setting.checkbox) {
+            this.element.appendChild(setting.checkbox.element);
+        }
+
+        ["label", "number", "string", "dropdown"].forEach(
+            field => {
+                if (setting[field]) {
+                    this.element.appendChild(setting[field])
+                }
+            }
+        );
     }
 
     update() {
@@ -899,7 +920,7 @@ class SheetNode extends SheetElement {
             }
         }));
         this.settings.add_setting(new NodeSetting({
-            name: "Type",
+            name: "Content",
             dropdown: v => { this.switch_to_type(v) },
             dropdown_entries: Object.values(NodeTypes),
             update: () => {
@@ -954,8 +975,15 @@ class SheetNode extends SheetElement {
         let json = this.to_json();
         json.content = this.content_to_type(type);
         json.replace_func = this.replace_func;     
-        json.type = type; 
-        this.replace(SheetNode.from_json(json));
+        json.type = type;
+
+        let new_node = SheetNode.from_json(json);
+
+        this.replace(new_node);
+
+        // Note: if we ever want to call switch_to_type from somewhere other
+        // than settings this will no longer make sense.
+        new_node.settings.show();
     }
 
     content_json() {
@@ -1008,9 +1036,14 @@ class SheetNode extends SheetElement {
 class TextNode extends SheetNode {
     static DEFAULT_FONT_SIZE = "10pt"; 
     static DEFAULT_VALUE = "Lorem ipsum dolor sit amet";
+    static TEXT_ALIGNMENT_OPTIONS = ["left", "right", "center", "justify"];;
 
     constructor(options) {
         super(options);
+
+        if (options?.content) {
+            this.value = options.content;
+        }
     }
 
     get value() {
@@ -1029,6 +1062,21 @@ class TextNode extends SheetNode {
         this.content.style.fontSize = TextNode.DEFAULT_FONT_SIZE;
         this.content.style.textAlign = "left";
     }
+
+    set_up_settings() {
+        super.set_up_settings();
+
+        this.settings.add_setting(new NodeSetting({
+            name: "Text align",
+            dropdown: v => {
+                this.content.style.textAlign = v;
+            },
+            dropdown_entries: TextNode.TEXT_ALIGNMENT_OPTIONS,
+            update: () => {
+                return { dropdown: this.content.style.textAlign };
+            }
+        }));
+    }
 }
 
 class NumberNode extends SheetNode {
@@ -1042,6 +1090,10 @@ class NumberNode extends SheetNode {
         this.value = this.default_value;
 
         this.set_up_controls();
+
+        if (options?.content) {
+            this.value = options.content;
+        }
     }
 
     get value() {
@@ -1050,6 +1102,14 @@ class NumberNode extends SheetNode {
 
     set value(number) {
         this.content.innerText = number.toString();
+    }
+
+    get reset_active() {
+        return this.header.controls.get("Reset");
+    }
+
+    set reset_active(bool) {
+        this.header.controls.get("Reset").visible = bool;
     }
 
     reset() {
@@ -1112,9 +1172,27 @@ class NumberNode extends SheetNode {
         ));
     }
 
+    set_up_settings() {
+        super.set_up_settings();
+
+        this.settings.add_setting(new MultiSetting([
+            new NodeSetting({
+                name: "Reset",
+                checkbox: v => { this.reset_active = v; },
+                update: () => { return { checkbox: this.reset_active }; }
+            }),
+            new NodeSetting({
+                name: "Default",
+                number: v => { this.default_value = v },
+                update: () => { return { number: this.default_value }; }
+            })
+        ]));
+    }
+
     to_json() {
         let json = this._to_json();
         json.default_value = this.default_value;
+        json.reset_active = this.reset_active;
 
         return json;
     }
@@ -1133,6 +1211,10 @@ class ListNode extends SheetNode {
             options.checkboxes_active : true;
 
         this.set_up_controls();
+
+        if (options?.content) {
+            this.content_from_json(options.content);
+        }
     }
 
     get checkboxes_active() {
@@ -1187,31 +1269,50 @@ class ListNode extends SheetNode {
         this.header.controls.add_control(add_item);
     }
 
+    set_up_settings() {
+        super.set_up_settings();
+
+        this.settings.add_setting(new MultiSetting([
+            new NodeSetting({
+                name: "Checkboxes",
+                checkbox: v => { this.checkboxes_active = v },
+                update: () => { return { checkbox: this.checkboxes_active }; }
+            }),
+            new NodeSetting({
+                name: "Preset",
+                dropdown: v => this.apply_preset(v),
+                dropdown_entries: Object.keys(CONTENT["list_presets"]) 
+            })
+        ]));
+    }
+
     // Creates a new list_item or list_break and adds it to the list's content.
-    add_item(is_break = false, text = "") {
+    add_item(is_break = false, text = "", checked = true) {
         let new_item;
         if (is_break) {
             new_item = create_element("div", ["list_item", "list_break"]);
             new_item.appendChild(create_element("div", ["padding"]));
             
-            let title = new Title();
-            title.text = text || ListNode.DEFAULT_ITEM_TEXT;
-            title.element.classList.add("list_item_content");
-            new_item.appendChild(title);
+            new_item.appendChild(
+                new Title({
+                    title: text || ListNode.DEFAULT_ITEM_TEXT,
+                    classes: ["list_item_content"]
+                }).element
+            );
 
             new_item.appendChild(create_element("div", ["padding"]));
-            new_item.appendChild(new ListItemControlBox(new_item));
+            new_item.appendChild(new ListItemControlBox(new_item).element);
         }
         else {
             new_item = create_element("div", ["list_item"]);
-            new_item.appendChild(new Checkbox(true, [], false).element);
+            new_item.appendChild(new Checkbox(checked, [], false).element);
             new_item.appendChild(create_element(
                 "span",
                 ["list_item_content"],
                 {
                     contentEditable: true,
                     spellcheck: false,
-                    innerText: ListNode.DEFAULT_ITEM_TEXT
+                    innerText: text || ListNode.DEFAULT_ITEM_TEXT
                 }
             ));
             new_item.appendChild(new ListItemControlBox(new_item).element);
@@ -1221,12 +1322,40 @@ class ListNode extends SheetNode {
         this.content.appendChild(new_item);
     }
 
+    clear_items() {
+        Array.from(this.content.children).forEach(item => item.remove());
+    }
+
+    apply_preset(preset_name) {
+        this.clear_items();
+        
+        const preset = CONTENT["list_presets"][preset_name];
+        
+        this.checkboxes_active = preset["checkboxes"];
+        this.header.controls.visible = preset["controls"];
+        this.header.title.text = preset["title"];
+
+        this.content_from_json(preset["entries"]);
+    }
+
+    content_from_json(list_items) {
+        this.clear_items();
+        list_items.forEach(item => {
+            if (item.type === "break") {
+                this.add_item(true, item.title);
+            }
+            else {
+                this.add_item(false, item.content, item.checkbox_checked);
+            }
+        });
+    }
+
     to_json() {
         let json = this._to_json();
 
         let list_items = [];
-        Array.prototype.slice.call(this.content.children).sort((a, b) =>
-            (a.style.order - b.style.order)
+        Array.from(this.content.children).sort(
+            (a, b) => (a.style.order - b.style.order)
         ).forEach(i => {
             if (i.classList.contains("list_break")) {
                 list_items.push({
@@ -1287,6 +1416,16 @@ class DieNode extends SheetNode {
         this.value = DieNode.DEFAULT_VALUE;
     }
 
+    set_up_settings() {
+        super.set_up_settings();
+
+        this.settings.add_setting(new NodeSetting({
+            name: "Die size",
+            number: v => { this.die_size = v },
+            update: () => { return { number: this.die_size }; }
+        }));
+    }
+
     update_content_editable(editable) {
         return;
     }
@@ -1305,12 +1444,14 @@ class DieNode extends SheetNode {
 
 class ImageNode extends SheetNode {
     static DEFAULT_IMAGE = Icon.icon_path("cross.png");
+    static CROPPING_MODES = ["contain", "cover", "fill"];
 
     constructor(options) {
         super(options);
 
         this.image = create_element("img");
         this.image.src = options?.content?.uri || ImageNode.DEFAULT_IMAGE;
+        this.image.style.objectFit = "cover";
         this.content.appendChild(this.image);
         
         this.image_name = this.image.src;
@@ -1327,6 +1468,46 @@ class ImageNode extends SheetNode {
     set_up_content() {
         this.content.classList.add("image_holder");
         this.content.contentEditable = false;
+    }
+
+    set_up_settings() {
+        super.set_up_settings();
+
+        let image_selection = new NodeSetting({
+            name: "Image",
+            string: v => { this.value = v; },
+            update: () => { return { string: this.value }; } 
+        });
+
+        let input = image_selection.string;
+        image_selection.string_func = src => {
+            let img = create_element("img");
+
+            img.onload = () => {
+                this.value = src;
+                input.setCustomValidity("");
+            };
+
+            img.onerror = () => {
+                input.setCustomValidity("Image not found.");
+            }
+
+            img.src = src;
+        };
+        input.addEventListener("blur", () => {
+            input.setCustomValidity("");
+            input.value = this.value;
+        });
+
+        // TODO image uploads
+
+        this.settings.add_setting(image_selection);
+        this.settings.add_setting(new NodeSetting({
+            name: "Cropping",
+            dropdown: v => { this.image.style.objectFit = v },
+            dropdown_entries: ImageNode.CROPPING_MODES,
+            update: () => { return { dropdown: this.image.style.objectFit }; }
+        }))
     }
 
     update_content_editable(editable) {
@@ -1356,7 +1537,7 @@ class CheckboxNode extends SheetNode {
         super(options);
 
         this.checkbox = new Checkbox(true, ["background"]);
-        this.content.appendChild(this.checkbox);
+        this.content.appendChild(this.checkbox.element);
 
         this.value = (options?.content !== undefined) ? options.content : true;
     }
