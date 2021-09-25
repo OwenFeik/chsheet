@@ -529,6 +529,23 @@ class Control extends VisibilityManagedWrapper {
     }
 }
 
+class UploadControl extends Control {
+    constructor(func, options) {
+        super(() => {}, Object.assign(options, {icon_name: "up.png"}));
+        this.element.style.position = "relative";
+        this.element.appendChild(create_element(
+            "input",
+            [],
+            {
+                title: options?.title || "Upload",
+                type: "file",
+                accept: options?.accept,
+                oninput: e => func(e.target.files[0])
+            }
+        ));
+    }
+}
+
 class ControlBox extends VisibilityManagedWrapper {
     constructor(options) {
         super("div", ["control_box"]);
@@ -1499,7 +1516,44 @@ class ImageNode extends SheetNode {
             input.value = this.value;
         });
 
-        // TODO image uploads
+        // TODO properly handle SVG files
+        image_selection.element.appendChild(new UploadControl(
+            f => {
+                let file_reader = new FileReader();
+                file_reader.onloadend = () => {
+                    this.value = window.URL.createObjectURL(
+                        new Blob([file_reader.result])
+                    );
+
+                    input.value = this.value;
+                };
+
+                file_reader.readAsArrayBuffer(f);
+            },
+            {
+                accept: "image/*",
+                title: "Upload image",
+            }
+        ).element);
+
+        // TODO image name handling. Old logic here:
+        // // ensure a unique image_name, so that it isn't overwritten in db
+        // let image_names = document.getElementById("save_menu").image_names;
+        // if (image_names.indexOf(file.name) >= 0) {
+        //     name = file.name.replace(/\.\w+$/, "");
+        //     ext = file.name.replace(/^\w+/, "");
+
+        //     let i = 1;
+        //     while (image_names.indexOf(`${name}${i}${ext}`) >= 0) {
+        //         i += 1;
+        //     }
+        //     image.image_name = `${name}${i}${ext}`;
+        // }
+        // else {
+        //     image.image_name = file.name;
+        // }
+
+        // image_src_input.value = image.image_name;
 
         this.settings.add_setting(image_selection);
         this.settings.add_setting(new NodeSetting({
@@ -2351,28 +2405,16 @@ class SaveMenu extends PanelMenu {
 
         // TODO displays wrong cursor on hover, input is slightly
         // misaligned
-        let upload = new Control(
-            () => {},
+        controls.add_control(new UploadControl(
+            f => upload_sheet(f, this.callback),
             {
+                accept: ".json",
                 background: false,
                 classes: ["input_holder"],
                 icon: "up.png",
                 title: "Upload save"
             }
-        );
-        upload.element.appendChild(
-            create_element(
-                "input",
-                [],
-                {
-                    title: "Upload save",
-                    type: "file",
-                    accept: ".json",
-                    oninput: e => upload_sheet(e.target.files[0], this.callback)
-                }
-            )
-        );
-        controls.add_control(upload);
+        ));
 
         controls.add_control(
             new Control(
