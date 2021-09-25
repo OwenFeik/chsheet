@@ -298,6 +298,16 @@ class SheetElement extends VisibilityManagedWrapper {
         if (this.dimension_handler) {
             this.dimension_handler();
         }
+
+        if (this.sheet) {
+            if (this.y + this.h >= sheet.h) {
+                sheet.h = this.y + this.h;
+            }
+
+            if (this.x + this.w >= sheet.w) {
+                sheet.w = this.w + this.w;
+            }
+        }
     }
     
     update_grid_area() {
@@ -321,11 +331,15 @@ class DraggableSheetElement extends SheetElement {
     constructor(classes, options) {
         super("div", classes, options);
 
+        // When the user mousedowns on the drag target we prime for a drag.
+        // However we don't actually begin the drag until they move the mouse
+        // without releasing (and thus depriming).
         this.drag_primed = false;
         this._dragging = false;
         this.pos_x = this.pos_y = null;
         this.ghost = null;
         this.drag_target = this.element;
+        this.drag_valid = options?.drag_valid || (() => true);
 
         this.add_listener("mousedown", e => this.handle_mouse_down(e));
         
@@ -364,8 +378,8 @@ class DraggableSheetElement extends SheetElement {
     start_drag(e) {
         this.dragging = true;
 
-        this.pos_x = e.clientX;
-        this.pos_y = e.clientY;
+        this.pos_x = e.screenX;
+        this.pos_y = e.screenY;
 
         this.ghost = NodeGhost.from_node(this);
 
@@ -382,6 +396,7 @@ class DraggableSheetElement extends SheetElement {
     handle_mouse_down(e) {
         if (
             e.which === 1
+            && this.drag_valid() 
             && (
                 e.target === this.drag_target
                 || this.drag_target.contains(e.target)
@@ -415,10 +430,10 @@ class DraggableSheetElement extends SheetElement {
 
         no_transition(this.element, () => {
             this.element.style.left = (
-                this.element.offsetLeft + e.clientX - this.pos_x
+                this.element.offsetLeft + e.screenX - this.pos_x
             ) + "px";
             this.element.style.top = (
-                this.element.offsetTop + e.clientY - this.pos_y
+                this.element.offsetTop + e.screenY - this.pos_y
             ) + "px";    
         });
 
@@ -426,8 +441,8 @@ class DraggableSheetElement extends SheetElement {
             this.element.offsetLeft, this.element.offsetTop
         );
 
-        this.pos_x = e.clientX;
-        this.pos_y = e.clientY;
+        this.pos_x = e.screenX;
+        this.pos_y = e.screenY;
     }
 }
 
@@ -950,7 +965,12 @@ class NodeSettings extends VisibilityManagedWrapper {
 
 class SheetNode extends DraggableSheetElement {
     constructor(options) {
-        super(["node"], options);
+        super(
+            ["node"], 
+            Object.assign(
+                options, { drag_valid: () => { return !this.locked; } }
+            )
+        );
 
         this.type = options?.type || NodeTypes.NONE;
 
