@@ -81,8 +81,13 @@
 
 .node_group {
     background-color: var(--fg-secondary-transparent);
+    position: relative;
     visibility: hidden;
     z-index: -100;
+    top: -4px;
+    left: -4px;
+    width: calc(100% + 8px);
+    height: calc(100% + 8px);
 }
 
 .node {
@@ -99,18 +104,15 @@
     z-index: 10;
 }
 
-.offset {
-    top: -4px;
-    left: -4px;
-    width: calc(100% + 4px);
-    height: calc(100% + 4px);
-}
-
 .node_ghost {
     border-radius: var(--border-rad);
     border: dashed 2px var(--bg-secondary);
     z-index: -100;
     position: absolute;
+    top: -4px;
+    left: -4px;
+    width: calc(100% + 4px);
+    height: calc(100% + 4px);
 }
 
 .node.locked > .header > .control {
@@ -356,8 +358,8 @@
 }
 
 .icon {
+    height: 16px;
     width: 16px;
-    height: 16px;    
     padding: 2px;
 }
 
@@ -690,6 +692,11 @@ select {
 
 button {
     outline: none;
+}
+
+img {
+    -webkit-user-drag: none;
+    user-select: none;
 }
 
 #fade {

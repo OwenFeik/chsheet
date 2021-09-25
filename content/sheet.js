@@ -127,11 +127,21 @@ class GridElement extends ElementWrapper {
 
     static offset_to_grid_size(off_x, off_y, delta_x = 0, delta_y = 0) {
         return [
-            Math.round(
-                off_x / (GridElement.grid_size + GridElement.grid_gap) + delta_x
+            Math.max(
+                Math.round(
+                    off_x
+                    / (GridElement.grid_size + GridElement.grid_gap)
+                    + delta_x
+                ),
+                0
             ),
-            Math.round(
-                off_y / (GridElement.grid_size + GridElement.grid_gap) + delta_y
+            Math.max(
+                Math.round(
+                    off_y
+                    / (GridElement.grid_size + GridElement.grid_gap)
+                    + delta_y
+                ),
+                0
             )
         ];
     }
@@ -307,6 +317,120 @@ class SheetElement extends VisibilityManagedWrapper {
     }
 }
 
+class DraggableSheetElement extends SheetElement {
+    constructor(classes, options) {
+        super("div", classes, options);
+
+        this.drag_primed = false;
+        this._dragging = false;
+        this.pos_x = this.pos_y = null;
+        this.ghost = null;
+        this.drag_target = this.element;
+
+        this.add_listener("mousedown", e => this.handle_mouse_down(e));
+        
+        this.mouse_up_handler = e => this.handle_mouse_up(e);
+        this.mouse_move_handler = e => this.handle_mouse_move(e);
+    }
+
+    get dragging() {
+        return this._dragging;
+    }
+
+    set dragging(bool) {
+        this._dragging = bool;
+
+        if (this._dragging) {
+            this.element.style.width = GridElement.grid_size_to_px(this.w);
+            this.element.style.height = GridElement.grid_size_to_px(this.h);
+            this.element.style.position = "absolute";
+            this.element.style.top = this.element.offsetTop + "px";
+            this.element.style.left = this.element.offsetLeft + "px";
+            this.element.style.gridArea = "";
+        }
+        else {
+            [this.x, this.y] = GridElement.offset_to_grid_size(
+                this.element.offsetLeft, this.element.offsetTop
+            );
+
+            this.element.style.width = "";
+            this.element.style.height = "";
+            this.element.style.position = "";
+            this.element.style.top = "";
+            this.element.style.left = "";
+        }
+    }
+
+    start_drag(e) {
+        this.dragging = true;
+
+        this.pos_x = e.clientX;
+        this.pos_y = e.clientY;
+
+        this.ghost = NodeGhost.from_node(this);
+
+    }
+
+    end_drag() {
+        this.dragging = false;
+
+        this.pos_x = this.pos_y = null;
+
+        this.ghost.remove();
+    }
+
+    handle_mouse_down(e) {
+        if (
+            e.which === 1
+            && (
+                e.target === this.drag_target
+                || this.drag_target.contains(e.target)
+            )
+        ) {            
+            this.drag_primed = true;
+            document.addEventListener("mouseup", this.mouse_up_handler);
+            document.addEventListener("mousemove", this.mouse_move_handler);
+        }
+    }
+
+    handle_mouse_up(e) {
+        if (this.dragging) {
+            this.end_drag();
+        }
+
+        this.drag_primed = false;
+        document.removeEventListener("mouseup", this.mouse_up_handler);
+        document.removeEventListener("mousemove", this.mouse_move_handler);
+    }
+
+    handle_mouse_move(e) {
+        if (!this.dragging) {
+            if (this.drag_primed) {
+                this.start_drag(e);
+            }
+            else {
+                return;
+            }
+        }
+
+        no_transition(this.element, () => {
+            this.element.style.left = (
+                this.element.offsetLeft + e.clientX - this.pos_x
+            ) + "px";
+            this.element.style.top = (
+                this.element.offsetTop + e.clientY - this.pos_y
+            ) + "px";    
+        });
+
+        [this.ghost.x, this.ghost.y] = GridElement.offset_to_grid_size(
+            this.element.offsetLeft, this.element.offsetTop
+        );
+
+        this.pos_x = e.clientX;
+        this.pos_y = e.clientY;
+    }
+}
+
 class Title extends VisibilityManagedWrapper {
     constructor(options) {
         super("span", ["title"].concat(options?.classes || []));
@@ -362,6 +486,8 @@ class Title extends VisibilityManagedWrapper {
 class Icon extends ElementWrapper {
     constructor(name, background = true) {
         super("img", ["icon"]);
+
+        this.element.setAttribute("draggable", false);
 
         this._icon_name = null;
         this.icon_name = name; 
@@ -822,9 +948,9 @@ class NodeSettings extends VisibilityManagedWrapper {
     }
 }
 
-class SheetNode extends SheetElement {
+class SheetNode extends DraggableSheetElement {
     constructor(options) {
-        super("div", ["node"], options);
+        super(["node"], options);
 
         this.type = options?.type || NodeTypes.NONE;
 
@@ -835,14 +961,7 @@ class SheetNode extends SheetElement {
         this.header = new NodeHeader(this, options);
         this.element.appendChild(this.header.element);
 
-        this.header.controls.add_control(new Control(
-            e => console.log("start drag!", this),
-            {
-                icon: "handle.png",
-                title: "Move",
-                toggle: true
-            }
-        ));
+        this.drag_target = this.header.element;
 
         this.content = null;
         this.create_content_element();
@@ -1614,9 +1733,11 @@ class CheckboxNode extends SheetNode {
     }
 }
 
-class NodeGroup extends SheetElement {
+class NodeGroup extends DraggableSheetElement {
+    static OPACITY_WHILE_DRAGGING = "0.5";
+
     constructor(options, from_ghost = null) {
-        super("div", ["node_group", "rounded", "offset"], options);
+        super(["node_group", "rounded", "offset"], options);
     
         if (from_ghost) {
             this.x = options.x || from_ghost.x;
@@ -1626,20 +1747,46 @@ class NodeGroup extends SheetElement {
         }
 
         this.managed_nodes = [];
-        this.gather_nodes();
 
         this.menu = new ContextMenu(this);
         this.menu.add_entry(new DeleteContextMenuEntry(this));
     }
 
-    gather_nodes() {
+    end_drag() {
+
+    }
+
+    start_drag(e) {
+        this.gather_nodes();
+        super.start_drag(e);
+    }
+
+    end_drag() {
+        super.end_drag();
+        this.managed_nodes.forEach(n => {
+            n.node.x = this.x + n.dx;
+            n.node.y = this.y + n.dy; 
+            n.node.element.style.opacity = "";
+        });
+    }
+
+    gather_nodes(lower_opacity = true) {
         if (this.sheet === null) {
             return;
         }
 
         this.sheet.nodes().forEach(node => {
             if (this.contains(node)) {
-                this.managed_nodes.push(node);
+                this.managed_nodes.push({
+                    node: node,
+                    dx: node.x - this.x,
+                    dy: node.y - this.y 
+                });
+
+                if (lower_opacity) {
+                    console.log(NodeGroup.OPACITY_WHILE_DRAGGING);
+                    node.element.style.opacity = NodeGroup.OPACITY_WHILE_DRAGGING;
+                }
             }
         });
     }
@@ -1648,6 +1795,16 @@ class NodeGroup extends SheetElement {
 class NodeGhost extends SheetElement {
     constructor(options) {
         super("div", ["node_ghost", "rounded", "offset"], options);
+    }
+
+    static from_node(node) {
+        return new NodeGhost({
+            sheet: node.sheet,
+            width: node.width,
+            height: node.height,
+            x: node.x,
+            y: node.y
+        });
     }
 }
 
@@ -1886,6 +2043,7 @@ class Tool extends ElementWrapper {
                 "img",
                 [],
                 {
+                    draggable: false,
                     src: Icon.icon_path(
                         options.icon_name
                         || options.icon
