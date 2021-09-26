@@ -949,9 +949,50 @@ class ListItemDragControl extends ListItemControl {
             icon: "handle.png",
             toggle: true
         });
-    }
 
-    action(event) {}
+        // ListItemControl sets onclick = e => this.action(e), so remove that
+        this.element.onclick = null;
+
+        let ymin, list_content;
+
+        let drag = e => {
+            e.preventDefault();
+
+            let offset = e.pageY + list_content.scrollTop - ymin;
+
+            let new_index = Math.min(
+                Math.max(Math.floor(offset / ListNode.LIST_ITEM_HEIGHT), 0),
+                list_content.children.length
+            );
+
+            let old_index = this.list_item.style.order;
+
+            Array.from(list_content.children).forEach(item => {
+                if (item.style.order == new_index) {
+                    item.style.order = old_index;
+                }
+            });
+
+            this.list_item.style.order = new_index;
+        };
+
+        let end_drag = e => {
+            document.removeEventListener("mouseup", end_drag);
+            document.removeEventListener("mousemove", drag);
+        };
+
+        this.element.onmousedown = e => {
+            e.preventDefault();
+
+            list_content = this.list_item.parentNode;
+            ymin = (
+                list_content.getBoundingClientRect().top + window.pageYOffset
+            );
+
+            document.addEventListener("mouseup", end_drag);
+            document.addEventListener("mousemove", drag);
+        };
+    }
 }
 
 class ListItemRemoveControl extends ListItemControl {
@@ -1589,6 +1630,7 @@ class ListNode extends SheetNode {
     static DEFAULT_FONT_SIZE = "10pt";
     static DEFAULT_BREAK_TITLE = "Break";
     static DEFAULT_ITEM_TEXT = "New item";
+    static LIST_ITEM_HEIGHT = 29;
 
     constructor(options) {
         super(options);
@@ -1678,16 +1720,12 @@ class ListNode extends SheetNode {
         let new_item;
         if (is_break) {
             new_item = create_element("div", ["list_item", "list_break"]);
-            new_item.appendChild(create_element("div", ["padding"]));
-            
             new_item.appendChild(
                 new Title({
                     title: text || ListNode.DEFAULT_ITEM_TEXT,
                     classes: ["list_item_content"]
                 }).element
             );
-
-            new_item.appendChild(create_element("div", ["padding"]));
             new_item.appendChild(new ListItemControlBox(new_item).element);
         }
         else {
@@ -3032,53 +3070,6 @@ function set_up_workspace(sheet) {
             save_menu.show();
         }
     };
-}
-
-
-
-function make_list_item_draggable(el, handle) {
-    let ymin, list_content;
-
-    function start_drag(e) {
-        e.preventDefault();
-        
-        list_content = el.parentNode;
-        ymin = list_content.getBoundingClientRect().top + window.pageYOffset;
-
-        document.onmouseup = end_drag;
-        document.onmousemove = drag;
-    }
-
-    function drag(e) {
-        e.preventDefault();
-
-        let offset = e.pageY + list_content.scrollTop - ymin;
-
-        let new_index = Math.min(
-            Math.max(Math.floor(offset / LIST_ITEM_HEIGHT), 0),
-            list_content.children.length
-        );
-
-        let old_index = el.style.order;
-        
-        for (let item of list_content.children) {
-            if (item.style.order == new_index) {
-                item.style.order = old_index;
-            }
-        }
-        el.style.order = new_index;
-    }
-
-    function end_drag() {
-        document.onmouseup = null;
-        document.onmousemove = null;
-    }
-
-    handle.onmousedown = start_drag;
-}
-
-function icon_path(name) {
-    return "icons/" + name;
 }
 
 function refresh_css(el) {

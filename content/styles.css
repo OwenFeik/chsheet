@@ -220,6 +220,7 @@
 }
 
 .node > .content.list > .list_item > .list_item_content {
+    flex-grow: 1;
     margin: 5px;
     max-height: 90%;
     max-width: 90%;
@@ -232,9 +233,11 @@
 }
 
 .node > .content.list > .list_item.list_break > .title {
+    color: var(--fg-secondary);
+    flex-grow: 1;
     min-height: 1em;
     min-width: 20px;
-    color: var(--fg-secondary);
+    text-align: center;
     white-space: nowrap;
 }
 
