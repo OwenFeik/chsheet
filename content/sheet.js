@@ -3104,21 +3104,7 @@ function create_element(tagname, classes, attributes) {
 
     if (attributes) {
         for ([k, v] of Object.entries(attributes)) {
-            if (k === "innerText") {
-                el.innerText = v;
-            } 
-            else if (k === "innerHTML") {
-                el.innerHTML = v;
-            }
-            else if (k === "onclick") {
-                el.onclick = v;
-            }
-            else if (k === "oninput") {
-                el.oninput = v;
-            }
-            else {
-                el.setAttribute(k, v);
-            }
+            el[k] = v;
         }
     }
 
