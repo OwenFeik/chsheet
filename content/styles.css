@@ -329,33 +329,54 @@
     z-index: 50;
 }
 
-.resize_handle.top {
-    left: 50%;
+.resize_handle.top_left {
+    left: -20px;
     top: -20px;
-    transform: translate(-50%, 0);
+    cursor: nw-resize;
+}
+
+.resize_handle.top {
+    left: calc(50% - 5px);
+    top: -20px;
     cursor: n-resize;
 }
 
-.resize_handle.bottom {
-    left: 50%;
-    bottom: -20px;
-    transform: translate(-50%, 0);
-    cursor: s-resize;
-}
-
-.resize_handle.left {
-    left: -20px;
-    top: 50%;
-    transform: translate(0, -50%);
-    cursor: w-resize;
+.resize_handle.top_right {
+    right: -20px;
+    top: -20px;
+    cursor: ne-resize;
 }
 
 .resize_handle.right {
     right: -20px;
-    top: 50%;
-    transform: translate(0, -50%);
+    top: calc(50% - 5px);
     cursor: e-resize;
 }
+
+.resize_handle.bottom_right {
+    right: -20px;
+    bottom: -20px;
+    cursor: se-resize;
+}
+
+.resize_handle.bottom {
+    left: calc(50% - 5px);
+    bottom: -20px;
+    cursor: s-resize;
+}
+
+.resize_handle.bottom_left {
+    left: -20px;
+    bottom: -20px;
+    cursor: sw-resize;
+}
+
+.resize_handle.left {
+    left: -20px;
+    top: calc(50% - 5px);
+    cursor: w-resize;
+}
+
 
 .icon {
     height: 16px;

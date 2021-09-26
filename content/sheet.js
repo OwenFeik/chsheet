@@ -125,6 +125,13 @@ class GridElement extends ElementWrapper {
         return px;
     }
 
+    static px_to_grid_size(px) {
+        return Math.round(
+            parseInt(px)
+            / (GridElement.grid_size + GridElement.grid_gap)
+        );
+    }
+
     static offset_to_grid_size(off_x, off_y, delta_x = 0, delta_y = 0) {
         return [
             Math.max(
@@ -305,7 +312,7 @@ class SheetElement extends VisibilityManagedWrapper {
             }
 
             if (this.x + this.w >= sheet.w) {
-                sheet.w = this.w + this.w;
+                sheet.w = this.x + this.w;
             }
         }
     }
@@ -331,32 +338,39 @@ class DraggableSheetElement extends SheetElement {
     constructor(classes, options) {
         super("div", classes, options);
 
+        this._transforming = false;
+
         // When the user mousedowns on the drag target we prime for a drag.
         // However we don't actually begin the drag until they move the mouse
         // without releasing (and thus depriming).
         this.drag_primed = false;
-        this._dragging = false;
         this.pos_x = this.pos_y = null;
-        this.ghost = null;
+        this.drag_ghost = null;
         this.drag_target = this.element;
         this.drag_valid = options?.drag_valid || (() => true);
 
+        this.resize_primed = false;
+        this._resizing = false;
+        this.resize_ghost = null;
+        this.resize_handles = null;
+        this.resize_context_menu_entry = null;
+
         this.add_listener("mousedown", e => this.handle_mouse_down(e));
         
-        this.mouse_up_handler = e => this.handle_mouse_up(e);
-        this.mouse_move_handler = e => this.handle_mouse_move(e);
+        this.drag_mouse_up = e => this.handle_mouse_up(e);
+        this.drag_mouse_move = e => this.handle_mouse_move(e);
     }
 
-    get dragging() {
-        return this._dragging;
+    get transforming() {
+        return this._transforming;
     }
 
-    set dragging(bool) {
-        this._dragging = bool;
+    set transforming(bool) {
+        this._transforming = bool;
 
-        if (this._dragging) {
-            this.element.style.width = GridElement.grid_size_to_px(this.w);
-            this.element.style.height = GridElement.grid_size_to_px(this.h);
+        if (this._transforming) {
+            this.element.style.width = this.element.offsetWidth + "px";
+            this.element.style.height = this.element.offsetHeight + "px";
             this.element.style.position = "absolute";
             this.element.style.top = this.element.offsetTop + "px";
             this.element.style.left = this.element.offsetLeft + "px";
@@ -376,21 +390,22 @@ class DraggableSheetElement extends SheetElement {
     }
 
     start_drag(e) {
-        this.dragging = true;
+        this.transforming = true;
 
         this.pos_x = e.screenX;
         this.pos_y = e.screenY;
 
-        this.ghost = NodeGhost.from_node(this);
+        this.drag_ghost = NodeGhost.from_node(this);
 
     }
 
     end_drag() {
-        this.dragging = false;
+        this.transforming = false;
 
         this.pos_x = this.pos_y = null;
 
-        this.ghost.remove();
+        this.drag_ghost.remove();
+        this.drag_ghost = null;
     }
 
     handle_mouse_down(e) {
@@ -403,23 +418,23 @@ class DraggableSheetElement extends SheetElement {
             )
         ) {            
             this.drag_primed = true;
-            document.addEventListener("mouseup", this.mouse_up_handler);
-            document.addEventListener("mousemove", this.mouse_move_handler);
+            document.addEventListener("mouseup", this.drag_mouse_up);
+            document.addEventListener("mousemove", this.drag_mouse_move);
         }
     }
 
     handle_mouse_up(e) {
-        if (this.dragging) {
+        if (this.transforming) {
             this.end_drag();
         }
 
         this.drag_primed = false;
-        document.removeEventListener("mouseup", this.mouse_up_handler);
-        document.removeEventListener("mousemove", this.mouse_move_handler);
+        document.removeEventListener("mouseup", this.drag_mouse_up);
+        document.removeEventListener("mousemove", this.drag_mouse_move);
     }
 
     handle_mouse_move(e) {
-        if (!this.dragging) {
+        if (!this.transforming) {
             if (this.drag_primed) {
                 this.start_drag(e);
             }
@@ -437,12 +452,226 @@ class DraggableSheetElement extends SheetElement {
             ) + "px";    
         });
 
-        [this.ghost.x, this.ghost.y] = GridElement.offset_to_grid_size(
+        [
+            this.drag_ghost.x,
+            this.drag_ghost.y
+        ] = GridElement.offset_to_grid_size(
             this.element.offsetLeft, this.element.offsetTop
         );
 
         this.pos_x = e.screenX;
         this.pos_y = e.screenY;
+    }
+
+    create_resize_handles() {
+        this.resize_handles = [
+            {
+                element: create_element("div", ["resize_handle", "left"]),
+                dx: -1,
+                dy: 0
+            },
+            {
+                element: create_element("div", ["resize_handle", "top_left"]),
+                dx: -1,
+                dy: -1
+            },
+            {
+                element: create_element("div", ["resize_handle", "top"]),
+                dx: 0,
+                dy: -1
+            },
+            {
+                element: create_element("div", ["resize_handle", "top_right"]),
+                dx: 1,
+                dy: -1
+            },
+            {
+                element: create_element("div", ["resize_handle", "right"]),
+                dx: 1,
+                dy: 0
+            },
+            {
+                element: create_element(
+                    "div", ["resize_handle", "bottom_right"]
+                ),
+                dx: 1,
+                dy: 1
+            },
+            {
+                element: create_element("div", ["resize_handle", "bottom"]),
+                dx: 0,
+                dy: 1
+            },
+            {
+                element: create_element(
+                    "div", ["resize_handle", "bottom_left"]
+                ),
+                dx: -1,
+                dy: 1
+            }
+        ];
+
+        this.resize_handles.forEach(handle => {
+            let anchor_x, anchor_y;
+            let width, height;
+            let left, top;
+
+            let handle_mouse_move = e => {
+                if (handle.dx) {
+                    let delta_x = e.screenX - anchor_x;  
+                    let new_width = Math.max(
+                        delta_x * handle.dx + width, GridElement.grid_size
+                    );
+                    let new_left = left + (
+                        handle.dx == -1
+                        ? Math.min(delta_x, width - GridElement.grid_size)
+                        : 0
+                    );
+
+                    no_transition(this.element, () => {
+                        this.element.style.width = new_width + "px";
+                        this.element.style.left = new_left + "px";
+                        this.resize_ghost.width = GridElement.px_to_grid_size(
+                            new_width
+                        );
+                        this.resize_ghost.x = GridElement.px_to_grid_size(
+                            new_left
+                        );
+                    });
+                }
+
+                if (handle.dy) {
+                    let delta_y = e.screenY - anchor_y;  
+                    let new_height = Math.max(
+                        delta_y * handle.dy + height, GridElement.grid_size
+                    );
+                    let new_top = top + (
+                        handle.dy == -1
+                        ? Math.min(delta_y, height - GridElement.grid_size)
+                        : 0
+                    );
+                    
+                    no_transition(this.element, () => {
+                        this.element.style.height = new_height + "px";
+                        this.element.style.top = new_top + "px";
+                        this.resize_ghost.height = GridElement.px_to_grid_size(
+                            new_height
+                        );
+                        this.resize_ghost.y = GridElement.px_to_grid_size(
+                            new_top
+                        );
+                    });
+                }
+            };
+
+            let handle_mouse_up = e => {
+                // TODO sometimes jumps a tile when the width rounds down
+                // but the x pos rounds up (or vertically)
+
+                let new_width = GridElement.px_to_grid_size(
+                    this.element.style.width
+                );
+                let new_height = GridElement.px_to_grid_size(
+                    this.element.style.height
+                );
+
+                this.transforming = false;
+                
+                this.width = new_width;
+                this.height = new_height;
+
+                document.removeEventListener("mousemove", handle_mouse_move);
+                document.removeEventListener("mouseup", handle_mouse_up);
+            };
+            
+            handle.element.onmousedown = e => {
+                if (!this.resize_primed) {
+                    return;
+                }
+
+                e.stopPropagation();
+
+    
+                if (!this.transforming) {
+                    this.transforming = true;
+                }
+
+                anchor_x = e.screenX;
+                anchor_y = e.screenY;
+                width = parseInt(this.element.style.width);
+                height = parseInt(this.element.style.height);
+                left = parseInt(this.element.style.left);
+                top = parseInt(this.element.style.top);
+
+                document.addEventListener("mousemove", handle_mouse_move);
+                document.addEventListener("mouseup", handle_mouse_up);
+            };
+    
+            this.element.appendChild(handle.element);
+        });
+    }
+
+    start_resize() {
+        this.resize_context_menu_entry.title = "End resize";
+
+        this.resize_primed = true;
+        this.element.classList.add("resizing");
+
+        if (this.resize_handles === null) {
+            this.create_resize_handles();
+        }
+
+        if (this.resize_ghost === null) {
+            this.resize_ghost = NodeGhost.from_node(this);
+        }
+
+        Object.values(this.resize_handles).forEach(handle => {
+            handle.element.style.display = "block";
+        });
+        this.resize_ghost.visible = true;
+    }
+
+    end_resize() {
+        this.resize_context_menu_entry.title = "Resize";
+
+        this.resize_primed = false;
+        this.element.classList.remove("resizing");
+
+        if (this.resize_handles) {
+            this.resize_handles.forEach(handle => {
+                handle.element.style.display = "none";
+            });    
+        }
+
+        if (this.resize_ghost) {
+            this.resize_ghost.visible = false;
+        }
+    }
+
+    add_resize_context_menu_item() {
+        if (!this.menu) {
+            console.error(
+                "add_resize_context_menu_item called on object with no context "
+                + "menu."
+            )
+            return;
+        }
+
+        this.resize_context_menu_entry = new ContextMenuEntry(
+            "resize.png",
+            "Resize",
+            _ => {
+                if (!this.resize_primed) {
+                    this.start_resize();
+                }
+                else {
+                    this.end_resize();
+                }
+            },
+            true
+        );
+
+        this.menu.add_entry(this.resize_context_menu_entry);
     }
 }
 
@@ -1052,6 +1281,8 @@ class SheetNode extends DraggableSheetElement {
         this.menu.add_entry(new ContextMenuEntry(
             "cog.png", "Settings", _ => this.settings.show()
         ));
+
+        this.add_resize_context_menu_item();
     }
 
     set_up_settings() {
@@ -1770,10 +2001,7 @@ class NodeGroup extends DraggableSheetElement {
 
         this.menu = new ContextMenu(this);
         this.menu.add_entry(new DeleteContextMenuEntry(this));
-    }
-
-    end_drag() {
-
+        this.add_resize_context_menu_item();
     }
 
     start_drag(e) {
@@ -1804,7 +2032,6 @@ class NodeGroup extends DraggableSheetElement {
                 });
 
                 if (lower_opacity) {
-                    console.log(NodeGroup.OPACITY_WHILE_DRAGGING);
                     node.element.style.opacity = NodeGroup.OPACITY_WHILE_DRAGGING;
                 }
             }
@@ -1986,6 +2213,10 @@ class Sheet extends GridElement {
 
     nodes() {
         return this.elements.filter(e => e instanceof SheetNode);
+    }
+
+    groups() {
+        return this.elements.filter(e => e instanceof NodeGroup);
     }
 
     add_element(sheet_element) {
@@ -2220,6 +2451,9 @@ class GroupingTool extends ModeTool {
 
     _end() {
         this.sheet.remove_mode("grouping");
+        this.sheet.groups().forEach(group => {
+            group.end_resize();
+        });
         this.toolbar.hide();
     }
 }
