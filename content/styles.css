@@ -136,12 +136,12 @@
     display: flex;
     flex-wrap: nowrap;
     flex-grow: 0;
+    flex-shrink: 0;
     width: 100%;
     align-items: center;
     justify-content: flex-end;
     overflow: hidden;
     top: 0;
-    min-height: 20px;
 }
 
 .node > .header > .title {
@@ -291,6 +291,10 @@
 
 .control_box > .control {
     margin-left: 0px;
+}
+
+.control_box.spaced > .control:not(:first-of-type) {
+    margin-left: 3px;
 }
 
 .node.controls_inactive > .content.list > .list_item > .control.toggle {

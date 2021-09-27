@@ -4,7 +4,7 @@ function set_up_db() {
     let request = window.indexedDB.open("sheet_db", 1);
 
     request.onerror = function () {
-        console.log("Failed to open database.");
+        console.error("Failed to open database.");
     };
 
     request.onsuccess = function () {
@@ -248,7 +248,7 @@ function upload_sheet(file, callback=null) {
                     }, callback);
                 }
                 catch {
-                    console.log("Failed to read.");
+                    console.error("Failed to load save from disk.");
                 }        
             }
         });

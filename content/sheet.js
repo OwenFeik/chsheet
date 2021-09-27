@@ -20,6 +20,10 @@ class ElementWrapper {
         this.element = create_element(tagname, classes);
     }
 
+    remove() {
+        this.element.remove();
+    }
+
     add_listener(event, func) {
         this.element.addEventListener(event, func);
     }
@@ -212,7 +216,7 @@ class GridElement extends ElementWrapper {
 
 class SheetElement extends VisibilityManagedWrapper {
     constructor(tagname, classes, options) {
-        super(tagname, classes, options);
+        super(tagname, classes);
 
         this._x = options?.x || 0;
         this._y = options?.y || 0;
@@ -930,7 +934,8 @@ class UploadControl extends Control {
 
 class ControlBox extends VisibilityManagedWrapper {
     constructor(options) {
-        super("div", ["control_box"]);
+        super("div", ["control_box"].concat(options?.classes || []));
+
         this.visible = options?.controls_active || true;
         this.controls = [];
     }
@@ -1246,6 +1251,8 @@ class NodeSettings extends VisibilityManagedWrapper {
 }
 
 class SheetNode extends DraggableSheetElement {
+    static DEFAULT_FONT_SIZE = 10; 
+
     constructor(options) {
         super(
             ["node"], 
@@ -1274,6 +1281,13 @@ class SheetNode extends DraggableSheetElement {
 
         this.settings = null;
         this.set_up_settings();
+
+        // Use the font_size specified, or the subclasses font size, falling
+        // back to the global default.
+        this.font_size = (
+            options?.font_size
+            || this.constructor.DEFAULT_FONT_SIZE
+        );
     }
 
     get value() {
@@ -1299,6 +1313,19 @@ class SheetNode extends DraggableSheetElement {
         }
 
         this.update_content_editable(this.locked);
+    }
+
+    get font_size() {
+        if (this.content) {
+            return parseInt(this.content.style.fontSize);
+        }
+        return undefined;
+    }
+
+    set font_size(size) {
+        if (this.content) {
+            this.content.style.fontSize = parseInt(size) + "pt";
+        }
     }
 
     create_content_element() {
@@ -1352,41 +1379,38 @@ class SheetNode extends DraggableSheetElement {
                 };
             } 
         }));
-        this.settings.add_setting(new NodeSetting({
-            name: "Controls",
-            checkbox: v => { this.header.controls.visible = v },
-            update: () => {
-                return { checkbox: this.header.controls.visible };
-            }
-        }));
-        this.settings.add_setting(new NodeSetting({
-            name: "Content",
-            dropdown: v => { this.switch_to_type(v) },
-            dropdown_entries: Object.values(NodeTypes),
-            update: () => {
-                return { dropdown: this.type };
-            }
-        }));
+        this.settings.add_setting(new MultiSetting([
+            new NodeSetting({
+                name: "Controls",
+                checkbox: v => { this.header.controls.visible = v },
+                update: () => {
+                    return { checkbox: this.header.controls.visible };
+                }
+            }),
+            new NodeSetting({
+                name: "Content",
+                dropdown: v => { this.switch_to_type(v) },
+                dropdown_entries: Object.values(NodeTypes),
+                update: () => { return { dropdown: this.type }; }
+            })
+        ]));
         this.settings.add_setting(new MultiSetting([
             new NodeSetting({
                 name: "Width",
                 number: v => { this.width = v },
-                update: () => {
-                    return {
-                        number: this.width
-                    };
-                }
+                update: () => { return { number: this.width }; }
             }),
             new NodeSetting({
                 name: "Height",
                 number: v => { this.height = v },
-                update: () => {
-                    return {
-                        number: this.height
-                    };
-                }
+                update: () => { return { number: this.height }; }
             })
         ]));
+        this.settings.add_setting(new NodeSetting({
+            name: "Font size",
+            number: v => { this.font_size = v },
+            update: () => { return { number: this.font_size }; } 
+        }));
     }
 
     replace(replacement) {
@@ -1438,8 +1462,7 @@ class SheetNode extends DraggableSheetElement {
                 title_active: this.header.title.visible,
                 type: this.type,
                 controls_active: this.header.controls.visible,
-                font_size: this.content.style.fontSize,
-                text_align: this.content.style.textAlign,
+                font_size: this.font_size,
                 locked: this.locked,
                 content: this.content_json()
             }
@@ -1467,7 +1490,6 @@ class SheetNode extends DraggableSheetElement {
 }
 
 class TextNode extends SheetNode {
-    static DEFAULT_FONT_SIZE = "10pt"; 
     static DEFAULT_VALUE = "Lorem ipsum dolor sit amet";
     static TEXT_ALIGNMENT_OPTIONS = ["left", "right", "center", "justify"];;
 
@@ -1477,6 +1499,8 @@ class TextNode extends SheetNode {
         if (options?.content) {
             this.value = options.content;
         }
+
+        this.text_align = options?.text_align || "left";
     }
 
     get value() {
@@ -1487,13 +1511,19 @@ class TextNode extends SheetNode {
         this.content.innerText = text;
     }
 
+    get text_align() {
+        return this.content.style.textAlign;
+    }
+
+    set text_align(align) {
+        this.content.style.textAlign = align;
+    }
+
     set_up_content() {
         this.content.classList.add("text");
         this.value = TextNode.DEFAULT_VALUE;
         this.content.contentEditable = true;
         this.content.spellcheck = false;
-        this.content.style.fontSize = TextNode.DEFAULT_FONT_SIZE;
-        this.content.style.textAlign = "left";
     }
 
     set_up_settings() {
@@ -1501,19 +1531,19 @@ class TextNode extends SheetNode {
 
         this.settings.add_setting(new NodeSetting({
             name: "Text align",
-            dropdown: v => {
-                this.content.style.textAlign = v;
-            },
+            dropdown: v => { this.text_align = v; },
             dropdown_entries: TextNode.TEXT_ALIGNMENT_OPTIONS,
-            update: () => {
-                return { dropdown: this.content.style.textAlign };
-            }
+            update: () => { return { dropdown: this.text_align }; }
         }));
+    }
+
+    to_json() {
+        return Object.assign(super.to_json(), { text_align: this.text_align });
     }
 }
 
 class NumberNode extends SheetNode {
-    static DEFAULT_FONT_SIZE = "20pt";
+    static DEFAULT_FONT_SIZE = 20;
     static DEFAULT_VALUE = 1;
 
     constructor(options) {
@@ -1527,6 +1557,8 @@ class NumberNode extends SheetNode {
         if (options?.content) {
             this.value = options.content;
         }
+
+        this.reset_active = options?.reset_active || false;
     }
 
     get value() {
@@ -1538,7 +1570,7 @@ class NumberNode extends SheetNode {
     }
 
     get reset_active() {
-        return this.header.controls.get("Reset");
+        return this.header.controls.get("Reset").visible;
     }
 
     set reset_active(bool) {
@@ -1553,7 +1585,6 @@ class NumberNode extends SheetNode {
         this.content.classList.add("number");
         this.content.contentEditable = true;
         this.content.spellcheck = false;
-        this.content.style.fontSize = NumberNode.DEFAULT_FONT_SIZE;
         this.content.style.textAlign = "center";
 
         // Prevent non numeric characters from being entered into number
@@ -1634,7 +1665,6 @@ class NumberNode extends SheetNode {
 }
 
 class ListNode extends SheetNode {
-    static DEFAULT_FONT_SIZE = "10pt";
     static DEFAULT_BREAK_TITLE = "Break";
     static DEFAULT_ITEM_TEXT = "New item";
     static LIST_ITEM_HEIGHT = 29;
@@ -1649,7 +1679,8 @@ class ListNode extends SheetNode {
         this.set_up_controls();
 
         if (options?.content) {
-            this.content_from_json(options.content);
+            this.checkboxes_active = options.content.checkboxes_active;
+            this.content_from_json(options.content.items);
         }
     }
 
@@ -1671,7 +1702,6 @@ class ListNode extends SheetNode {
     set_up_content() {
         this.content.classList.add("list");
         this.content.contentEditable = false;
-        this.content.style.fontSize = ListNode.DEFAULT_FONT_SIZE;
     }
 
     update_content_editable(editable) {
@@ -1805,7 +1835,12 @@ class ListNode extends SheetNode {
 
         return Object.assign(
             super.to_json(),
-            { content: list_items, checkboxes_active: this.checkboxes_active }
+            {
+                content: {
+                    items: list_items,
+                    checkboxes_active: this.checkboxes_active
+                }
+            }
         );
     }
 }
@@ -1998,7 +2033,15 @@ class CheckboxNode extends SheetNode {
         this.checkbox = new Checkbox(true, ["background"]);
         this.content.appendChild(this.checkbox.element);
 
-        this.value = (options?.content !== undefined) ? options.content : true;
+        this.value = (
+            options?.content !== undefined
+            ? options.content.checked
+            : (
+                options?.checked !== undefined
+                ? options.checked
+                : true
+            )
+        );
     }
 
     get value() {
@@ -2323,14 +2366,15 @@ class Sheet extends GridElement {
     }
 
     replace(new_sheet) {
-        this.element.parentNode.replaceChild(this.element, new_sheet.element);
+        this.element.parentNode.replaceChild(new_sheet.element, this.element);
         this.replace_refs.forEach(obj => {
             obj.sheet = new_sheet;
         });
+        new_sheet.replace_refs = this.replace_refs;
     }
 
     to_json() {
-        return {
+        let json =  {
             title: this.save_title,
             time: new Date().getTime(),
             data: {
@@ -2338,9 +2382,10 @@ class Sheet extends GridElement {
                 groups: this.groups().map(group => group.to_json())    
             }
         };
+        return json;
     }
 
-    from_json(save) {
+    static from_json(save) {
         let new_sheet = new Sheet(save.title);
 
         if (save.data.nodes) {
@@ -2739,16 +2784,13 @@ class SaveListItem extends ElementWrapper {
             ["item_title", "label"],
             {
                 title: "Load save",
-                innerText: save.title
+                innerHTML: save.title
             }
         );
         this.title_label.onclick = () => {
             load_sheet(
                 save.id,
-                save => {
-                    sheet = Sheet.from_json(save);
-                    this.owner.sheet.replace(sheet);
-                }
+                save => this.owner.set_active_save(save)
             );
         };
 
@@ -2773,7 +2815,7 @@ class SaveListItem extends ElementWrapper {
             )
         );
 
-        let controls = new ControlBox();
+        let controls = new ControlBox({ classes: ["spaced"] });
         controls.add_control(
             new Control(
                 // TODO this assuems that sheets have an id, not just a title
@@ -2782,8 +2824,8 @@ class SaveListItem extends ElementWrapper {
                     this.owner.remove_save(this);
                 },
                 {
+                    background: false,
                     icon: "trash.png",
-                    classes: ["background"],
                     title: "Delete"
                 }
             )
@@ -2792,8 +2834,8 @@ class SaveListItem extends ElementWrapper {
             new Control(
                 () => download_sheet(save.id),
                 {
+                    background: false,
                     icon: "down.png",
-                    classes: ["background"],
                     title: "Download"
                 }
             )
@@ -2801,7 +2843,7 @@ class SaveListItem extends ElementWrapper {
         this.element.appendChild(controls.element);
 
         this._save_title = null;
-        this.save_title = save;
+        this.save_title = save.title;
     }
 
     get selected() {
@@ -2864,6 +2906,12 @@ class SaveMenu extends PanelMenu {
         }
     }
 
+    set_active_save(save) {
+        let sheet = Sheet.from_json(save);
+        this.sheet.replace(sheet);
+        this.save_title = save.title;
+    }
+
     validate_title() {
         if (this.save_title === "") {
             this.header_input.setCustomValidity("Title required to save.");
@@ -2885,7 +2933,7 @@ class SaveMenu extends PanelMenu {
             new Control(
                 () => {
                     if (this.validate_title()) {
-                        save_sheet(this.save_title, this.callback);
+                        save_sheet(this.sheet, this.callback);
                         this.sheet.save_title = this.save_title;
                     }
                 },
@@ -2897,9 +2945,11 @@ class SaveMenu extends PanelMenu {
                 () => {
                     // TODO load example properly
                     fetch("/example.json").then(resp => resp.json()).then(
-                        data => {
-                            console.log("Loaded example.");
-                        }
+                        data => this.set_active_save({
+                            title: "example",
+                            data: data,
+                            time: new Date().getTime()
+                        })
                     );
                 },
                 {
@@ -3011,6 +3061,7 @@ class SaveMenu extends PanelMenu {
 
     reload_saves() {
         get_all_sheets(data => {
+            this.remove_all_saves();
             this.image_names = update_image_store(data);
             data.sort((a, b) => b.time - a.time);
             data.forEach(save => {
