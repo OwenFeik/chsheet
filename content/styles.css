@@ -57,6 +57,10 @@
     user-select: none;
 }
 
+.tool .settings {
+    cursor: default;
+}
+
 .sheet {
     display: grid;
     position: absolute;
@@ -102,6 +106,10 @@
 
 .node.resizing {
     z-index: 10;
+}
+
+.node.resizing * {
+    user-select: none;
 }
 
 .node_ghost {

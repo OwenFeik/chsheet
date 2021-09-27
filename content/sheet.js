@@ -332,9 +332,21 @@ class SheetElement extends VisibilityManagedWrapper {
             && (this.y + this.height >= other.y + other.height)
         );
     }
+
+    to_json() {
+        return {
+            x: this.x,
+            y: this.y,
+            width: this.width,
+            height: this.height
+        };
+    }
 }
 
 class DraggableSheetElement extends SheetElement {
+    // This class doesn't encode any persistent data, but it powers the
+    // front-end actions of resizing and moving about nodes and groups.
+
     constructor(classes, options) {
         super("div", classes, options);
 
@@ -1418,27 +1430,20 @@ class SheetNode extends DraggableSheetElement {
         return this.value;
     }
 
-    // Seperate method to to_json so subclasses can update this data for their
-    // own to_json methods easily.
-    _to_json() {
-        return {
-            title: this.header.title.text,
-            title_active: this.header.title.visible,
-            type: this.type,
-            width: this.width,
-            height: this.height,
-            x: this.x,
-            y: this.y,
-            controls_active: this.header.controls.visible,
-            font_size: this.content.style.fontSize,
-            text_align: this.content.style.textAlign,
-            locked: this.locked,
-            content: this.content_json()
-        }
-    }
-
     to_json() {
-        return this._to_json();
+        return Object.assign(
+            super.to_json(),
+            {
+                title: this.header.title.text,
+                title_active: this.header.title.visible,
+                type: this.type,
+                controls_active: this.header.controls.visible,
+                font_size: this.content.style.fontSize,
+                text_align: this.content.style.textAlign,
+                locked: this.locked,
+                content: this.content_json()
+            }
+        );
     }
 
     static from_json(options) {
@@ -1618,11 +1623,13 @@ class NumberNode extends SheetNode {
     }
 
     to_json() {
-        let json = this._to_json();
-        json.default_value = this.default_value;
-        json.reset_active = this.reset_active;
-
-        return json;
+        return Object.assign(
+            super.to_json(),
+            {
+                default_value: this.default_value,
+                reset_active: this.reset_active
+            }
+        );
     }
 }
 
@@ -1776,8 +1783,6 @@ class ListNode extends SheetNode {
     }
 
     to_json() {
-        let json = this._to_json();
-
         let list_items = [];
         Array.from(this.content.children).sort(
             (a, b) => (a.style.order - b.style.order)
@@ -1798,10 +1803,10 @@ class ListNode extends SheetNode {
             }
         });
 
-        json.content = list_items;
-        json.checkboxes_active = this.checkboxes_active;
-
-        return json;
+        return Object.assign(
+            super.to_json(),
+            { content: list_items, checkboxes_active: this.checkboxes_active }
+        );
     }
 }
 
@@ -1860,10 +1865,7 @@ class DieNode extends SheetNode {
     }
 
     to_json() {
-        let json = this._to_json();
-        json.die_size = this.die_size;
-
-        return json;
+        return Object.assign(super.to_json(), { die_size: this.die_size });
     }
 }
 
@@ -1976,21 +1978,16 @@ class ImageNode extends SheetNode {
         return;
     }
 
-    to_json() {
-        let json = this._to_json();
-
-        // TODO : save and load images in indexeddb
-        // probably happens in storage.js rather than here, but
-        // needs to happen somewhere.
-
+    content_json() {
         let is_local = this.image.src.startsWith("blob:null/"); 
-        json.content = {
+
+        // TODO handle storing image in IDB
+
+        return {
             uri: is_local ? this.image_name : this.image.src,
             blob: is_local,
             crop: this.image.style.objectFit
         };
-
-        return json;
     }
 }
 
@@ -2238,6 +2235,10 @@ class Sheet extends GridElement {
         this.resize_to_screen();
     
         this.elements = [];
+
+        // elements that need their sheet reference updated when this sheet
+        // is replaced with another
+        this.replace_refs = [];
     }
 
     get save_title() {
@@ -2320,6 +2321,42 @@ class Sheet extends GridElement {
     remove_mode(mode) {
         this.element.classList.remove(mode);
     }
+
+    replace(new_sheet) {
+        this.element.parentNode.replaceChild(this.element, new_sheet.element);
+        this.replace_refs.forEach(obj => {
+            obj.sheet = new_sheet;
+        });
+    }
+
+    to_json() {
+        return {
+            title: this.save_title,
+            time: new Date().getTime(),
+            data: {
+                nodes: this.nodes().map(node => node.to_json()),
+                groups: this.groups().map(group => group.to_json())    
+            }
+        };
+    }
+
+    from_json(save) {
+        let new_sheet = new Sheet(save.title);
+
+        if (save.data.nodes) {
+            save.data.nodes.forEach(node_data => {
+                new_sheet.add_element(SheetNode.from_json(node_data));
+            });    
+        }
+    
+        if (save.data.groups) {
+            save.data.groups.forEach(group_data => {
+                new_sheet.add_element(new NodeGroup(group_data));
+            });
+        }
+    
+        return new_sheet;
+    }
 }
 
 class Tool extends ElementWrapper {
@@ -2358,8 +2395,10 @@ class ModeTool extends Tool {
             onclick: e => this.handle_click(e)
         });
 
-        this.default_image = this.image.src;
         this.sheet = sheet;
+        this.sheet.replace_refs.push(this);
+
+        this.default_image = this.image.src;
         this.in_mode = false;
         this.super_mode = super_mode;
 
@@ -2704,7 +2743,13 @@ class SaveListItem extends ElementWrapper {
             }
         );
         this.title_label.onclick = () => {
-            load_sheet(save.id, () => { this.owner.save_title = save.title });
+            load_sheet(
+                save.id,
+                save => {
+                    sheet = Sheet.from_json(save);
+                    this.owner.sheet.replace(sheet);
+                }
+            );
         };
 
         this.element.appendChild(this.title_label);
@@ -2753,7 +2798,7 @@ class SaveListItem extends ElementWrapper {
                 }
             )
         );
-        this.element.appendChild(controls);
+        this.element.appendChild(controls.element);
 
         this._save_title = null;
         this.save_title = save;
@@ -2782,9 +2827,12 @@ class SaveMenu extends PanelMenu {
         super();
 
         this.sheet = sheet;
+        this.sheet.replace_refs.push(this);
 
         // TODO better way of handling images
         this.image_names = [];
+
+        this.save_list_loaded = false;
 
         this.saves = [];
 
@@ -2805,6 +2853,15 @@ class SaveMenu extends PanelMenu {
 
     get selected() {
         return this.saves.filter(i => i.selected());
+    }
+
+    show() {
+        super.show();
+
+        if (!this.save_list_loaded) {
+            this.reload_saves();
+            this.save_list_loaded = true;
+        }
     }
 
     validate_title() {
@@ -2949,6 +3006,7 @@ class SaveMenu extends PanelMenu {
 
     add_save(save) {
         this.saves.push(save);
+        this.save_list.appendChild(save.element);
     }
 
     reload_saves() {

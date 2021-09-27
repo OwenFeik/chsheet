@@ -1,4 +1,3 @@
-const locale = "en-AU";
 
 "use strict";
 
@@ -8,6 +7,6 @@ window.onload = function() {
     sheet = new Sheet();
     document.getElementById("container").appendChild(sheet.element);
 
-    // set_up_db();
+    set_up_db();
     set_up_workspace(sheet);
 };
