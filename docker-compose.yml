@@ -4,11 +4,11 @@ services:
     image: postgres
     restart: always
     ports:
-        - "5432:5432"
+      - "5432:5432"
     environment:
-        - POSTGRES_USER=postgres
-        - POSTGRES_PASSWORD=password
-        - POSTGRES_DB=chsheet_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=chsheet_db
     healthcheck:
       # note -U must be the same as POSTGRES_USER
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -26,7 +26,8 @@ services:
         published: 80
         protocol: tcp
     environment:
-        - POSTGRES_USER=postgres
-        - POSTGRES_PASSWORD=password
-        - POSTGRES_DB=chsheet_db
-        - POSTGRES_CONTAINER=database
+      - PGHOST=database
+      - PGPORT=5432
+      - PGDATABASE=chsheet_db
+      - PGUSER=postgres
+      - PGPASSWORD=password

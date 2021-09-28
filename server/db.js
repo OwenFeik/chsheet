@@ -12,18 +12,6 @@ const postgres = require("postgres");
 /* Contains database schema. */
 const SCHEMA_FILE = path.join(__dirname, "schema.sql");
 
-/* Postgres instance, in other container */
-const POSTGRES_URL = (
-    "postgresql://"
-    + process.env.POSTGRES_USER
-    + ":"
-    + process.env.POSTGRES_PASSWORD
-    + "@"
-    + process.env.POSTGRES_CONTAINER
-    + ":5432/"
-    + process.env.POSTGRES_DB
-);
-
 const HASH_SALT_LENGTH = 16;
 const HASH_ITERATIONS = 1024;
 const HASH_KEYLEN = 64;
@@ -31,10 +19,13 @@ const HASH_TYPE = "blake2b512";
 
 const sql;
 
-const init = () => {
-    console.log("Connecting to", POSTGRES_URL);
-    sql = postgres(POSTGRES_URL);
+function init() {
+    console.log("Connecting to database.");
+
+    // URL provided through environment variables.
+    sql = postgres();
     
+    // Run schema file to ensure tables readied.
     (
         async () => {
             console.log("Initialising database schema.")
@@ -43,19 +34,80 @@ const init = () => {
     )().then(
         console.log("Initialised database schema.")
     )   
-};
-exports.init = init;
+}
 
-const create_salt = () => {
+function where_string(where) {
+    let ret = "";
+    for ([k, v] of Object.entries(where)) {
+        if (ret) {
+            ret += " AND ";
+        }
+        ret += `${ k } = ${ v }`;
+    }
+
+    if (ret) {
+        return " WHERE " + ret;
+    }
+    return "";
+}
+
+async function select(table, columns = ["*"], where = null) {
+    return await sql`
+        SELECT ${ sql(columns) } FROM ${ sql(table) }${ where_string(where) };
+    `;
+}
+
+async function select_one(table, columns = ["*"], where = null) {
+    const [result] = select(table, columns, where);
+    return result;
+}
+
+async function select_one_column(table, column, where = null) {
+    const [result] = select(table, [column], where);
+    return result[column];
+}
+
+async function insert(table, values) {
+    const [record] = await sql`
+        INSERT INTO ${ sql(table) } ${ sql(values) } RETURNING *;
+    `;
+    return record;
+}
+
+function create_salt() {
     return crypto.randomBytes(HASH_SALT_LENGTH).toString('hex');
-};
+}
 
-const hash_password = (plaintext, salt) => {
+function hash_password(password, salt) {
     return crypto.pbkdf2Sync(
-        plaintext,
+        password,
         salt,
         HASH_ITERATIONS,
         HASH_KEYLEN,
         HASH_TYPE
     ).toString('hex');
-};
+}
+
+async function check_password(password, username) {
+    const [user] = await select(
+        "users", ["hashed_password", "salt"], { "username": username }
+    );
+    return hash_password(password, user.salt) === user.hashed_password;
+}
+
+async function create_user(password, username, email=null) {
+    const salt = create_salt();
+    return await insert(
+        "users",
+        {
+            "username": username,
+            "salt": salt,
+            "hashed_password": hash_password(password, salt),
+            "email": email
+        }
+    );
+}
+
+exports.init = init;
+exports.check_password = check_password;
+exports.create_user = create_user;

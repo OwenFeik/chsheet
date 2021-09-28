@@ -6,7 +6,10 @@ CREATE TABLE IF NOT EXISTS sheets (
 
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY,
-    username VARCHAR(32),
-    salt VARCHAR(32),
-    hashed_password VARCHAR(128)
+    username VARCHAR(32) UNIQUE NOT NULL,
+    salt VARCHAR(32) NOT NULL,
+    hashed_password VARCHAR(128) NOT NULL,
+    email VARCHAR(256),
 );
+
+CREATE INDEX IF NOT EXISTS ON users(username);
