@@ -13,10 +13,7 @@ const { Client } = require("pg");
 /* Contains database schema. */
 const SCHEMA_FILE = path.join(__dirname, "schema.sql");
 
-const HASH_SALT_LENGTH = 16;
-const HASH_ITERATIONS = 1024;
-const HASH_KEYLEN = 64;
-const HASH_TYPE = "blake2b512";
+
 
 const client = new Client();
 
@@ -30,12 +27,12 @@ function init() {
             console.error("Error while loading schema: ", err);
         }
         else {
-            client.query(data).catch(
+            client.query(data).then(
+                _ => console.log("Successfully ran schema.")
+            ).catch(
                 e => console.error(
                     "Error while running schema: ", e.stack
                 )
-            ).then(
-                _ => console.log("Successfully ran schema.")
             );
         }
     });
@@ -62,10 +59,20 @@ function where_string(where, i = 1) {
     return ["", []];
 }
 
-function select(table, columns = ["*"], where = null, callback) {
+function column_string(columns) {
+    if (columns instanceof Array) {
+        return columns.join(", ");
+    }
+    else if (typeof columns === "string") {
+        return columns;
+    }
+    return "";
+}
+
+function select(table, columns = "*", where = null, callback) {
     const [string, params] = where_string(where);
     client.query(
-        `SELECT ${columns.join(", ")} FROM ${table}${string};`,
+        `SELECT ${column_string(columns)} FROM ${table}${string};`,
         params,
         callback
     );
@@ -83,7 +90,7 @@ function select_one(table, columns, where, callback) {
 }
 
 function select_one_column(table, column, where, callback) {
-    select(table, [column], where, (err, res) => {
+    select(table, column, where, (err, res) => {
         if (err) {
             callback(err, res);
         }
@@ -93,7 +100,7 @@ function select_one_column(table, column, where, callback) {
     });
 }
 
-function insert_parameter_string(table, columns) {
+function insert_parameter_string(columns) {
     let i = 1;
     let column_string = "";
     let parameterised_string = "";
@@ -115,7 +122,7 @@ function insert(table, values, callback = null) {
         "INSERT INTO "
         + table
         + " "
-        + insert_parameter_string(table, Object.keys(values))
+        + insert_parameter_string(Object.keys(values))
         + " "
         + " RETURNING *"
         + ";"
@@ -139,59 +146,55 @@ function insert(table, values, callback = null) {
     }
 }
 
-function create_salt() {
-    return crypto.randomBytes(HASH_SALT_LENGTH).toString('hex');
+function get_user(username, callback) {
+    select_one("users", "*", { "username": username }, callback);
 }
 
-function hash_password(password, salt) {
-    return crypto.pbkdf2Sync(
-        password,
-        salt,
-        HASH_ITERATIONS,
-        HASH_KEYLEN,
-        HASH_TYPE
-    ).toString('hex');
-}
-
-function check_password(password, username, callback) {
-    select_one(
-        "users",
-        ["hashed_password", "salt"],
-        { "username": username },
-        (err, user) => {
-            if (err) {
-                callback(false); // On database error, fail authentication.
-            }
-            else {
-                callback(
-                    hash_password(password, user.salt) === user.hashed_password
-                );
-            }
-        }
-    );
-}
-
-function create_user(password, username, email = null, callback = null) {
-    const salt = create_salt();
+function create_user(
+    username, salt, hashed_password, recovery_key, email, callback
+) {
     insert(
         "users",
         {
             "username": username,
             "salt": salt,
-            "hashed_password": hash_password(password, salt),
+            "hashed_password": hashed_password,
+            "recovery_key": recovery_key,
             "email": email
         },
-        (err, res) => {
-            if (err) {
-                console.error("Database error in create_user: ", err.stack);
-            }
-            else if (callback) {
-                callback(res);
-            }
-        }
+        callback
     );
 }
 
+function valid_sheet_title(title) {
+    return title.length <= 32;
+}
+
+function create_sheet(userid, title, sheet, updated, callback) {
+    insert(
+        "sheets",
+        {
+            "userid": userid,
+            "title": title,
+            "sheet": sheet,
+            "updated": updated
+        },
+        callback
+    );
+}
+
+function valid_id_hash(id_hash) {
+    return /^[a-z0-9]{32}$/.test(id_hash);
+}
+
+function get_sheet(id_hash, callback) {
+    select_one("sheets", "*", { "id_hash": id_hash }, callback);
+}
+
 exports.init = init;
-exports.check_password = check_password;
+exports.get_user = get_user;
 exports.create_user = create_user;
+exports.valid_sheet_title = valid_sheet_title;
+exports.create_sheet = create_sheet;
+exports.valid_id_hash = valid_id_hash;
+exports.get_sheet = get_sheet;
