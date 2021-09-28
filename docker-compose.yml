@@ -1,7 +1,7 @@
 version: "3.2"
 services:
   database:
-    image: postgres
+    image: postgres:10-bullseye
     restart: always
     ports:
       - "5432:5432"

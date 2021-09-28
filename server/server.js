@@ -2,6 +2,8 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
+const db = require("./db.js");
+
 const CONTENT_ROOT = __dirname.replace("/server", "/content");
 
 function validate_file_name(string) {
@@ -11,6 +13,8 @@ function validate_file_name(string) {
         return false;
     return true;
 }
+
+db.init();
 
 http.createServer(function (req, res) {
     let target = path.join(
