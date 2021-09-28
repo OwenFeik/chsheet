@@ -4,7 +4,6 @@
  * through a health check dependency.
  */
 
-const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
@@ -12,8 +11,6 @@ const { Client } = require("pg");
 
 /* Contains database schema. */
 const SCHEMA_FILE = path.join(__dirname, "schema.sql");
-
-
 
 const client = new Client();
 

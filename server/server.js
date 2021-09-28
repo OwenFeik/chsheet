@@ -212,6 +212,7 @@ app.get("/load", (req, res) => {
 });
 
 app.listen(8080);
+console.log("Server running on http://localhost:8080");
 
 function database_error(res) {
     res.writeHead(500);
@@ -220,5 +221,3 @@ function database_error(res) {
         reason: "Database error"
     });
 }
-
-console.log("Server running on http://localhost:8080");
