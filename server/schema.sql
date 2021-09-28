@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS sheets (
     title VARCHAR(32) NOT NULL,
     sheet JSON NOT NULL,
     updated INTEGER NOT NULL,
-    id_hash CHAR(32) GENERATED ALWAYS AS (MD5(id::TEXT)) STORED
+    id_hash CHAR(32) GENERATED ALWAYS AS (MD5((id + userid)::TEXT)) STORED
 );
 
 CREATE INDEX IF NOT EXISTS idx_sheets_id_hash ON sheets(id_hash);
