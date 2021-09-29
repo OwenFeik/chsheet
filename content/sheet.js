@@ -3505,10 +3505,17 @@ class LoginMenu extends PanelMenu {
         );
     }
 
+    clear_inputs() {
+        Object.values(this.inputs).forEach(input => {
+            input.value = "";
+        });
+    }
+
     update_fields(mode, reason) {
         this.hide_all();
         
         if (this.session.username && this.session.session_key) {
+            this.clear_inputs();
             this.items.logged_in_as_username.innerText = this.session.username;
             this.show_item(this.items.logged_in_as);
         }
@@ -3528,11 +3535,13 @@ class LoginMenu extends PanelMenu {
             this.show_item(this.items.register_b);
         }
         else if (mode === "logout") {
+            this.clear_inputs();
             this.items.not_logged_in_label.innerText = "Logged out";
             this.show_item(this.items.not_logged_in);
             this.show_item(this.items.choose);
         }
         else {
+            this.clear_inputs();
             this.items.not_logged_in_label.innerText = "Not logged in";
             this.show_item(this.items.not_logged_in);
             this.show_item(this.items.choose);
