@@ -161,12 +161,15 @@
     top: 0;
 }
 
+.control_box > .control {
+    margin-right: 2px;
+}
+
 .control {
     user-select: none;
-    margin-right: 2px;
     flex-grow: 0;
+    flex-shrink: 0;
     margin-left: auto;
-    order: 1;
     width: 20px;
     height: 20px;
     border-radius: var(--border-rad);
@@ -287,6 +290,7 @@
 .control_box {
     display: flex;
     flex-direction: row;
+    order: 10;
 }
 
 .control_box > .control {
@@ -394,6 +398,7 @@
 
 
 .icon {
+    flex-shrink: 0;
     height: 16px;
     width: 16px;
     padding: 2px;
@@ -404,8 +409,14 @@
     background-color: var(--bg-secondary);
 }
 
+.foreground {
+    border-radius: var(--border-rad);
+    background-color: var(--bg-primary);
+    color: var(--fg-primary);
+}
+
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 .settings {
@@ -560,9 +571,7 @@
 .panel_header {
     display: flex;
     flex-direction: row;
-    background-color: var(--bg-secondary);
-    border-radius: var(--border-rad);
-    padding: 5px;
+    padding-left: 0 !important;
     align-items: center;
     margin-bottom: 5px;
 }
@@ -587,8 +596,8 @@
     padding-right: 5px;
 }
 
-.panel_header > :not(:first-child) {
-    margin-left: 5px !important;
+.panel_header > * {
+    margin-left: 5px;
 }
 
 .panel .control {
@@ -635,6 +644,10 @@
     flex-grow: 0;
     width: 100%;
     padding: 5px;
+}
+
+.entry_list > .list_item.centering {
+    justify-content: center;
 }
 
 .entry_list > .list_item:first-of-type {
@@ -695,6 +708,19 @@
     flex: 1;
 }
 
+.padded {
+    padding: 5px;
+}
+
+.login_body {
+    padding: 5px;
+    text-align: center;
+}
+
+.login_body > img {
+    width: 30%;
+}
+
 .control > input {
     cursor: pointer;
     position: absolute;
@@ -718,8 +744,16 @@ input {
     height: 18px;
 }
 
+input[type="password"] {
+    font: small-caption;
+}
+
 input.secondary {
     background-color: var(--bg-primary);
+}
+
+input.invalid {
+    background-color: var(--bg-invalid);
 }
 
 select {
@@ -758,7 +792,8 @@ img {
     --bg-primary: #393e46;
     --bg-secondary: #222831;
     --fg-primary: #eeeeee;
-    --fg-secondary: rgb(50, 224, 196);
+    --fg-secondary: #32e0c4;
+    --bg-invalid: #704c4b;
     --fg-secondary-transparent: rgba(50, 224, 196, 0.2);
     --border-rad: 3px;
 }

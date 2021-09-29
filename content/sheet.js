@@ -947,6 +947,12 @@ class ControlBox extends VisibilityManagedWrapper {
 
     set_up_controls() {}
 
+    reverse_order() {
+        Array.from(this.element.children).reverse().forEach(el => {
+            this.element.appendChild(el);
+        });
+    }
+
     get(title) {
         return this.controls.filter(c => c.title === title)[0];
     }
@@ -2736,6 +2742,23 @@ class PanelMenu extends VisibilityManagedWrapper {
         this.hide();
         document.body.appendChild(this.element);
         PanelMenu.menus.push(this);
+
+        this.header = create_element(
+            "div",
+            ["panel_header", "background", "padded"]
+        );
+        this.element.appendChild(this.header);
+
+        this.controls = new ControlBox({ classes: ["spaced"] });
+        this.controls.add_control(new Control(
+            () => this.hide(),
+            {
+                background: false,
+                icon: "cross.png",
+                title: "Close"
+            }
+        ));
+        this.header.appendChild(this.controls.element);
     }
 
     static get fade() {
@@ -2926,43 +2949,36 @@ class SaveMenu extends PanelMenu {
     }
 
     set_up_controls() {
-        let controls = new ControlBox({
-            hidden: false
-        });
-        controls.add_control(
-            new Control(
-                () => {
-                    if (this.validate_title()) {
-                        save_sheet(this.sheet, this.callback);
-                        this.sheet.save_title = this.save_title;
-                    }
-                },
-                { background: false, icon: "save.png", title: "Save" }
-            )
-        );
-        controls.add_control(
-            new Control(
-                () => {
-                    // TODO load example properly
-                    fetch("/example.json").then(resp => resp.json()).then(
-                        data => this.set_active_save({
-                            title: "example",
-                            data: data,
-                            time: new Date().getTime()
-                        })
-                    );
-                },
-                {
-                    background: false,
-                    icon: "clone.png",
-                    title: "Load Example"
+        this.controls.add_control(new Control(
+            () => {
+                if (this.validate_title()) {
+                    save_sheet(this.sheet, this.callback);
+                    this.sheet.save_title = this.save_title;
                 }
-            )
-        );
+            },
+            { background: false, icon: "save.png", title: "Save" }
+        ));
+        this.controls.add_control(new Control(
+            () => {
+                // TODO load example properly
+                fetch("/example.json").then(resp => resp.json()).then(
+                    data => this.set_active_save({
+                        title: "example",
+                        data: data,
+                        time: new Date().getTime()
+                    })
+                );
+            },
+            {
+                background: false,
+                icon: "clone.png",
+                title: "Load Example"
+            }
+        ));
 
         // TODO displays wrong cursor on hover, input is slightly
         // misaligned
-        controls.add_control(new UploadControl(
+        this.controls.add_control(new UploadControl(
             f => upload_sheet(f, this.callback),
             {
                 accept: ".json",
@@ -2973,46 +2989,35 @@ class SaveMenu extends PanelMenu {
             }
         ));
 
-        controls.add_control(
-            new Control(
-                () => {
-                    let saves_to_delete = this.selected();
-                    if (saves_to_delete.length) {
-                        delete_sheets(saves_to_delete, this.callback);
-                        this.header_checkbox.value = false;
-                    }
-                },
-                {
-                    background: false,
-                    icon: "trash.png",
-                    title: "Delete selected"
+        this.controls.add_control(new Control(
+            () => {
+                let saves_to_delete = this.selected();
+                if (saves_to_delete.length) {
+                    delete_sheets(saves_to_delete, this.callback);
+                    this.header_checkbox.value = false;
                 }
-            )
-        );
-        controls.add_control(
-            new Control(
-                () => this.hide(),
-                { background: false, icon: "cross.png", title: "Close" }
-            )
-        );
+            },
+            {
+                background: false,
+                icon: "trash.png",
+                title: "Delete selected"
+            }
+        ));
 
-        return controls;
+        this.controls.reverse_order();
     }
 
     set_up_header() {
-        let header = create_element("div", ["panel_header"]);
-        this.element.appendChild(header);
+        this.set_up_controls();
 
         this.header_checkbox = new Checkbox(false, [], false);
         this.header_checkbox.oninput = v => this.set_all_checkboxes(v);
-        header.appendChild(this.header_checkbox.element);
+        this.header.appendChild(this.header_checkbox.element);
 
-        this.header_input = create_element("input", [], {
-            minLength: 1,
-            maxLength: 32
-        });
-        header.appendChild(this.header_input);
-        header.appendChild(this.set_up_controls().element);
+        this.header_input = create_element(
+            "input", [], { minLength: 1,maxLength: 32 }
+        );
+        this.header.appendChild(this.header_input);
     }
 
     set_up_body() {
@@ -3079,24 +3084,9 @@ class SettingsMenu extends PanelMenu {
     }
 
     set_up() {
-        let header = create_element("div", ["panel_header"]);
-        this.element.appendChild(header);
-
-        header.appendChild(
+        this.header.appendChild(
             create_element("span", ["title"], { innerText: "Settings" })
         );
-        let controls = new ControlBox();
-        controls.add_control(
-            new Control(
-                () => this.hide(),
-                {
-                    background: false,
-                    icon: "cross.png",
-                    title: "close"
-                }
-            )
-        );
-        header.appendChild(controls.element);
 
         let settings = create_element("div", ["entry_list"]);
         this.element.appendChild(settings);
@@ -3138,9 +3128,523 @@ class SettingsMenu extends PanelMenu {
     }
 }
 
+class LoginMenu extends PanelMenu {
+    // These should be the same as in auth.js lest they simply cause confusion
+    static USERNAME_MIN_LENGTH = 2;
+    static USERNAME_MAX_LENGTH = 16;
+    static USERNAME_VALIDATION_REGEX = new RegExp( 
+        "^[a-z0-9_-]{"
+        + LoginMenu.USERNAME_MIN_LENGTH.toString()
+        + ","
+        + LoginMenu.USERNAME_MAX_LENGTH.toString()
+        + "}$",
+        "i"
+    );
+    static PASSWORD_MIN_LENGTH = 8;
+    static PASSWORD_MAX_LENGTH = 256;
+    
+    constructor(session) {
+        super();
+
+        this.session = session;
+
+        this.inputs = {}; // User input fields
+        this.items = {}; // UI elements
+
+        this.set_up();
+        this.update_fields();
+    }
+
+    set_up() {
+        this.header.appendChild(
+            create_element("span", ["title"], { innerText: "Account" })
+        );
+        let info = this.element.appendChild(
+            create_element("div", ["background", "login_body"])
+        );
+        info.appendChild(
+            create_element("img", [], { src: Icon.icon_path("clone.png") })
+        );
+        
+        let details = this.element.appendChild(
+            create_element("div", ["entry_list"])
+        );
+
+        let not_logged_in = details.appendChild(create_element(
+            "div",
+            ["list_item", "centering"],
+            null,
+            { marginTop: "0" }
+        ));
+        let not_logged_in_label = not_logged_in.appendChild(
+            create_element(
+                "span", ["label"], { innerText: "Not logged in" }
+            )
+        );
+        let not_logged_in_reason = not_logged_in.appendChild(
+            create_element("span", ["label", "hidden"])
+        );
+        let logged_in_as = details.appendChild(create_element(
+            "div",
+            ["list_item", "centering", "hidden"],
+            null,
+            { marginTop: "0" }
+        ));
+        logged_in_as.appendChild(create_element(
+            "span", ["label"], { innerText: "Logged in as:" }
+        ));
+        let logged_in_as_username = logged_in_as.appendChild(
+            create_element("span", ["label"])
+        );
+        logged_in_as.appendChild(
+            new Control(
+                () => this.logout(),
+                {
+                    background: false,
+                    icon: "left.png",
+                    classes: ["foreground"],
+                    title: "Log out"
+                }
+            ).element
+        );
+
+        this.items.not_logged_in = not_logged_in;
+        this.items.not_logged_in_label = not_logged_in_label;
+        this.items.not_logged_in_reason = not_logged_in_reason;
+        this.items.logged_in_as = logged_in_as;
+        this.items.logged_in_as_username = logged_in_as_username;
+
+        let choose; // List item to select "Log in" or "Register"
+
+        let login_username; // username input
+        let login_password; // password input
+        let login = details.appendChild(create_element(
+            "div",
+            ["list_item", "hidden"],
+            null
+        ));
+        login.appendChild(
+            new Control(
+                () => {
+                    login.classList.add("hidden");
+                    choose.classList.remove("hidden");
+                    login_username.value = login_password.value = "";
+                },
+                {
+                    background: false,
+                    icon: "cross.png",
+                    classes: ["foreground"],
+                    title: "Cancel"
+                }
+            ).element
+        );
+        login.appendChild(
+            create_element("span", ["label"], { innerText: "Username" })
+        );
+        login_username = login.appendChild(create_element(
+            "input",
+            ["secondary"],
+            {
+                type: "text",
+                minLength: LoginMenu.USERNAME_MIN_LENGTH,
+                maxLength: LoginMenu.USERNAME_MAX_LENGTH,
+            }
+        ));
+        login.appendChild(
+            create_element("span", ["label"], { innerText: "Password" })
+        );
+        login_password = login.appendChild(create_element(
+            "input",
+            ["secondary"],
+            {
+                type: "password",
+                minLength: LoginMenu.PASSWORD_MIN_LENGTH,
+                maxLength: LoginMenu.PASSWORD_MAX_LENGTH,
+            }
+        ));
+        login.appendChild(
+            new Control(
+                () => this.login_user(),
+                {
+                    background: false,
+                    icon: "right.png",
+                    classes: ["foreground"],
+                    title: "Submit"
+                }
+            ).element
+        );
+
+        this.items.login = login;
+        this.inputs.login_username = login_username;
+        this.inputs.login_password = login_password;
+
+        let register_b; // Password and confirm password fields;
+
+        let register_username;
+        let register_password;
+        let register_confirm;
+        let register_a = details.appendChild(create_element(
+            "div",
+            ["list_item", "hidden", "centering"],
+            null
+        ));
+        register_a.appendChild(
+            new Control(
+                () => {
+                    register_a.classList.add("hidden");
+                    register_b.classList.add("hidden");
+                    choose.classList.remove("hidden");
+                    register_username.value = (
+                        register_password.value
+                        = register_confirm.value
+                        = ""
+                    );
+                },
+                {
+                    background: false,
+                    icon: "cross.png",
+                    classes: ["foreground"],
+                    title: "Cancel"
+                }
+            ).element
+        ).style.marginLeft = "5px"; // Overwrite margin-left: auto
+        register_a.appendChild(
+            create_element("span", ["label"], { innerText: "Username" })
+        );
+        register_username = register_a.appendChild(create_element(
+            "input",
+            ["secondary"],
+            {
+                type: "text",
+                minLength: LoginMenu.USERNAME_MIN_LENGTH,
+                maxLength: LoginMenu.USERNAME_MAX_LENGTH,
+                oninput: e => this.validate_username(e.target)
+            }
+        ));
+
+        register_b = details.appendChild(
+            create_element("div", ["list_item", "hidden"])
+        );
+        register_b.appendChild(
+            create_element("span", ["label"], { innerText: "Password" })
+        );
+        register_password = register_b.appendChild(create_element(
+            "input",
+            ["secondary"],
+            {
+                type: "password",
+                minLength: LoginMenu.PASSWORD_MIN_LENGTH,
+                maxLength: LoginMenu.PASSWORD_MAX_LENGTH,
+                oninput: e => this.validate_password(e.target)
+            }
+        ));
+        register_b.appendChild(
+            create_element("span", ["label"], { innerText: "Confirm" })
+        );
+        register_confirm = register_b.appendChild(create_element(
+            "input",
+            ["secondary"],
+            {
+                type: "password",
+                minLength: LoginMenu.PASSWORD_MIN_LENGTH,
+                maxLength: LoginMenu.PASSWORD_MAX_LENGTH,
+                oninput: e => this.validate_confirm(e.target)
+            }
+        ));
+        register_b.appendChild(
+            new Control(
+                () => this.register_user(),
+                {
+                    background: false,
+                    icon: "right.png",
+                    classes: ["foreground"],
+                    title: "Submit" 
+                }
+            ).element
+        );
+
+        this.items.register_a = register_a;
+        this.items.register_b = register_b;
+        this.inputs.register_username = register_username;
+        this.inputs.register_password = register_password;
+        this.inputs.register_confirm = register_confirm;
+
+        choose = details.appendChild(create_element(
+            "div",
+            ["list_item", "centering"],
+            null
+        ));
+        choose.appendChild(
+            create_element("span", ["label"], { innerText: "Log in" })
+        );
+        choose.appendChild(
+            new Control(
+                () => {
+                    choose.classList.add("hidden");
+                    login.classList.remove("hidden");
+                },
+                {
+                    background: false,
+                    icon: "right.png",
+                    classes: ["foreground"],
+                    title: "Log in"
+                }
+            ).element
+        );
+        choose.appendChild(
+            create_element("span", ["label"], { innerText: "Register" })
+        );
+        choose.appendChild(
+            new Control(
+                () => {
+                    choose.classList.add("hidden");
+                    register_a.classList.remove("hidden");
+                    register_b.classList.remove("hidden");
+                },
+                {
+                    background: false,
+                    icon: "right.png",
+                    classes: "foreground",
+                    title: "Register"
+                }
+            ).element
+        );
+
+        this.items.choose = choose;
+    }
+
+    validate_username(input, allow_empty = true) {
+        let username = input.value;
+        if (allow_empty && username === "") {
+            input.classList.remove("invalid");
+            return true;
+        }
+        
+        if (username.length < LoginMenu.USERNAME_MIN_LENGTH) {
+            input.setCustomValidity("Username too short");
+        }
+        else if (username.length > LoginMenu.USERNAME_MAX_LENGTH) {
+            input.setCustomValidity("Username too long");
+        }
+        else if (
+            !LoginMenu.USERNAME_VALIDATION_REGEX.test(username)
+        ) {
+            input.setCustomValidity(
+                "Usernames may only contain letters, numbers, "
+                + "underscores and hyphens"
+            );
+        }
+        else {
+            input.classList.remove("invalid");
+            return true;
+        }
+
+        input.classList.add("invalid");
+        return false;
+    }
+
+    validate_password(input, allow_empty = true) {
+        let password = input.value;
+        
+        if (allow_empty && password === "") {
+            input.classList.remove("invalid");
+            return true;
+        }
+
+        if (password.length < LoginMenu.PASSWORD_MIN_LENGTH) {
+            input.setCustomValidity("Password too short");
+        }
+        else if (password.length > LoginMenu.PASSWORD_MAX_LENGTH) {
+            input.setCustomValidity("Password too long");
+        }
+        else {
+            input.classList.remove("invalid");
+            return true;
+        }
+
+        input.classList.add("invalid");
+        return false;
+    }
+
+    validate_confirm(input, allow_empty = true) {
+        if (
+            (allow_empty && input.value === "")
+            || input.value === this.inputs.register_password.value
+        ) {
+            input.classList.remove("invalid");
+            return true;
+        }
+        else {
+            input.setCustomValidity("Passwords don't match");
+            input.classList.add("invalid");
+            return false;
+        }
+    }
+
+    hide_item(item) {
+        item.classList.add("hidden");
+    }
+
+    show_item(item) {
+        item.classList.remove("hidden");
+    } 
+
+    hide_items(...items) {
+        items.forEach(item => this.hide_item(item));
+    }
+
+    hide_all() {
+        this.hide_items(
+            this.items.not_logged_in,
+            this.items.not_logged_in_reason,
+            this.items.logged_in_as,
+            this.items.login,
+            this.items.register_a,
+            this.items.register_b,
+            this.items.choose
+        );
+    }
+
+    update_fields(mode, reason) {
+        this.hide_all();
+        
+        if (this.session.username && this.session.session_key) {
+            this.items.logged_in_as_username.innerText = this.session.username;
+            this.show_item(this.items.logged_in_as);
+        }
+        else if (mode === "login") {
+            this.items.not_logged_in_label.innerText = "Failed to log in:";
+            this.items.not_logged_in_reason.innerText = reason;
+            this.show_item(this.items.not_logged_in_reason);
+            this.show_item(this.items.not_logged_in);
+            this.show_item(this.items.login);
+        }
+        else if (mode === "register") {
+            this.items.not_logged_in_label.innerText = "Registration failed:";
+            this.items.not_logged_in_reason.innerText = reason;
+            this.show_item(this.items.not_logged_in_reason);
+            this.show_item(this.items.not_logged_in);
+            this.show_item(this.items.register_a);
+            this.show_item(this.items.register_b);
+        }
+        else if (mode === "logout") {
+            this.items.not_logged_in_label.innerText = "Logged out";
+            this.show_item(this.items.not_logged_in);
+            this.show_item(this.items.choose);
+        }
+        else {
+            this.items.not_logged_in_label.innerText = "Not logged in";
+            this.show_item(this.items.not_logged_in);
+            this.show_item(this.items.choose);
+        }
+    }
+
+    logout() {
+        this.session.logout(res => this.update_fields("logout"));
+    }
+
+    login_user() {
+        if (
+            this.validate_username(this.inputs.login_username)
+            && this.validate_password(this.inputs.login_password)
+        ) {
+
+            this.session.login(
+                this.inputs.login_username.value,
+                this.inputs.login_password.value,
+                res => this.update_fields("login", res.reason)
+            );
+        }
+    }
+
+    register_user() {
+        if (
+            this.validate_username(this.inputs.register_username)
+            && this.validate_password(this.inputs.register_password)
+            && this.validate_confirm(this.inputs.register_confirm)
+        ) {
+
+            this.session.register(
+                this.inputs.register_username.value,
+                this.inputs.register_password.value,
+                res => this.update_fields("register", res.reason)
+            );
+        }
+    }
+}
+
+class Session {
+    constructor() {
+        this.username = null;
+        this.session_key = null;
+
+        this.check_cookies();
+    }
+
+    login(username, password, callback) {
+        post(
+            "/login",
+            {
+                username: username,
+                password: password
+            },
+            res => {
+                this.check_cookies();
+                callback(res);
+            }
+        );
+    }
+
+    logout(callback) {
+        post(
+            "/logout",
+            {},
+            res => {
+                document.cookie = "";
+                this.check_cookies();
+                callback(res);
+            }
+        );
+    }
+
+    register(username, password, callback) {
+        post(
+            "/register",
+            {
+                username: username,
+                password: password,
+                email: null
+            },
+            res => {
+                this.check_cookies();
+                callback(res);
+            }
+        );
+    }
+
+    check_cookies() {
+        const cookies = this.parse_cookies();
+        this.username = cookies.username || null;
+        this.session_key = cookies.session_key || null;
+    }
+
+    parse_cookies() {
+        let ret = {};
+        document.cookie.split("; ").forEach(cookie => {
+            let [key, value] = cookie.split("=");
+            ret[key] = value;
+        });
+
+        return ret;
+    }
+}
+
 function set_up_workspace(sheet) {
+    let session = new Session();
+
     let save_menu = new SaveMenu(sheet);
     let settings_menu = new SettingsMenu();
+    let login_menu = new LoginMenu(session);
 
     let group = new Toolbar(true, ["grouping"]);
     group.add_tool(new CreateGroupTool(sheet));
@@ -3157,6 +3661,11 @@ function set_up_workspace(sheet) {
         icon: "cog.png",
         title: "Settings",
         onclick: () => settings_menu.show()
+    }));
+    main.add_tool(new Tool({
+        icon: "person.png",
+        title: "Login",
+        onclick: () => login_menu.show()
     }));
 
     let toolbox = new Toolbox([main, group]);
@@ -3193,7 +3702,7 @@ function no_transition(el, func) {
     el.style.transition = old;
 }
 
-function create_element(tagname, classes, attributes) {
+function create_element(tagname, classes, attributes, styles) {
     let el = document.createElement(tagname);
 
     if (classes) {
@@ -3208,5 +3717,23 @@ function create_element(tagname, classes, attributes) {
         }
     }
 
+    if (styles) {
+        for ([k, v] of Object.entries(styles)) {
+            el.style[k] = v;
+        }
+    }
+
     return el;
+}
+
+function post(endpoint, body, callback) {
+    let req = new XMLHttpRequest();
+    req.responseType = "json";
+    req.onerror = () => alert("Network error. Please try again later.");
+    req.onload = () => {
+        callback(req.response);
+    };
+    req.open("POST", endpoint);
+    req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+    req.send(JSON.stringify(body));
 }

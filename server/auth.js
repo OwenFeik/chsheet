@@ -11,11 +11,20 @@ const HASH_TYPE = "blake2b512";
 // Random key used for password reset
 const RECOVERY_KEY_LENGTH = 16;
 
+// Validation constants
+const USERNAME_MIN_LENGTH = 2;
+const USERNAME_MAX_LENGTH = 16;
+const USERNAME_VALIDATION_REGEX = new RegExp(
+    `^[a-z0-9_-]{${USERNAME_MIN_LENGTH},${USERNAME_MAX_LENGTH}}$`, "i"
+);
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 256;
+
 // Email validation regex, from
 // https://github.com/angular/angular/blob/master/packages/forms/src/validators.ts
 const EMAIL_REGEX = /^(?=.{1,254}$)(?=.{1,64}@)[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
-function create_salt(length) {
+function create_salt(length = HASH_SALT_LENGTH) {
     return crypto.randomBytes(length).toString('hex');
 }
 
@@ -33,6 +42,7 @@ function new_user(username, password, email = null, callback = null) {
     let salt = create_salt(HASH_SALT_LENGTH);
     db.create_user(
         username,
+        salt,
         hash_password(password, salt),
         create_salt(RECOVERY_KEY_LENGTH),
         email,
@@ -40,20 +50,25 @@ function new_user(username, password, email = null, callback = null) {
     );
 }
 
-function check_password(user) {
+function check_password(password, user) {
     return hash_password(password, user.salt) === user.hashed_password;
 }
 
 function valid_username(username) {
-    return /^[a-z0-9_-]{2,16}$/i.test(username);
+    return USERNAME_VALIDATION_REGEX.test(username);
 }
 
 function valid_password(password) {
-    return password.length >= 8;
+    return (
+        password.length >= PASSWORD_MIN_LENGTH
+        && password.length <= PASSWORD_MAX_LENGTH
+    );
 }
 
 function valid_email(email) {
-    return EMAIL_REGEX.test(email);
+    // Note: email is not currently a compulsory field, so null is acceptable.
+    // However if an email is supplied it must be valid.
+    return email === null || EMAIL_REGEX.test(email);
 }
 
 class Session {
@@ -85,11 +100,12 @@ class SessionManager {
 
 const session_manager = new SessionManager();
 
+exports.create_salt = create_salt;
 exports.new_user = new_user;
 exports.check_password = check_password;
 exports.valid_username = valid_username;
 exports.valid_password = valid_password;
 exports.valid_email = valid_email;
-exports.begin_session = session_manager.begin;
-exports.end_session = session_manager.end;
-exports.get_session = session_manager.get;
+exports.begin_session = user_id => session_manager.begin(user_id);
+exports.end_session = session_key => session_manager.end(session_key);
+exports.get_session = session_key => session_manager.get(session_key);

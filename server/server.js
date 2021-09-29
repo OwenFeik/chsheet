@@ -1,3 +1,4 @@
+const cookieParser = require("cookie-parser");
 const express = require("express");
 
 const db = require("./db.js");
@@ -5,16 +6,21 @@ const auth = require("./auth.js");
 
 const CONTENT_ROOT = __dirname.replace("/server", "/content");
 
+const COOKIE_OPTIONS = {
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 1 month
+    sameSite: "lax"
+};
+
 db.init();
 
 const app = express();
 
 app.use(express.static(CONTENT_ROOT));
-
 app.use(express.json());
+app.use(cookieParser());
 
 app.post("/login", (req, res) => {
-    if (!(req.body.user && req.body.password)) {
+    if (!(req.body.username && req.body.password)) {
         res.writeHead(400);
         res.end();
         return;
@@ -27,29 +33,45 @@ app.post("/login", (req, res) => {
         }
 
         if (user === undefined) {
-            res.writeHead(200);
-            res.end({
-                success: false,
-                reason: "User does not exist."
-            });
+            respond(
+                res, 200, { success: false, reason: "User does not exist." }
+            );
             return;
         }
 
-        if (auth.check_password(user)) {
-            res.writeHead(200);
-            res.end({
-                success: true,
-                session_key: auth.begin_session(user.id).session_key
-            });
+        if (auth.check_password(req.body.password, user)) {
+            const session_key = auth.begin_session(user.id).session_key;
+            res.cookie("session_key", session_key, COOKIE_OPTIONS);
+            res.cookie("username", req.body.username, COOKIE_OPTIONS);
+            respond(
+                res,
+                200,
+                {
+                    success: true,
+                    username: req.body.username
+                }
+            );
         }
         else {
-            res.writeHead(200);
-            res.end({
-                success: false,
-                reason: "Incorrect password."
-            });
+            respond(
+                res,
+                200,
+                { success: false, reason: "Incorrect password." }
+            );
         }
     });
+});
+
+app.post("/logout", (req, res) => {
+    if (!req.cookies.session_key) {
+        respond(res, 200, { success: true });
+        return;
+    }
+
+    res.clearCookie("session_key");
+    res.clearCookie("username");
+    auth.end_session(req.cookies.session_key);
+    respond(res, 200, { success: true });
 });
 
 app.post("/register", (req, res) => {
@@ -59,24 +81,17 @@ app.post("/register", (req, res) => {
 
     if (!(username && password)) {
         res.writeHead(400);
-        res.end();
         return;
     }
 
     if (!auth.valid_username(username)) {
-        res.writeHead(200);
-        res.end({
-            success: false,
-            reason: "Invalid username."
-        });
+        respond(res, 200, { success: false, reason: "Invalid username." });
+        return;
     }
 
     if (!auth.valid_email(email)) {
-        res.writeHead(200);
-        res.end({
-            success: false,
-            reason: "Invalid email."
-        })
+        respond(res, 200, { success: false, reason: "Invalid email." });
+        return;
     }
 
     db.get_user(username, (err, user) => {
@@ -86,20 +101,14 @@ app.post("/register", (req, res) => {
         }
 
         if (user !== undefined) {
-            res.writeHead(200);
-            res.end({
-                success: false,
-                reason: "User already exists."
-            });
+            respond(
+                res, 200, { success: false, reason: "User already exists." }
+            );
             return;
         }
 
         if (!auth.valid_password(password)) {
-            res.writeHead(200);
-            res.end({
-                success: false,
-                reason: "Invalid password."
-            });
+            respond(res, 200, { success: false, reason: "Invalid password." }); 
             return;
         }
 
@@ -109,12 +118,18 @@ app.post("/register", (req, res) => {
                 return;
             }
 
-            res.writeHead(200);
-            res.end({
-                success: true,
-                recovery_key: user.recovery_key,
-                session_key: auth.begin_session(user.id)
-            });
+            const session_key = auth.begin_session(user.id).session_key;
+            res.cookie("session_key", session_key, COOKIE_OPTIONS);
+            res.cookie("username", req.body.username, COOKIE_OPTIONS);
+
+            respond(
+                res,
+                200,
+                {
+                    success: true,
+                    recovery_key: user.recovery_key
+                }
+            );
         });
     });
 });
@@ -130,11 +145,7 @@ app.post("/save", (req, res) => {
     }
 
     if (!db.valid_sheet_title(title)) {
-        res.writeHead(200);
-        res.end({
-            success: false,
-            reason: "Invalid sheet title."
-        });
+        respond(res, 200, { success: false, reason: "Invalid sheet title." });
         return;
     }
 
@@ -144,16 +155,13 @@ app.post("/save", (req, res) => {
         user_id = session.user;
     }
     else {
-        res.writeHead(401);
-        res.end({
-            success: false,
-            reason: "Session key invalid."
-        });
+        respond(res, 401, { success: false, reason: "Session key invalid." });
         return;
     }
 
     db.create_sheet(
         user_id,
+        auth.create_salt(),
         title,
         sheet,
         new Date().getTime(),
@@ -163,50 +171,48 @@ app.post("/save", (req, res) => {
                 return;
             }
             else {
-                res.writeHead(200);
-                res.end({
-                    success: true,
-                    sheet: record.id_hash,
-                    updated: record.updated  
-                });
+                respond(
+                    res,
+                    200,
+                    {
+                        success: true,
+                        sheet: record.code,
+                        updated: record.updated
+                    }
+                );
             }
         }
     );
 });
 
 app.get("/load", (req, res) => {    
-    let id_hash = req.body.sheet_id_hash;
+    let code = req.body.sheet_code;
 
-    if (!db.valid_id_hash(id_hash)) {
-        res.writeHead(200);
-        res.end({
-            success: false,
-            reason: "Invalid sheet id hash."
-        });
+    if (!db.valid_code(code)) {
+        respond(res, 200, { success: false, reason: "Invalid sheet id hash." });
         return;
     }
 
-    db.get_sheet(id_hash, (err, record) => {
+    db.get_sheet(code, (err, record) => {
         if (err) {
             database_error(res);
             return;
         }
 
         if (record) {
-            res.writeHead(200);
-            res.end({
-                success: true,
-                title: record.title,
-                sheet: record.sheet,
-                updated: record.updated
-            });    
+            respond(
+                res,
+                200,
+                {
+                    success: true,
+                    title: record.title,
+                    sheet: record.sheet,
+                    updated: record.updated
+                }
+            );
         }
         else {
-            res.writeHead(404);
-            res.end({
-                success: false,
-                reason: "Sheet not found."
-            });
+            respond(res, 404, { success: false, reason: "Sheet not found." });
         }
     });
 });
@@ -215,9 +221,10 @@ app.listen(8080);
 console.log("Server running on http://localhost:8080");
 
 function database_error(res) {
-    res.writeHead(500);
-    res.end({
-        success: false,
-        reason: "Database error"
-    });
+    respond(res, 500, { success: false, reason: "Database error." });
+}
+
+function respond(res, code, body) {
+    res.writeHead(code);
+    res.end(JSON.stringify(body));
 }

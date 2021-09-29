@@ -9,7 +9,6 @@ const path = require("path");
 
 const { Client } = require("pg");
 
-/* Contains database schema. */
 const SCHEMA_FILE = path.join(__dirname, "schema.sql");
 
 const client = new Client();
@@ -124,7 +123,6 @@ function insert(table, values, callback = null) {
         + " RETURNING *"
         + ";"
     );
-    console.log(query_string);
 
     const params = Object.values(values);
 
@@ -167,11 +165,12 @@ function valid_sheet_title(title) {
     return title.length <= 32;
 }
 
-function create_sheet(userid, title, sheet, updated, callback) {
+function create_sheet(userid, code, title, sheet, updated, callback) {
     insert(
         "sheets",
         {
             "userid": userid,
+            "code": code,
             "title": title,
             "sheet": sheet,
             "updated": updated
@@ -180,12 +179,12 @@ function create_sheet(userid, title, sheet, updated, callback) {
     );
 }
 
-function valid_id_hash(id_hash) {
-    return /^[a-z0-9]{32}$/.test(id_hash);
+function valid_sheet_code(code) {
+    return /^[a-z0-9]{32}$/.test(code);
 }
 
-function get_sheet(id_hash, callback) {
-    select_one("sheets", "*", { "id_hash": id_hash }, callback);
+function get_sheet(code, callback) {
+    select_one("sheets", "*", { "code": code }, callback);
 }
 
 exports.init = init;
@@ -193,5 +192,5 @@ exports.get_user = get_user;
 exports.create_user = create_user;
 exports.valid_sheet_title = valid_sheet_title;
 exports.create_sheet = create_sheet;
-exports.valid_id_hash = valid_id_hash;
+exports.valid_sheet_code = valid_sheet_code;
 exports.get_sheet = get_sheet;

@@ -13,11 +13,11 @@ CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 
 CREATE TABLE IF NOT EXISTS sheets (
     id SERIAL PRIMARY KEY,
+    code CHAR(32) NOT NULL,
     userid INTEGER REFERENCES users,
     title VARCHAR(32) NOT NULL,
     sheet JSON NOT NULL,
-    updated INTEGER NOT NULL,
-    id_hash CHAR(32) GENERATED ALWAYS AS (MD5((id + userid)::TEXT)) STORED
+    updated INTEGER NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_sheets_id_hash ON sheets(id_hash);
+CREATE INDEX IF NOT EXISTS idx_sheets_code ON sheets(code);
