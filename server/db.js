@@ -9,27 +9,40 @@ const path = require("path");
 
 const { Client } = require("pg");
 
+const CONNECTION_RETRY_INTERVAL = 2;
 const SCHEMA_FILE = path.join(__dirname, "schema.sql");
 
 const client = new Client();
+client.on("error", err => console.error(err));
 
 function init() {
     console.log("Connecting to database.");
-    client.connect();
-
-    console.log("Initialising database schema.")
-    fs.readFile(SCHEMA_FILE, "utf8", (err, data) => {
+    client.connect(err => {
         if (err) {
-            console.error("Error while loading schema: ", err);
+            console.log(err);
+            console.log("Failed to connect to database.");
+            console.log(
+                `Waiting ${CONNECTION_RETRY_INTERVAL} seconds and retrying.`
+            );
+            setTimeout(init, CONNECTION_RETRY_INTERVAL * 1000);        
         }
         else {
-            client.query(data).then(
-                _ => console.log("Successfully ran schema.")
-            ).catch(
-                e => console.error(
-                    "Error while running schema: ", e.stack
-                )
-            );
+            console.log("Database connection established.");
+            console.log("Initialising database schema.");
+            fs.readFile(SCHEMA_FILE, "utf8", (err, data) => {
+                if (err) {
+                    console.error("Error while loading schema: ", err);
+                }
+                else {
+                    client.query(data).then(
+                        _ => console.log("Successfully ran schema.")
+                    ).catch(
+                        e => console.error(
+                            "Error while running schema: ", e.stack
+                        )
+                    );
+                }
+            });
         }
     });
 }

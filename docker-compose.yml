@@ -18,8 +18,7 @@ services:
   server:
     build: .
     depends_on:
-      database:
-        condition: service_healthy
+      - database
     image: chsheet_server
     ports:
       - target: 8080
