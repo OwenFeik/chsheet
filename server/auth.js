@@ -20,6 +20,8 @@ const USERNAME_VALIDATION_REGEX = new RegExp(
 const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_MAX_LENGTH = 256;
 
+const SESSION_KEY_LENGTH = 32;
+
 // Email validation regex, from
 // https://github.com/angular/angular/blob/master/packages/forms/src/validators.ts
 const EMAIL_REGEX = /^(?=.{1,254}$)(?=.{1,64}@)[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
@@ -72,9 +74,37 @@ function valid_email(email) {
 }
 
 class Session {
-    constructor(user_id) {
-        this.user = user_id;
-        this.session_key = crypto.randomBytes(32).toString("hex");
+    constructor(
+        user_id,
+        session_key = null,
+        active = true,
+        start_time = null,
+        end_time = null,
+        id = null
+    ) {
+        this.id = id;
+        this.user_id = user_id;
+        this.session_key = session_key || create_salt(SESSION_KEY_LENGTH);
+        this.active = active;
+        this.start_time = start_time || new Date().getTime();
+        this.end_time = end_time;
+
+        if (session_key === null) {
+        }
+    }
+
+    store() {
+        db.create_user_session(this, (err, record) => {
+            if (!err) {
+                this.id = record.id;
+            }
+            else {
+            }
+        });
+    }
+
+    end() {
+        this.end_time = new Date().getTime();
     }
 }
 

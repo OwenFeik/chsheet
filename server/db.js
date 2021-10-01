@@ -141,6 +141,24 @@ function insert(table, values, callback = null) {
     }
 }
 
+function update(table, values, where) {
+    const columns = Object.keys(values);
+    const [where_str, where_params] = where_string(
+        where, columns.length
+    );
+    const params = Object.values(values).concat(where_params);
+    const query_string = (
+        "UPDATE "
+        + table
+        + "SET "
+        + insert_parameter_string(Object.keys(values))
+        + where_str
+        + ";"
+    );
+
+    client.query(query_string, params);
+}
+
 function get_user(username, callback) {
     select_one("users", "*", { "username": username }, callback);
 }
@@ -187,6 +205,20 @@ function get_sheet(code, callback) {
     select_one("sheets", "*", { "code": code }, callback);
 }
 
+function create_user_session(session, callback) {
+    insert(
+        "user_sessions",
+        {
+            "userid": session.user_id,
+            "session_key": session.session_key,
+            "active": session.active,
+            "start_time": session.start_time,
+            "end_time": session.end_time
+        },
+        callback
+    );
+}
+
 exports.init = init;
 exports.get_user = get_user;
 exports.create_user = create_user;
@@ -194,3 +226,4 @@ exports.valid_sheet_title = valid_sheet_title;
 exports.create_sheet = create_sheet;
 exports.valid_sheet_code = valid_sheet_code;
 exports.get_sheet = get_sheet;
+exports.create_user_session = create_user_session;
