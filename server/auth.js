@@ -90,6 +90,7 @@ class Session {
         this.end_time = end_time;
 
         if (session_key === null) {
+            this.store();
         }
     }
 
@@ -99,32 +100,93 @@ class Session {
                 this.id = record.id;
             }
             else {
+                console.error("Failed to store user session: ", err);
             }
         });
     }
 
     end() {
+        this.active = false;
         this.end_time = new Date().getTime();
+
+        db.end_user_session(this.id, this.end_time);
+    }
+
+    static from_record(record) {
+        return new Session(
+            record.userid,
+            record.session_key,
+            record.active,
+            record.start_time,
+            record.end_time,
+            record.id
+        );
     }
 }
 
 class SessionManager {
+    static MAX_CACHED_SESSIONS = 100000;
+
     constructor() {
         this.sessions = new Map();
     }
 
     begin(user_id) {
         let new_session = new Session(user_id);
-        this.sessions.set(new_session.session_key, new_session);
+        this.cache(new_session);
         return new_session;
     }
 
     end(session_key) {
-        this.sessions.delete(session_key);
+        this.get(session_key, (err, session) => {
+            if (err) {
+                console.log("Error ending session: ", err);
+            }
+            else {
+                session.end();
+                this.sessions.delete(session_key);    
+            }
+        });
     }
 
-    get(session_key) {
-        return this.sessions.get(session_key);
+    trim_cache() {
+        if (this.sessions.size > SessionManager.MAX_CACHED_SESSIONS) {
+            let n = this.sessions.size - SessionManager.MAX_CACHED_SESSIONS;
+            let remove_from_cache = [];
+            for (session_key of this.sessions.keys()) {
+                remove_from_cache.push(session_key);
+                if (remove_from_cache.length === n) {
+                    break;
+                }
+            }
+
+            remove_from_cache.forEach(session_key => {
+                this.sessions.delete(session_key);
+            });
+        }
+    }
+
+    cache(session) {
+        this.sessions.set(session.session_key, session);
+        this.trim_cache();
+    }
+
+    get(session_key, callback) {
+        if (this.sessions.has(session_key)) {
+            callback(null, this.sessions.get(session_key));
+            return;
+        }
+
+        db.get_user_session(session_key, (err, record) => {
+            if (err) {
+                callback(err, null);
+            }
+            else {
+                let session = Session.from_record(record);
+                this.cache(session);
+                callback(err, session);
+            }
+        });
     }
 }
 

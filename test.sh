@@ -5,6 +5,10 @@
 
 DB_CONTAINER="chsheet_database_1"
 
+if docker info | grep -q "ERROR: Cannot connect"; then
+    sudo systemctl start docker
+fi
+
 if [ -z "$(docker ps | grep $DB_CONTAINER)" ]; then
     if [ -z "$(docker ps -a | grep $DB_CONTAINER)"]; then
         docker-compose up -d database
@@ -22,7 +26,7 @@ else
     # docker inspect command source:
     # https://stackoverflow.com/questions/17157721/
     export PGHOST=$( \
-    docker inspect -f \
+        docker inspect -f \
         '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' \
         $DB_CONTAINER
     )

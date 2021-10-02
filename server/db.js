@@ -9,14 +9,23 @@ const path = require("path");
 
 const { Client } = require("pg");
 
+// Interval in which to retry connecting to the database, seconds
 const CONNECTION_RETRY_INTERVAL = 2;
+
+// Database schema file
 const SCHEMA_FILE = path.join(__dirname, "schema.sql");
 
-const client = new Client();
-client.on("error", err => console.error(err));
+var client;
+
+
+function new_client() {
+    client = new Client();
+    client.on("error", err => console.error(err));    
+}
 
 function init() {
     console.log("Connecting to database.");
+    new_client();
     client.connect(err => {
         if (err) {
             console.log(err);
@@ -154,17 +163,27 @@ function insert(table, values, callback = null) {
     }
 }
 
+function update_parameter_string(columns) {
+    let ret = "";
+    let i = 1;
+    columns.forEach(column => {
+        ret += column + " = $" + i.toString() + ", ";
+        i += 1;
+    });
+    
+    return " SET " + ret.slice(0, -2);
+}
+
 function update(table, values, where) {
     const columns = Object.keys(values);
     const [where_str, where_params] = where_string(
-        where, columns.length
+        where, columns.length + 1
     );
     const params = Object.values(values).concat(where_params);
     const query_string = (
         "UPDATE "
         + table
-        + "SET "
-        + insert_parameter_string(Object.keys(values))
+        + update_parameter_string(Object.keys(values))
         + where_str
         + ";"
     );
@@ -186,7 +205,8 @@ function create_user(
             "salt": salt,
             "hashed_password": hashed_password,
             "recovery_key": recovery_key,
-            "email": email
+            "email": email,
+            "created": new Date().getTime()
         },
         callback
     );
@@ -204,6 +224,7 @@ function create_sheet(userid, code, title, sheet, updated, callback) {
             "code": code,
             "title": title,
             "sheet": sheet,
+            "created": new Date().getTime(),
             "updated": updated
         },
         callback
@@ -232,6 +253,23 @@ function create_user_session(session, callback) {
     );
 }
 
+function end_user_session(id, end_time) {
+    update(
+        "user_sessions",
+        { "active": false, "end_time": end_time },
+        { "id": id }
+    );
+}
+
+function get_user_session(session_key, callback) {
+    select_one(
+        "user_sessions",
+        "*",
+        { "session_key": session_key },
+        callback
+    );
+}
+
 exports.init = init;
 exports.get_user = get_user;
 exports.create_user = create_user;
@@ -240,3 +278,5 @@ exports.create_sheet = create_sheet;
 exports.valid_sheet_code = valid_sheet_code;
 exports.get_sheet = get_sheet;
 exports.create_user_session = create_user_session;
+exports.end_user_session = end_user_session;
+exports.get_user_session = get_user_session;
