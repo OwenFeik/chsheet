@@ -174,7 +174,7 @@ function update_parameter_string(columns) {
     return " SET " + ret.slice(0, -2);
 }
 
-function update(table, values, where) {
+function update(table, values, where, callback) {
     const columns = Object.keys(values);
     const [where_str, where_params] = where_string(
         where, columns.length + 1
@@ -185,10 +185,26 @@ function update(table, values, where) {
         + table
         + update_parameter_string(Object.keys(values))
         + where_str
-        + ";"
+        + " RETURNING *;"
     );
 
-    client.query(query_string, params);
+    if (callback) {
+        client.query(query_string, params, callback);
+    }
+    else {
+        client.query(query_string, params);
+    }
+}
+
+function update_one(table, values, where, callback) {
+    update(table, values, where, (err, res) => {
+        if (err) {
+            callback(err, res);
+        }
+        else {
+            callback(err, res.rows[0]);
+        }
+    });
 }
 
 function get_user(username, callback) {
@@ -208,6 +224,21 @@ function create_user(
             "email": email,
             "created": new Date().getTime()
         },
+        callback
+    );
+}
+
+function change_user_password(
+    id, new_salt, new_hashed_password, new_recovery_key, callback
+) {
+    update_one(
+        "users",
+        {
+            "salt": new_salt,
+            "hashed_password": new_hashed_password,
+            "recovery_key": new_recovery_key
+        },
+        { "id": id },
         callback
     );
 }
@@ -243,7 +274,7 @@ function create_user_session(session, callback) {
     insert(
         "user_sessions",
         {
-            "userid": session.user_id,
+            "userid": session.userid,
             "session_key": session.session_key,
             "active": session.active,
             "start_time": session.start_time,
@@ -261,6 +292,15 @@ function end_user_session(id, end_time) {
     );
 }
 
+function end_user_sessions(userid, callback) {
+    update(
+        "user_sessions",
+        { "active": false, "end_time": new Date().getTime() },
+        { "userid": userid },
+        callback
+    );
+}
+
 function get_user_session(session_key, callback) {
     select_one(
         "user_sessions",
@@ -273,10 +313,12 @@ function get_user_session(session_key, callback) {
 exports.init = init;
 exports.get_user = get_user;
 exports.create_user = create_user;
+exports.change_user_password = change_user_password;
 exports.valid_sheet_title = valid_sheet_title;
 exports.create_sheet = create_sheet;
 exports.valid_sheet_code = valid_sheet_code;
 exports.get_sheet = get_sheet;
 exports.create_user_session = create_user_session;
 exports.end_user_session = end_user_session;
+exports.end_user_sessions = end_user_sessions; 
 exports.get_user_session = get_user_session;

@@ -52,6 +52,22 @@ function new_user(username, password, email = null, callback = null) {
     );
 }
 
+function reset_password(user, new_password, callback) {
+    let salt = create_salt(HASH_SALT_LENGTH);
+    db.change_user_password(
+        user.id,
+        salt,
+        hash_password(new_password, salt),
+        create_salt(RECOVERY_KEY_LENGTH),
+        (err, updated_user) => {
+            session_manager.end_user_sessions(
+                user.id,
+                () => callback(err, updated_user)
+            );
+        }
+    );
+}
+
 function check_password(password, user) {
     return hash_password(password, user.salt) === user.hashed_password;
 }
@@ -75,7 +91,7 @@ function valid_email(email) {
 
 class Session {
     constructor(
-        user_id,
+        userid,
         session_key = null,
         active = true,
         start_time = null,
@@ -83,7 +99,7 @@ class Session {
         id = null
     ) {
         this.id = id;
-        this.user_id = user_id;
+        this.userid = userid;
         this.session_key = session_key || create_salt(SESSION_KEY_LENGTH);
         this.active = active;
         this.start_time = start_time || new Date().getTime();
@@ -131,8 +147,8 @@ class SessionManager {
         this.sessions = new Map();
     }
 
-    begin(user_id) {
-        let new_session = new Session(user_id);
+    begin(userid) {
+        let new_session = new Session(userid);
         this.cache(new_session);
         return new_session;
     }
@@ -146,6 +162,21 @@ class SessionManager {
                 session.end();
                 this.sessions.delete(session_key);    
             }
+        });
+    }
+
+    end_user_sessions(userid, callback) {
+        db.end_user_sessions(userid, (err, res) => {
+            if (err) {
+                console.log("Error ending sessions: ", err);
+            }
+            else {
+                res.rows.forEach(session => {
+                    this.sessions.delete(session.session_key);
+                });
+            }
+
+            callback();
         });
     }
 
@@ -194,10 +225,11 @@ const session_manager = new SessionManager();
 
 exports.create_salt = create_salt;
 exports.new_user = new_user;
+exports.reset_password = reset_password;
 exports.check_password = check_password;
 exports.valid_username = valid_username;
 exports.valid_password = valid_password;
 exports.valid_email = valid_email;
-exports.begin_session = user_id => session_manager.begin(user_id);
+exports.begin_session = userid => session_manager.begin(userid);
 exports.end_session = session_key => session_manager.end(session_key);
 exports.get_session = session_key => session_manager.get(session_key);

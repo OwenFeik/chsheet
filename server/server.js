@@ -7,7 +7,7 @@ const auth = require("./auth.js");
 const CONTENT_ROOT = __dirname.replace("/server", "/content");
 
 const COOKIE_OPTIONS = {
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 1 month
+    maxAge: 6 * 30 * 24 * 60 * 60 * 1000, // 6 months
     sameSite: "lax"
 };
 
@@ -134,6 +134,61 @@ app.post("/register", (req, res) => {
     });
 });
 
+app.post("/reset", (req, res) => {
+    let username = req.body.username;
+    let new_password = req.body.new_password;
+    let recovery_key = req.body.recovery_key;
+
+    if (!(username && new_password && recovery_key)) {
+        res.writeHead(400);
+        return;
+    }
+
+    if (!auth.valid_password(new_password)) {
+        respond(res, 200, { success: false, reason: "Invalid password." });
+    }
+
+    db.get_user(username, (err, user) => {
+        if (err) {
+            database_error(res);
+            return;
+        }
+
+        if (!user) {
+            respond(res, 200, { success: false, reason: "User doesn't exist."});            
+            return;
+        }
+
+        if (user.recovery_key !== recovery_key) {
+            respond(
+                res, 200, { success: false, reason: "Incorrect recovery key."}
+            );
+            return;
+        }
+
+        auth.reset_password(user, new_password, (err, updated_user) => {
+            if (err) {
+                database_error(res);
+                return;
+            }
+
+            let session = auth.begin_session(updated_user.id);
+            res.cookie("session_key", session.session_key, COOKIE_OPTIONS);
+            res.cookie("username", updated_user.username, COOKIE_OPTIONS);
+
+            respond(
+                res,
+                200,
+                {
+                    success: true,
+                    recovery_key: updated_user.recovery_key,
+                    session_key: session.session_key
+                }
+            );
+        });
+    });
+});
+
 app.post("/save", (req, res) => {
     let session_key = req.body.session_key;
     let sheet = req.body.sheet;
@@ -149,10 +204,10 @@ app.post("/save", (req, res) => {
         return;
     }
 
-    let user_id;
+    let userid;
     let session = auth.get_session(req.body.session_key);
     if (session) {
-        user_id = session.user;
+        userid = session.userid;
     }
     else {
         respond(res, 401, { success: false, reason: "Session key invalid." });
@@ -160,7 +215,7 @@ app.post("/save", (req, res) => {
     }
 
     db.create_sheet(
-        user_id,
+        userid,
         auth.create_salt(),
         title,
         sheet,

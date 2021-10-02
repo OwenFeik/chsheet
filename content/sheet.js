@@ -3142,6 +3142,10 @@ class LoginMenu extends PanelMenu {
     );
     static PASSWORD_MIN_LENGTH = 8;
     static PASSWORD_MAX_LENGTH = 256;
+    static RECOVERY_KEY_LENGTH = 32;
+    static RECOVERY_KEY_REGEX = new RegExp(
+        "^[a-z0-9]{" + LoginMenu.RECOVERY_KEY_LENGTH.toString() + "}$", "i"
+    );
     
     constructor(session) {
         super();
@@ -3149,7 +3153,15 @@ class LoginMenu extends PanelMenu {
         this.session = session;
 
         this.inputs = {}; // User input fields
-        this.items = {}; // UI elements
+        this.entries = {}; // List UI entries
+        this.fields = {}; // Text fields to edit
+
+        // Used for form construction convenience methods
+        this.latest_entry = null;
+
+        // Reuse register password inputs.
+        // true => register / false => reset_password  
+        this.register_mode = true;
 
         this.set_up();
         this.update_fields();
@@ -3159,6 +3171,7 @@ class LoginMenu extends PanelMenu {
         this.header.appendChild(
             create_element("span", ["title"], { innerText: "Account" })
         );
+
         let info = this.element.appendChild(
             create_element("div", ["background", "login_body"])
         );
@@ -3166,81 +3179,32 @@ class LoginMenu extends PanelMenu {
             create_element("img", [], { src: Icon.icon_path("clone.png") })
         );
         
-        let details = this.element.appendChild(
+        this.body = this.element.appendChild(
             create_element("div", ["entry_list"])
         );
+        
 
-        let not_logged_in = details.appendChild(create_element(
-            "div",
-            ["list_item", "centering"],
-            null,
-            { marginTop: "0" }
-        ));
-        let not_logged_in_label = not_logged_in.appendChild(
-            create_element(
-                "span", ["label"], { innerText: "Not logged in" }
-            )
-        );
-        let not_logged_in_reason = not_logged_in.appendChild(
-            create_element("span", ["label", "hidden"])
-        );
-        let logged_in_as = details.appendChild(create_element(
-            "div",
-            ["list_item", "centering", "hidden"],
-            null,
-            { marginTop: "0" }
-        ));
-        logged_in_as.appendChild(create_element(
-            "span", ["label"], { innerText: "Logged in as:" }
-        ));
-        let logged_in_as_username = logged_in_as.appendChild(
-            create_element("span", ["label"])
-        );
-        logged_in_as.appendChild(
-            new Control(
-                () => this.logout(),
-                {
-                    background: false,
-                    icon: "left.png",
-                    classes: ["foreground"],
-                    title: "Log out"
-                }
-            ).element
-        );
+        this.entry("not_logged_in", true);
+        this.label("not_logged_in_label", "Not logged in");
+        this.label("not_logged_in_reason", "", true);
 
-        this.items.not_logged_in = not_logged_in;
-        this.items.not_logged_in_label = not_logged_in_label;
-        this.items.not_logged_in_reason = not_logged_in_reason;
-        this.items.logged_in_as = logged_in_as;
-        this.items.logged_in_as_username = logged_in_as_username;
+        this.entry("logged_in_as", true);
+        this.label(null, "Logged in as:");
+        this.label("logged_in_as_username");
+        this.control(() => this.logout(), "left.png", "Log out");
 
-        let choose; // List item to select "Log in" or "Register"
-
-        let login_username; // username input
-        let login_password; // password input
-        let login = details.appendChild(create_element(
-            "div",
-            ["list_item", "hidden"],
-            null
-        ));
-        login.appendChild(
-            new Control(
-                () => {
-                    login.classList.add("hidden");
-                    choose.classList.remove("hidden");
-                    login_username.value = login_password.value = "";
-                },
-                {
-                    background: false,
-                    icon: "cross.png",
-                    classes: ["foreground"],
-                    title: "Cancel"
-                }
-            ).element
+        let login_username;
+        let login_password;
+        let login = this.entry("login");
+        this.control(
+            () => {
+                this.update_fields("choose"),
+                login_username.value = login_password.value = "";
+            },
+            "cross.png",
+            "Cancel"
         );
-        login.appendChild(
-            create_element("span", ["label"], { innerText: "Username" })
-        );
+        this.label(null, "Username");
         login_username = login.appendChild(create_element(
             "input",
             ["secondary"],
@@ -3250,9 +3214,7 @@ class LoginMenu extends PanelMenu {
                 maxLength: LoginMenu.USERNAME_MAX_LENGTH,
             }
         ));
-        login.appendChild(
-            create_element("span", ["label"], { innerText: "Password" })
-        );
+        this.label(null, "Password");
         login_password = login.appendChild(create_element(
             "input",
             ["secondary"],
@@ -3262,55 +3224,32 @@ class LoginMenu extends PanelMenu {
                 maxLength: LoginMenu.PASSWORD_MAX_LENGTH,
             }
         ));
-        login.appendChild(
-            new Control(
-                () => this.login_user(),
-                {
-                    background: false,
-                    icon: "right.png",
-                    classes: ["foreground"],
-                    title: "Submit"
-                }
-            ).element
-        );
-
-        this.items.login = login;
+        this.control(() => this.login_user(), "right.png", "Submit");
         this.inputs.login_username = login_username;
         this.inputs.login_password = login_password;
 
-        let register_b; // Password and confirm password fields;
+        this.entry("forgot_password");
+        this.label(null, "Forgot password");
+        this.control(
+            () => this.update_fields("reset"), "right.png", "Reset password"
+        );
 
         let register_username;
         let register_password;
         let register_confirm;
-        let register_a = details.appendChild(create_element(
-            "div",
-            ["list_item", "hidden", "centering"],
-            null
-        ));
-        register_a.appendChild(
-            new Control(
-                () => {
-                    register_a.classList.add("hidden");
-                    register_b.classList.add("hidden");
-                    choose.classList.remove("hidden");
-                    register_username.value = (
-                        register_password.value
-                        = register_confirm.value
-                        = ""
-                    );
-                },
-                {
-                    background: false,
-                    icon: "cross.png",
-                    classes: ["foreground"],
-                    title: "Cancel"
-                }
-            ).element
-        ).style.marginLeft = "5px"; // Overwrite margin-left: auto
-        register_a.appendChild(
-            create_element("span", ["label"], { innerText: "Username" })
+        let register_a = this.entry("register_a");
+        this.control(
+            () => {
+                this.update_fields("choose"),
+                register_username.value = (
+                    register_password.value = register_confirm.value = ""
+                );
+                this.inputs.recovery_key.value = "";
+            },
+            "cross.png",
+            "Cancel"
         );
+        this.label(null, "Username");
         register_username = register_a.appendChild(create_element(
             "input",
             ["secondary"],
@@ -3322,12 +3261,25 @@ class LoginMenu extends PanelMenu {
             }
         ));
 
-        register_b = details.appendChild(
-            create_element("div", ["list_item", "hidden"])
+        let recovery_key;
+        let reset = this.entry("reset");
+        this.label(null, "Recovery key:");
+        recovery_key = reset.appendChild(
+            create_element(
+                "input",
+                ["secondary"],
+                {
+                    type: "text",
+                    minLength: LoginMenu.RECOVERY_KEY_LENGTH,
+                    maxLength: LoginMenu.RECOVERY_KEY_LENGTH,
+                    oninput: e => this.validate_recovery_key(e.target)
+                }
+            )
         );
-        register_b.appendChild(
-            create_element("span", ["label"], { innerText: "Password" })
-        );
+        this.inputs.recovery_key = recovery_key;
+
+        let register_b = this.entry("register_b");
+        this.label(null, "Password");
         register_password = register_b.appendChild(create_element(
             "input",
             ["secondary"],
@@ -3338,9 +3290,7 @@ class LoginMenu extends PanelMenu {
                 oninput: e => this.validate_password(e.target)
             }
         ));
-        register_b.appendChild(
-            create_element("span", ["label"], { innerText: "Confirm" })
-        );
+        this.label(null, "Confirm");
         register_confirm = register_b.appendChild(create_element(
             "input",
             ["secondary"],
@@ -3351,89 +3301,81 @@ class LoginMenu extends PanelMenu {
                 oninput: e => this.validate_confirm(e.target)
             }
         ));
-        register_b.appendChild(
-            new Control(
-                () => this.register_user(),
-                {
-                    background: false,
-                    icon: "right.png",
-                    classes: ["foreground"],
-                    title: "Submit" 
+        this.control(
+            () => {
+                if (this.register_mode) {
+                    this.register_user();
                 }
-            ).element
+                else {
+                    this.reset_password();
+                }
+            },
+            "right.png",
+            "Submit"
         );
-
-        this.items.register_a = register_a;
-        this.items.register_b = register_b;
         this.inputs.register_username = register_username;
         this.inputs.register_password = register_password;
         this.inputs.register_confirm = register_confirm;
 
-        let register_recovery = details.appendChild(
-            create_element("div", ["list_item", "centering"])
-        );
-        register_recovery.appendChild(
-            create_element("span", ["label"], { innerText: "Recovery key:" })
-        );
-        this.items.register_recovery_key = register_recovery.appendChild(
-            create_element("span", ["label"])
-        );
-        let register_recovery_message = details.appendChild(
-            create_element("div", ["list_item", "centering"])
-        );
-        register_recovery_message.appendChild(create_element(
-            "span",
-            ["label"],
-            {
-                innerText: (
-                    "Save this somewhere, you'll need it to reset "
-                    + " your password."
-                )
-            }
-        ));
-        this.items.register_recovery = register_recovery;
-        this.items.register_recovery_message = register_recovery_message;
+        this.entry("register_recovery");
+        this.label(null, "Recovery key:");
+        this.label("register_recovery_key");
 
-        choose = details.appendChild(create_element(
-            "div", ["list_item", "centering"]
-        ));
-        choose.appendChild(
-            create_element("span", ["label"], { innerText: "Log in" })
+        this.entry("register_recovery_message");
+        this.label(
+            null,
+            "Save this somewhere, you'll need it to reset your password."
+        );        
+        
+        this.entry("choose");
+        this.label(null, "Log in");
+        this.control(() => this.update_fields("login"), "right.png", "Log in");
+        this.label(null, "Register");
+        this.control(
+            () => this.update_fields("register"), "right.png", "Register"
         );
-        choose.appendChild(
+    }
+
+    entry(title, topmost = false) {
+        this.latest_entry = this.entries[title] = this.body.appendChild(
+            create_element(
+                "div",
+                ["list_item", "centering", "hidden"],
+                null,
+                topmost ? { marginTop: "0" } : null
+            )
+        );
+        return this.latest_entry;
+    }
+
+    label(title = null, innerText = "", hidden = false) {
+        let label = this.latest_entry.appendChild(create_element(
+            "span", ["label"], { innerText: innerText }
+        ));
+
+        if (hidden) {
+            label.classList.add("hidden");
+        }
+
+        if (title) {
+            this.fields[title] = label;
+        }
+
+        return label;
+    }
+
+    control(func, icon, title) {
+        return this.latest_entry.appendChild(
             new Control(
-                () => {
-                    choose.classList.add("hidden");
-                    login.classList.remove("hidden");
-                },
+                func,
                 {
                     background: false,
-                    icon: "right.png",
+                    icon: icon,
                     classes: ["foreground"],
-                    title: "Log in"
+                    title: title
                 }
             ).element
         );
-        choose.appendChild(
-            create_element("span", ["label"], { innerText: "Register" })
-        );
-        choose.appendChild(
-            new Control(
-                () => {
-                    choose.classList.add("hidden");
-                    register_a.classList.remove("hidden");
-                    register_b.classList.remove("hidden");
-                },
-                {
-                    background: false,
-                    icon: "right.png",
-                    classes: "foreground",
-                    title: "Register"
-                }
-            ).element
-        );
-
-        this.items.choose = choose;
     }
 
     validate_username(input, allow_empty = true) {
@@ -3504,6 +3446,24 @@ class LoginMenu extends PanelMenu {
         }
     }
 
+    validate_recovery_key(input, allow_empty = true) {
+        let recovery_key = input.value;
+        if (
+            allow_empty && recovery_key === ""
+            || LoginMenu.RECOVERY_KEY_REGEX.test(recovery_key)
+        ) {
+            input.classList.remove("invalid");
+            return true;
+        }
+        else {
+            input.setCustomValidity(
+                "Your recovery key is 32 alphanumeric characters."
+            );
+            input.classList.add("invalid");
+            return false;
+        }
+    }
+
     hide_item(item) {
         item.classList.add("hidden");
     }
@@ -3517,17 +3477,7 @@ class LoginMenu extends PanelMenu {
     }
 
     hide_all() {
-        this.hide_items(
-            this.items.not_logged_in,
-            this.items.not_logged_in_reason,
-            this.items.logged_in_as,
-            this.items.login,
-            this.items.register_a,
-            this.items.register_b,
-            this.items.register_recovery,
-            this.items.register_recovery_message,
-            this.items.choose
-        );
+        this.hide_items(...Object.values(this.entries));
     }
 
     clear_inputs() {
@@ -3538,46 +3488,83 @@ class LoginMenu extends PanelMenu {
 
     update_fields(mode, reason) {
         this.hide_all();
-        
+        this.fields.not_logged_in_label.innerText = "Not logged in";
+
         if (this.session.username && this.session.session_key) {
             this.clear_inputs();
-            this.items.logged_in_as_username.innerText = this.session.username;
-            this.show_item(this.items.logged_in_as);
+            this.fields.logged_in_as_username.innerText = this.session.username;
+            this.show_item(this.entries.logged_in_as);
 
             if (this.session.recovery_key) {
-                this.items.register_recovery_key.innerText = (
+                this.fields.register_recovery_key.innerText = (
                     this.session.recovery_key
                 );
-                this.show_item(this.items.register_recovery);
-                this.show_item(this.items.register_recovery_message);
+                this.show_item(this.entries.register_recovery);
+                this.show_item(this.entries.register_recovery_message);
             }
         }
+        else if (mode === "choose") {
+            this.show_item(this.entries.not_logged_in);
+            this.show_item(this.entries.choose);
+        }
         else if (mode === "login") {
-            this.items.not_logged_in_label.innerText = "Failed to log in:";
-            this.items.not_logged_in_reason.innerText = reason;
-            this.show_item(this.items.not_logged_in_reason);
-            this.show_item(this.items.not_logged_in);
-            this.show_item(this.items.login);
+            if (reason) {
+                this.fields.not_logged_in_label.innerText = "Failed to log in:";
+                this.fields.not_logged_in_reason.innerText = reason;
+                this.show_item(this.fields.not_logged_in_reason);    
+            }
+            else {
+                this.fields.not_logged_in_label.innerText = "Log in";
+            }
+            this.show_item(this.entries.not_logged_in);
+            this.show_item(this.entries.login);
+            this.show_item(this.entries.forgot_password);
         }
         else if (mode === "register") {
-            this.items.not_logged_in_label.innerText = "Registration failed:";
-            this.items.not_logged_in_reason.innerText = reason;
-            this.show_item(this.items.not_logged_in_reason);
-            this.show_item(this.items.not_logged_in);
-            this.show_item(this.items.register_a);
-            this.show_item(this.items.register_b);
+            this.register_mode = true;
+            if (reason) {
+                this.fields.not_logged_in_label.innerText = (
+                    "Registration failed:"
+                );
+                this.fields.not_logged_in_reason.innerText = reason;
+                this.show_item(this.entries.not_logged_in_reason);
+            }
+            else {
+                this.fields.not_logged_in_label.innerText = "Register";
+            }
+            this.show_item(this.entries.not_logged_in);    
+            this.show_item(this.entries.register_a);
+            this.show_item(this.entries.register_b);
+        }
+        else if (mode === "reset") {
+            this.register_mode = false;
+            if (reason) {
+                this.fields.not_logged_in_label.innerText = (
+                    "Password reset failed:"
+                );
+                this.fields.not_logged_in_reason.innerText = reason;
+                this.show_item(this.fields.not_logged_in_reason);
+            }
+            else {
+                this.fields.not_logged_in_label.innerText = "Reset password";
+            }
+            this.show_item(this.entries.not_logged_in);
+
+            // Note: I reuse the register inputs rather than creating a new set.
+            this.show_item(this.entries.register_a);
+            this.show_item(this.entries.register_b);
+            this.show_item(this.entries.reset);
         }
         else if (mode === "logout") {
             this.clear_inputs();
-            this.items.not_logged_in_label.innerText = "Logged out";
-            this.show_item(this.items.not_logged_in);
-            this.show_item(this.items.choose);
+            this.fields.not_logged_in_label.innerText = "Logged out";
+            this.show_item(this.entries.not_logged_in);
+            this.show_item(this.entries.choose);
         }
         else {
             this.clear_inputs();
-            this.items.not_logged_in_label.innerText = "Not logged in";
-            this.show_item(this.items.not_logged_in);
-            this.show_item(this.items.choose);
+            this.show_item(this.entries.not_logged_in);
+            this.show_item(this.entries.choose);
         }
     }
 
@@ -3613,6 +3600,22 @@ class LoginMenu extends PanelMenu {
             );
         }
     }
+
+    reset_password() {
+        if (
+            this.validate_username(this.inputs.register_username)
+            && this.validate_password(this.inputs.register_password)
+            && this.validate_confirm(this.inputs.register_confirm)
+            && this.validate_recovery_key(this.inputs.recovery_key)
+        ) {
+            this.session.reset_password(
+                this.inputs.register_username.value,
+                this.inputs.register_password.value,
+                this.inputs.recovery_key.value,
+                res => this.update_fields("reset", res.reason)
+            );
+        }
+    }
 }
 
 class Session {
@@ -3625,8 +3628,9 @@ class Session {
         // If we have stored the recovery key for the maximum time, delete it.
         this._recovery_key = null;
         if (
-            parseInt(localStorage.getItem("recovery_key_expiry")) <
-                new Date().getTime()
+            parseInt(localStorage.getItem("recovery_key_expiry"))
+            + Session.RECOVERY_KEY_MAX_AGE
+            > new Date().getTime()
         ) {
             this.recovery_key = null;
         }
@@ -3648,8 +3652,8 @@ class Session {
         if (key) {
             localStorage.setItem("recovery_key", key);
             localStorage.setItem(
-                "recovery_key_expiry",
-                (new Date().getTime() + Session.RECOVERY_KEY_MAX_AGE).toString()
+                "recovery_key_received",
+                new Date().getTime().toString()
             );
         }
         else {
@@ -3692,6 +3696,25 @@ class Session {
                 username: username,
                 password: password,
                 email: null
+            },
+            res => {
+                this.check_cookies();
+                if (res.recovery_key) {
+                    this.recovery_key = res.recovery_key;
+                }
+
+                callback(res);
+            }
+        );
+    }
+
+    reset_password(username, password, recovery_key, callback) {
+        post(
+            "/reset",
+            {
+                username: username,
+                new_password: password,
+                recovery_key: recovery_key,
             },
             res => {
                 this.check_cookies();
