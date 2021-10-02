@@ -3369,10 +3369,33 @@ class LoginMenu extends PanelMenu {
         this.inputs.register_password = register_password;
         this.inputs.register_confirm = register_confirm;
 
+        let register_recovery = details.appendChild(
+            create_element("div", ["list_item", "centering"])
+        );
+        register_recovery.appendChild(
+            create_element("span", ["label"], { innerText: "Recovery key:" })
+        );
+        this.items.register_recovery_key = register_recovery.appendChild(
+            create_element("span", ["label"])
+        );
+        let register_recovery_message = details.appendChild(
+            create_element("div", ["list_item", "centering"])
+        );
+        register_recovery_message.appendChild(create_element(
+            "span",
+            ["label"],
+            {
+                innerText: (
+                    "Save this somewhere, you'll need it to reset "
+                    + " your password."
+                )
+            }
+        ));
+        this.items.register_recovery = register_recovery;
+        this.items.register_recovery_message = register_recovery_message;
+
         choose = details.appendChild(create_element(
-            "div",
-            ["list_item", "centering"],
-            null
+            "div", ["list_item", "centering"]
         ));
         choose.appendChild(
             create_element("span", ["label"], { innerText: "Log in" })
@@ -3501,6 +3524,8 @@ class LoginMenu extends PanelMenu {
             this.items.login,
             this.items.register_a,
             this.items.register_b,
+            this.items.register_recovery,
+            this.items.register_recovery_message,
             this.items.choose
         );
     }
@@ -3518,6 +3543,14 @@ class LoginMenu extends PanelMenu {
             this.clear_inputs();
             this.items.logged_in_as_username.innerText = this.session.username;
             this.show_item(this.items.logged_in_as);
+
+            if (this.session.recovery_key) {
+                this.items.register_recovery_key.innerText = (
+                    this.session.recovery_key
+                );
+                this.show_item(this.items.register_recovery);
+                this.show_item(this.items.register_recovery_message);
+            }
         }
         else if (mode === "login") {
             this.items.not_logged_in_label.innerText = "Failed to log in:";
@@ -3583,11 +3616,46 @@ class LoginMenu extends PanelMenu {
 }
 
 class Session {
+    static RECOVERY_KEY_MAX_AGE = 24 * 60 * 60 * 1000; // 1 day
+
     constructor() {
         this.username = null;
         this.session_key = null;
 
+        // If we have stored the recovery key for the maximum time, delete it.
+        this._recovery_key = null;
+        if (
+            parseInt(localStorage.getItem("recovery_key_expiry")) <
+                new Date().getTime()
+        ) {
+            this.recovery_key = null;
+        }
+        else {
+            this._recovery_key = localStorage.getItem("recovery_key") || null;
+        }
+
+
         this.check_cookies();
+    }
+
+    get recovery_key() {
+        return this._recovery_key;
+    }
+
+    set recovery_key(key) {
+        this._recovery_key = key;
+
+        if (key) {
+            localStorage.setItem("recovery_key", key);
+            localStorage.setItem(
+                "recovery_key_expiry",
+                (new Date().getTime() + Session.RECOVERY_KEY_MAX_AGE).toString()
+            );
+        }
+        else {
+            localStorage.removeItem("recovery_key");
+            localStorage.removeItem("recovery_key_expiry");
+        }
     }
 
     login(username, password, callback) {
@@ -3610,6 +3678,7 @@ class Session {
             {},
             res => {
                 document.cookie = "";
+                this.recovery_key = null;
                 this.check_cookies();
                 callback(res);
             }
@@ -3626,6 +3695,10 @@ class Session {
             },
             res => {
                 this.check_cookies();
+                if (res.recovery_key) {
+                    this.recovery_key = res.recovery_key;
+                }
+
                 callback(res);
             }
         );
