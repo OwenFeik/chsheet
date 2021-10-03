@@ -3,7 +3,6 @@ const INITIAL_GRID_GAP = 10;
 const TOOLBAR_WIDTH = 70;
 const NODE_HEADER_HEIGHT = 20;
 const LIST_ITEM_HEIGHT = 29;
-const NODE_TYPES = ["text", "number", "list", "die", "image", "checkbox"];
 
 const NodeTypes = {
     CHECKBOX: "checkbox",
@@ -311,12 +310,12 @@ class SheetElement extends VisibilityManagedWrapper {
         }
 
         if (this.sheet) {
-            if (this.y + this.h >= sheet.h) {
-                sheet.h = this.y + this.h;
+            if (this.y + this.h >= this.sheet.h) {
+                this.sheet.h = this.y + this.h;
             }
 
-            if (this.x + this.w >= sheet.w) {
-                sheet.w = this.x + this.w;
+            if (this.x + this.w >= this.sheet.w) {
+                this.sheet.w = this.x + this.w;
             }
         }
     }
@@ -3172,17 +3171,9 @@ class LoginMenu extends PanelMenu {
             create_element("span", ["title"], { innerText: "Account" })
         );
 
-        let info = this.element.appendChild(
-            create_element("div", ["background", "login_body"])
-        );
-        info.appendChild(
-            create_element("img", [], { src: Icon.icon_path("clone.png") })
-        );
-        
         this.body = this.element.appendChild(
             create_element("div", ["entry_list"])
         );
-        
 
         this.entry("not_logged_in", true);
         this.label("not_logged_in_label", "Not logged in");
