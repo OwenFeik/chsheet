@@ -753,7 +753,7 @@ input.secondary {
     background-color: var(--bg-primary);
 }
 
-input.invalid {
+.invalid {
     background-color: var(--bg-invalid);
 }
 

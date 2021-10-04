@@ -2791,12 +2791,8 @@ class SaveListItem extends ElementWrapper {
     constructor(owner, save) {
         super("div", ["list_item"]);
 
-        // Old saves didn't have ids
-        if (!save.id) {
-            save.id = save.title;
-        }
-
         this.owner = owner;
+        this.save = save;
 
         this.checkbox = new Checkbox(false, [], false);
         this.element.appendChild(this.checkbox.element);
@@ -2815,15 +2811,29 @@ class SaveListItem extends ElementWrapper {
                 save => this.owner.set_active_save(save)
             );
         };
-
         this.element.appendChild(this.title_label);
+
+        this.cloud_control = new Control(
+            () => console.log("clicked"),
+            {
+                background: false,
+                icon: "cloud.png",
+                title: "Stored in cloud"
+            }
+        ).element;
+        this.element.appendChild(this.cloud_control);
+
+        let update = new Date(save.time);
         this.element.appendChild(
             create_element(
                 "span",
                 ["label"],
                 {
-                    innerText: new Date(save.time)
-                        .toLocaleDateString("en-AU")
+                    innerText: update.toLocaleDateString("en-AU"),
+                    title: "Last updated: " + update.toLocaleString()
+                },
+                {
+                    cursor: "default"
                 }
             )
         );
@@ -2887,18 +2897,33 @@ class SaveListItem extends ElementWrapper {
 }
 
 class SaveMenu extends PanelMenu {
-    constructor(sheet) {
+    /*
+    A save has the form
+    
+    {
+        title: "Sheet title"
+        time: Unix Epoch Timestamp
+        data: {
+            nodes: [],
+            groups: []
+        }
+    }
+    */
+
+    constructor(sheet, session) {
         super();
 
         this.sheet = sheet;
         this.sheet.replace_refs.push(this);
+
+        this.session = session;
 
         // TODO better way of handling images
         this.image_names = [];
 
         this.save_list_loaded = false;
 
-        this.saves = [];
+        this.save_items = [];
 
         this.callback = () => this.reload_saves();
 
@@ -2950,13 +2975,19 @@ class SaveMenu extends PanelMenu {
     set_up_controls() {
         this.controls.add_control(new Control(
             () => {
-                if (this.validate_title()) {
-                    save_sheet(this.sheet, this.callback);
-                    this.sheet.save_title = this.save_title;
+                let saves_to_delete = this.selected();
+                if (saves_to_delete.length) {
+                    delete_sheets(saves_to_delete, this.callback);
+                    this.header_checkbox.value = false;
                 }
             },
-            { background: false, icon: "save.png", title: "Save" }
+            {
+                background: false,
+                icon: "trash.png",
+                title: "Delete selected"
+            }
         ));
+
         this.controls.add_control(new Control(
             () => {
                 // TODO load example properly
@@ -2990,17 +3021,34 @@ class SaveMenu extends PanelMenu {
 
         this.controls.add_control(new Control(
             () => {
-                let saves_to_delete = this.selected();
-                if (saves_to_delete.length) {
-                    delete_sheets(saves_to_delete, this.callback);
-                    this.header_checkbox.value = false;
-                }
+                let saves_to_upload = this.selected();
+                saves_to_upload.forEach(save_item => {
+                    this.session.upload_sheet(
+                        save_item.save.data,
+                        save_item.save.title,
+                        res => {
+                            if (!res.success) {
+                                // TODO finish
+                            }
+                        }
+                    );
+                });
             },
             {
                 background: false,
-                icon: "trash.png",
-                title: "Delete selected"
+                icon: "cloud.png",
+                title: "Store selected in cloud"
             }
+        ));
+
+        this.controls.add_control(new Control(
+            () => {
+                if (this.validate_title()) {
+                    save_sheet(this.sheet, this.callback);
+                    this.sheet.save_title = this.save_title;
+                }
+            },
+            { background: false, icon: "save.png", title: "Save" }
         ));
 
         this.controls.reverse_order();
@@ -3038,18 +3086,18 @@ class SaveMenu extends PanelMenu {
     }
 
     set_all_checkboxes(bool = true) {
-        this.saves.forEach(i => {
+        this.save_items.forEach(i => {
             i.selected = bool
         });
     }
 
     remove_all_saves() {
-        this.saves.forEach(i => i.remove());
-        this.saves = [];
+        this.save_items.forEach(i => i.remove());
+        this.save_items = [];
     }
 
     remove_save(save) {
-        this.saves = this.saves.filter(i => {
+        this.save_items = this.save_items.filter(i => {
             if (i === save) {
                 i.remove();
                 return false;
@@ -3059,18 +3107,18 @@ class SaveMenu extends PanelMenu {
     }
 
     add_save(save) {
-        this.saves.push(save);
-        this.save_list.appendChild(save.element);
+        let save_item = new SaveListItem(this, save);
+        this.save_items.push(save_item);
+        this.save_list.appendChild(save_item.element);
     }
 
     reload_saves() {
         get_all_sheets(data => {
             this.remove_all_saves();
             this.image_names = update_image_store(data);
-            data.sort((a, b) => b.time - a.time);
-            data.forEach(save => {
-                this.add_save(new SaveListItem(this, save));  
-            });
+            data.sort((a, b) => b.time - a.time).forEach(
+                save => this.add_save(save)
+            );
         });
     }
 }
@@ -3402,6 +3450,8 @@ class LoginMenu extends PanelMenu {
     validate_password(input, allow_empty = true) {
         let password = input.value;
         
+        input.setCustomValidity("");
+
         if (allow_empty && password === "") {
             input.classList.remove("invalid");
             return true;
@@ -3427,6 +3477,7 @@ class LoginMenu extends PanelMenu {
             (allow_empty && input.value === "")
             || input.value === this.inputs.register_password.value
         ) {
+            input.setCustomValidity("");
             input.classList.remove("invalid");
             return true;
         }
@@ -3443,6 +3494,7 @@ class LoginMenu extends PanelMenu {
             allow_empty && recovery_key === ""
             || LoginMenu.RECOVERY_KEY_REGEX.test(recovery_key)
         ) {
+            input.setCustomValidity("");
             input.classList.remove("invalid");
             return true;
         }
@@ -3715,6 +3767,18 @@ class Session {
 
                 callback(res);
             }
+        );
+    }
+
+    upload_sheet(sheet, title, callback) {
+        post(
+            "/save",
+            {
+                session_key: this.session_key,
+                sheet: sheet,
+                title: title
+            },
+            callback
         );
     }
 
