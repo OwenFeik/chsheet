@@ -21,6 +21,7 @@ function set_up_db() {
 
         sheet_store.createIndex("time", "time");
         sheet_store.createIndex("data", "data");
+        sheet_store.createIndex("code", "code");
 
         let blob_store = db.createObjectStore(
             "blobs",
@@ -78,27 +79,6 @@ function get_all_sheets(callback) {
         console.error("Database error in get_all_sheets.");
     }
 }
-
-
-// TODO this is obselete, keeping it around because image handling
-// needs to be done somewhere
-// function node_from_dict(dict) {
-//     if (dict.type === "image") {
-//         let image = content.querySelector("img");
-
-//         image.style.objectFit = dict.content.crop;
-
-//         if (!dict.content.blob) {
-//             image.src = dict.content.uri;
-//         }
-//         else {
-//             load_image(dict.content.uri, uri => {
-//                 image.image_name = dict.content.uri;
-//                 image.src = uri;
-//             });
-//         }
-//     }
-// }
 
 function download_sheet(title) {
     get_sheet_from_db(title, save => {
@@ -209,7 +189,12 @@ async function load_image(image_name, doWithImage) {
     let request = blob_store.get(image_name);
 
     request.onsuccess = function (e) {
-        doWithImage(window.URL.createObjectURL(e.target.result.blob));
+        if (e.target.result) {
+            doWithImage(window.URL.createObjectURL(e.target.result.blob));
+        }
+        else {
+            doWithImage(null);
+        }
     };
 }
 

@@ -293,8 +293,20 @@
     order: 10;
 }
 
+.control_box.vertical {
+    flex-direction: column;
+}
+
+.control_box.vertical > .control {
+    margin: 0;
+}
+
+.control_box.vertical > .control:not(:first-of-type) {
+    margin-top: 3px;
+}
+
 .control_box > .control {
-    margin-left: 0px;
+    margin-left: 0;
 }
 
 .control_box.spaced > .control:not(:first-of-type) {
@@ -469,7 +481,7 @@
     border: none;
     height: 1.5em;
     border-radius: var(--border-rad);
-    color: var(--fg-secondary);
+    color: white;
 }
 
 .settings .setting .label {
@@ -610,6 +622,24 @@
     margin-left: 5px;
 }
 
+.notification_tray {
+    left: -210px;
+    position: absolute;
+    top: 0;
+    width: 200px;
+}
+
+.notification {
+    background-color: var(--bg-primary);
+    display: flex;
+    margin-bottom: 5px;
+}
+
+.notification > .label {
+    width: 160px;
+    word-wrap: break-word;
+}
+
 .entry_list {
     padding: 5px;
     padding-bottom: 0px;
@@ -662,7 +692,7 @@
     margin-left: 5px;
 }
 
-.entry_list > .list_item > .label {
+.label {
     background-color: var(--bg-primary);
     height: 100%;
     border-radius: var(--border-rad);
@@ -754,7 +784,7 @@ input.secondary {
 }
 
 .invalid {
-    background-color: var(--bg-invalid);
+    background-color: var(--bg-invalid) !important;
 }
 
 select {

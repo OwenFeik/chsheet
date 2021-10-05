@@ -37,4 +37,9 @@ export PGDATABASE="chsheet_db"
 export PGUSER="postgres"
 export PGPASSWORD="password"
 
-node server/server.js
+# convenience option to open db in shell
+if [ "$1" == "db" ]; then
+    psql "postgresql://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE"
+else
+    node server/server.js
+fi

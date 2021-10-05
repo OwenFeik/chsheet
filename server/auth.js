@@ -231,5 +231,9 @@ exports.valid_username = valid_username;
 exports.valid_password = valid_password;
 exports.valid_email = valid_email;
 exports.begin_session = userid => session_manager.begin(userid);
-exports.end_session = session_key => session_manager.end(session_key);
-exports.get_session = session_key => session_manager.get(session_key);
+exports.end_session = (session_key, callback) => session_manager.end(
+    session_key, callback
+);
+exports.get_session = (session_key, callback) => session_manager.get(
+    session_key, callback
+);

@@ -346,7 +346,7 @@ class SheetElement extends VisibilityManagedWrapper {
     }
 }
 
-class DraggableSheetElement extends SheetElement {
+class TransformableSheetElement extends SheetElement {
     // This class doesn't encode any persistent data, but it powers the
     // front-end actions of resizing and moving about nodes and groups.
 
@@ -423,14 +423,28 @@ class DraggableSheetElement extends SheetElement {
         this.drag_ghost = null;
     }
 
+    on_target(target) {
+        if (Array.isArray(this.drag_target)) {
+            return Boolean(
+                this.drag_target.filter(drag_target =>
+                    drag_target === target
+                    || drag_target.contains(target)
+                ).length
+            );
+        }
+        else {
+            return (
+                this.drag_target === target
+                || this.drag_target.contains(target)
+            );
+        }
+    }
+
     handle_mouse_down(e) {
         if (
             e.which === 1
             && this.drag_valid() 
-            && (
-                e.target === this.drag_target
-                || this.drag_target.contains(e.target)
-            )
+            && this.on_target(e.target)
         ) {            
             this.drag_primed = true;
             document.addEventListener("mouseup", this.drag_mouse_up);
@@ -738,7 +752,9 @@ class Title extends VisibilityManagedWrapper {
             };
         };
 
-        this.add_listener("input", e => { this.text = this.element.innerText });
+        this.add_listener(
+            "input", _ => { this._text = this.element.innerText }
+        );
     }
 }
 
@@ -894,6 +910,8 @@ class Control extends VisibilityManagedWrapper {
     constructor(func, options) {
         super("div", ["control"].concat(options.classes || []));
         
+        this.visible = options.visible !== undefined ? options.visible : true;
+
         if (options?.toggle) {
             this.element.classList.add("toggle");
         }
@@ -910,7 +928,10 @@ class Control extends VisibilityManagedWrapper {
         }
     
         this.func = func;
-        this.element.onclick = e => this.func(e);
+
+        if (this.func) {
+            this.element.onclick = e => this.func(e);
+        }
     }
 }
 
@@ -942,6 +963,7 @@ class ControlBox extends VisibilityManagedWrapper {
     add_control(control) {
         this.controls.push(control);
         this.element.appendChild(control.element);
+        return control;
     }
 
     set_up_controls() {}
@@ -1255,7 +1277,7 @@ class NodeSettings extends VisibilityManagedWrapper {
     }
 }
 
-class SheetNode extends DraggableSheetElement {
+class SheetNode extends TransformableSheetElement {
     static DEFAULT_FONT_SIZE = 10; 
 
     constructor(options) {
@@ -1917,11 +1939,28 @@ class ImageNode extends SheetNode {
         super(options);
 
         this.image = create_element("img");
-        this.image.src = options?.content?.uri || ImageNode.DEFAULT_IMAGE;
-        this.image.style.objectFit = "cover";
+        this.value = ImageNode.DEFAULT_IMAGE;
+        this.image.style.objectFit = options?.content?.crop || "cover";
         this.content.appendChild(this.image);
         
-        this.image_name = this.image.src;
+        this.drag_target = [this.image, this.header.element];
+
+        this.image_name = null;
+
+        if (options?.content) {
+            if (options.content.blob) {
+                this.sheet.image_manager.get(
+                    options.content.uri,
+                    (name, src) => {
+                        this.image_name = name;
+                        this.value = src;
+                    }
+                );
+            }
+            else {
+                this.value = options.content.uri;
+            }
+        }
     }
 
     get value() {
@@ -1943,67 +1982,68 @@ class ImageNode extends SheetNode {
         let image_selection = new NodeSetting({
             name: "Image",
             string: v => { this.value = v; },
-            update: () => { return { string: this.value }; } 
+            update: () => { return { string: this.image_name || this.value }; }
         });
 
         let input = image_selection.string;
         image_selection.string_func = src => {
-            let img = create_element("img");
+            try {
+                // Throws error if not valid URL
+                // if a non-url is entered, we will assume the user is trying
+                // to reference an image by name.
+                new URL(src);
 
-            img.onload = () => {
-                this.value = src;
-                input.setCustomValidity("");
-            };
+                let img = create_element("img");
 
-            img.onerror = () => {
-                input.setCustomValidity("Image not found.");
+                img.onload = () => {
+                    this.image_name = null;
+                    this.value = src;
+                    input.classList.remove("invalid");
+                    input.setCustomValidity("");
+                };
+    
+                img.onerror = () => {
+                    input.classList.add("invalid");
+                    input.setCustomValidity("Image not found.");
+                }
+    
+                img.src = src;
             }
-
-            img.src = src;
+            catch {
+                let image_name = src;
+                this.sheet.image_manager.get(image_name, (name, src) => {
+                    if (src) {
+                        this.image_name = name;
+                        this.value = src;    
+                        input.classList.remove("invalid");
+                        input.setCustomValidity("");
+                    }
+                    else {
+                        input.classList.add("invalid");
+                        input.setCustomValidity("Image not found.");
+                    }
+                });
+            }
         };
         input.addEventListener("blur", () => {
             input.setCustomValidity("");
-            input.value = this.value;
+            input.value = this.image_name || this.value;
         });
 
-        // TODO properly handle SVG files
         image_selection.element.appendChild(new UploadControl(
-            f => {
-                let file_reader = new FileReader();
-                file_reader.onloadend = () => {
-                    this.value = window.URL.createObjectURL(
-                        new Blob([file_reader.result])
-                    );
-
-                    input.value = this.value;
-                };
-
-                file_reader.readAsArrayBuffer(f);
-            },
+            f => this.sheet.image_manager.load(
+                f,
+                (name, src) => {
+                    input.value = name;
+                    this.value = src;
+                    this.image_name = name;
+                }
+            ),
             {
                 accept: "image/*",
                 title: "Upload image",
             }
         ).element);
-
-        // TODO image name handling. Old logic here:
-        // // ensure a unique image_name, so that it isn't overwritten in db
-        // let image_names = document.getElementById("save_menu").image_names;
-        // if (image_names.indexOf(file.name) >= 0) {
-        //     name = file.name.replace(/\.\w+$/, "");
-        //     ext = file.name.replace(/^\w+/, "");
-
-        //     let i = 1;
-        //     while (image_names.indexOf(`${name}${i}${ext}`) >= 0) {
-        //         i += 1;
-        //     }
-        //     image.image_name = `${name}${i}${ext}`;
-        // }
-        // else {
-        //     image.image_name = file.name;
-        // }
-
-        // image_src_input.value = image.image_name;
 
         this.settings.add_setting(image_selection);
         this.settings.add_setting(new NodeSetting({
@@ -2019,9 +2059,7 @@ class ImageNode extends SheetNode {
     }
 
     content_json() {
-        let is_local = this.image.src.startsWith("blob:null/"); 
-
-        // TODO handle storing image in IDB
+        let is_local = this.image.src.startsWith("blob:"); 
 
         return {
             uri: is_local ? this.image_name : this.image.src,
@@ -2067,7 +2105,7 @@ class CheckboxNode extends SheetNode {
     }
 }
 
-class NodeGroup extends DraggableSheetElement {
+class NodeGroup extends TransformableSheetElement {
     static OPACITY_WHILE_DRAGGING = "0.5";
 
     constructor(options, from_ghost = null) {
@@ -2287,6 +2325,8 @@ class Sheet extends GridElement {
         // elements that need their sheet reference updated when this sheet
         // is replaced with another
         this.replace_refs = [];
+
+        this.image_manager = LocalImageManager.instance;
     }
 
     get save_title() {
@@ -2395,7 +2435,11 @@ class Sheet extends GridElement {
 
         if (save.data.nodes) {
             save.data.nodes.forEach(node_data => {
-                new_sheet.add_element(SheetNode.from_json(node_data));
+                new_sheet.add_element(
+                    SheetNode.from_json(
+                        Object.assign(node_data, { sheet: new_sheet })
+                    )
+                );
             });    
         }
     
@@ -2733,6 +2777,77 @@ class Toolbox extends ElementWrapper {
     }
 }
 
+class LocalImageManager {
+    static _instance = null;
+
+    constructor() {
+        this.images = new Map();
+    }
+
+    static get instance() {
+        if (!LocalImageManager._instance) {
+            LocalImageManager._instance = new LocalImageManager();
+        }
+
+        return LocalImageManager._instance;
+    }
+
+    get(image_name, callback) {
+        let src = this.images.get(image_name);
+        if (src) {
+            callback(src);
+        }
+        else {
+            load_image(image_name, src => {
+                this.images.set(image_name, src);
+                callback(image_name, src);
+            });
+        }
+    }
+
+    // TODO properly handle SVG files
+    load(file, callback) {
+        let file_reader = new FileReader();
+        file_reader.onloadend = () => {
+            let name = this.image_name(file.name);
+            let src = window.URL.createObjectURL(
+                new Blob([file_reader.result])
+            ); 
+
+            // Save in IDB
+            save_image(name, src);
+
+            this.images.set(name, src);
+            callback(name, src);
+        };
+
+        file_reader.readAsArrayBuffer(file);
+    }
+
+    image_name(file_name) {
+        let image_name = file_name;
+        if (this.images.has(file_name)) {
+            let name = file_name.replace(/\.\w+$/, ""); // Slice off extension
+            let ext = /^.*\.(.+)$/.exec(file_name)[1]; // Keep only extension
+            let i = 1;
+    
+            do {
+                image_name = `${name}${i}.${ext}`;
+            } while (this.images.has(image_name));  
+        }
+
+        return image_name;
+    }
+
+    set_images(image_names) {
+        image_names.forEach(image_name => {
+            if (!this.images.has(image_name)) {
+                this.images.set(image_name, null);
+            }
+        });
+    }
+}
+
 class PanelMenu extends VisibilityManagedWrapper {
     static menus = [];
     
@@ -2797,6 +2912,17 @@ class SaveListItem extends ElementWrapper {
         this.checkbox = new Checkbox(false, [], false);
         this.element.appendChild(this.checkbox.element);
 
+        this.cloud_control = new Control(
+            null,
+            {
+                background: false,
+                icon: "cloud.png",
+                title: "Stored in cloud.",
+                visible: save.code !== undefined
+            }
+        ).element;
+        this.element.appendChild(this.cloud_control);
+
         this.title_label = create_element(
             "span",
             ["item_title", "label"],
@@ -2806,22 +2932,9 @@ class SaveListItem extends ElementWrapper {
             }
         );
         this.title_label.onclick = () => {
-            load_sheet(
-                save.id,
-                save => this.owner.set_active_save(save)
-            );
+            this.owner.sheet.replace(Sheet.from_json(this.save));
         };
         this.element.appendChild(this.title_label);
-
-        this.cloud_control = new Control(
-            () => console.log("clicked"),
-            {
-                background: false,
-                icon: "cloud.png",
-                title: "Stored in cloud"
-            }
-        ).element;
-        this.element.appendChild(this.cloud_control);
 
         let update = new Date(save.time);
         this.element.appendChild(
@@ -2852,7 +2965,7 @@ class SaveListItem extends ElementWrapper {
             new Control(
                 // TODO this assuems that sheets have an id, not just a title
                 () => {
-                    delete_sheet(save.id);
+                    delete_sheet(save.title);
                     this.owner.remove_save(this);
                 },
                 {
@@ -2896,6 +3009,60 @@ class SaveListItem extends ElementWrapper {
     }
 }
 
+class PanelMenuNotificationTray extends ElementWrapper {
+    constructor(parent) {
+        super("div", ["notification_tray"]);
+
+        this.parent = parent;
+        this.parent.element.appendChild(this.element);
+    }
+
+    // text: label on the notification
+    // remove: whether to include a button to remove the notification
+    // confirm: function to execute when confirm button clicked
+    // duration: ms duration before removing the notification
+    add(text, remove = true, confirm = null, duration = 0) {
+        let el = create_element("div", ["notification", "rounded", "padded"]);
+        
+        el.appendChild(create_element("span", ["label"], { innerText: text }));
+        
+        if (remove || confirm) {
+            let controls = new ControlBox({ classes: ["vertical"] });
+            el.appendChild(controls.element);
+            
+            if (remove) {
+                controls.add_control(new Control(
+                    () => el.remove(),
+                    {
+                        icon: "cross.png",
+                        title: "Dismiss"
+                    }
+                ));
+            }
+
+            if (confirm) {
+                controls.add_control(new Control(
+                    () => {
+                        confirm();
+                        el.remove();
+                    },
+                    {
+                        icon: "tick.png",
+                        title: "Confirm"
+                    }
+                ));
+            }
+        }
+
+        if (duration) {
+            setTimeout(() => el.remove(), duration);
+        }
+
+        this.element.appendChild(el);
+        return el;
+    }
+}
+
 class SaveMenu extends PanelMenu {
     /*
     A save has the form
@@ -2910,6 +3077,8 @@ class SaveMenu extends PanelMenu {
     }
     */
 
+    static SHEET_TITLE_MAX_LENGTH = 32;
+
     constructor(sheet, session) {
         super();
 
@@ -2917,9 +3086,6 @@ class SaveMenu extends PanelMenu {
         this.sheet.replace_refs.push(this);
 
         this.session = session;
-
-        // TODO better way of handling images
-        this.image_names = [];
 
         this.save_list_loaded = false;
 
@@ -2941,7 +3107,7 @@ class SaveMenu extends PanelMenu {
     }
 
     get selected() {
-        return this.saves.filter(i => i.selected());
+        return this.save_items.filter(i => i.selected);
     }
 
     show() {
@@ -2951,6 +3117,8 @@ class SaveMenu extends PanelMenu {
             this.reload_saves();
             this.save_list_loaded = true;
         }
+
+        this.cloud_control = this.session.logged_in;
     }
 
     set_active_save(save) {
@@ -2960,14 +3128,20 @@ class SaveMenu extends PanelMenu {
     }
 
     validate_title() {
+        this.header_input.classList.add("invalid");
         if (this.save_title === "") {
             this.header_input.setCustomValidity("Title required to save.");
-            this.header_input.keyup = () => this.validate_title();
+            return false;
+        }
+        else if (this.save_title.length > SaveMenu.SHEET_TITLE_MAX_LENGTH) {
+            this.header_input.setCustomValidity(
+                "Save titles must be 32 character or less."
+            );
             return false;
         }
         else {
+            this.header_input.classList.remove("invalid");
             this.header_input.setCustomValidity("");
-            this.header_input.keyup = null;
             return true;
         }
     }
@@ -2977,7 +3151,10 @@ class SaveMenu extends PanelMenu {
             () => {
                 let saves_to_delete = this.selected();
                 if (saves_to_delete.length) {
-                    delete_sheets(saves_to_delete, this.callback);
+                    delete_sheets(
+                        saves_to_delete.map(save_item => save_item.save.title),
+                        this.callback
+                    );
                     this.header_checkbox.value = false;
                 }
             },
@@ -3019,19 +3196,11 @@ class SaveMenu extends PanelMenu {
             }
         ));
 
-        this.controls.add_control(new Control(
+        this.cloud_control = this.controls.add_control(new Control(
             () => {
-                let saves_to_upload = this.selected();
+                let saves_to_upload = this.selected;
                 saves_to_upload.forEach(save_item => {
-                    this.session.upload_sheet(
-                        save_item.save.data,
-                        save_item.save.title,
-                        res => {
-                            if (!res.success) {
-                                // TODO finish
-                            }
-                        }
-                    );
+                    this.upload_save(save_item);
                 });
             },
             {
@@ -3041,9 +3210,11 @@ class SaveMenu extends PanelMenu {
             }
         ));
 
+        // TODO IMPORTANT saving sheet doubles all nodes up
         this.controls.add_control(new Control(
             () => {
                 if (this.validate_title()) {
+                    this.sheet.save_title = this.header_input.value;
                     save_sheet(this.sheet, this.callback);
                     this.sheet.save_title = this.save_title;
                 }
@@ -3064,6 +3235,7 @@ class SaveMenu extends PanelMenu {
         this.header_input = create_element(
             "input", [], { minLength: 1,maxLength: 32 }
         );
+        this.header_input.oninput = _ => this.validate_title();
         this.header.appendChild(this.header_input);
     }
 
@@ -3083,6 +3255,7 @@ class SaveMenu extends PanelMenu {
     set_up() {
         this.set_up_header();
         this.set_up_body();
+        this.notifications = new PanelMenuNotificationTray(this);
     }
 
     set_all_checkboxes(bool = true) {
@@ -3115,11 +3288,74 @@ class SaveMenu extends PanelMenu {
     reload_saves() {
         get_all_sheets(data => {
             this.remove_all_saves();
-            this.image_names = update_image_store(data);
+            this.sheet.image_manager.set_images(update_image_store(data));
             data.sort((a, b) => b.time - a.time).forEach(
                 save => this.add_save(save)
             );
         });
+    }
+
+    create_cloud_save(save_item, overwrite = false) {
+        this.session.upload_sheet(
+            save_item.save.data,
+            save_item.save.title,
+            overwrite,
+            res => {
+                if (res.success) {
+                    save_item.cloud_control.classList.remove(
+                        "invalid"
+                    );
+                    save_item.cloud_control.title = "Cloud save";
+                    this.notifications.add(
+                        `Successfully saved "${save_item.save.title}" under`
+                        + " your account.",
+                        true,
+                        null,
+                        2000
+                    );
+                    save_item.save.code = res.code;
+                    save_item.save.updated = res.updated;
+
+                    // Update local save with code.
+                    insert_to_db(save_item.save);
+                }
+                else {
+                    save_item.cloud_control.classList.add(
+                        "invalid"
+                    );
+                    save_item.cloud_control.title = "Upload failed";
+
+                    if (res.reason === "Title in use.") {
+                        this.notifications.add(
+                            "You already have a sheet titled "
+                            + `"${save_item.save.title}"`
+                            + ". Would you like to overwrite it?",
+                            true,
+                            () => this.upload_save(save_item, true)
+                        );    
+                    }
+                    else if (res.reason === "Session key invalid.") {
+                        this.session.invalidate_session();
+                        this.notifications.add(
+                            "Session expired, please log back in and try again."
+                        );
+                    }
+                    else {
+                        this.notifications.add("Upload failed: " + res.reason);
+                    }
+                }
+                save_item.cloud_control.style.display = "";
+            }
+        );
+    }
+
+    upload_save(save_item, overwrite = false) {
+        if (save_item.save.code) {
+
+        }
+        else {
+            this.create_cloud_save(save_item);
+        }
     }
 }
 
@@ -3212,6 +3448,16 @@ class LoginMenu extends PanelMenu {
 
         this.set_up();
         this.update_fields();
+    }
+
+    show() {
+        super.show();
+
+        this.update_fields();
+
+        if (this.session.username && !this.session.logged_in) {
+            this.inputs.login_username = this.session.username;
+        }
     }
 
     set_up() {
@@ -3705,6 +3951,15 @@ class Session {
         }
     }
 
+    get logged_in() {
+        return this.session_key !== null;
+    }
+
+    invalidate_session() {
+        this.session_key = null;
+        this.set_cookies({"session_key": null});
+    }
+
     login(username, password, callback) {
         post(
             "/login",
@@ -3770,13 +4025,14 @@ class Session {
         );
     }
 
-    upload_sheet(sheet, title, callback) {
+    upload_sheet(sheet, title, overwrite, callback) {
         post(
             "/save",
             {
                 session_key: this.session_key,
                 sheet: sheet,
-                title: title
+                title: title,
+                overwrite: overwrite
             },
             callback
         );
@@ -3797,12 +4053,31 @@ class Session {
 
         return ret;
     }
+
+    set_cookies(cookies) {
+        this.write_cookies(Object.assign(this.parse_cookies(), cookies));
+    }
+
+    write_cookies(obj) {
+        let cookie = "";
+        Object.entries(obj).forEach(entry => {
+            let [key, value] = entry;
+
+            // Allow clearing cookies by assigning to falsey value
+            if (value) {
+                cookie += key + "=" + value + "; ";
+            }
+        });
+        document.cookie = cookie.slice(0, -2);
+    }
 }
 
 function set_up_workspace(sheet) {
     let session = new Session();
 
-    let save_menu = new SaveMenu(sheet);
+    sheet.image_manager = LocalImageManager.instance;
+
+    let save_menu = new SaveMenu(sheet, session);
     let settings_menu = new SettingsMenu();
     let login_menu = new LoginMenu(session);
 

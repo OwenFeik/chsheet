@@ -207,6 +207,9 @@ function update_one(table, values, where, callback) {
     });
 }
 
+/* End database functionality */
+/* Begin user related functions */
+
 function get_user(username, callback) {
     select_one("users", "*", { "username": username }, callback);
 }
@@ -243,8 +246,20 @@ function change_user_password(
     );
 }
 
+/* End user related functions */
+/* Begin sheet related functions */
+
 function valid_sheet_title(title) {
-    return title.length <= 32;
+    return title.length > 0 && title.length <= 32;
+}
+
+function valid_sheet_code(code) {
+    return /^[a-z0-9]{32}$/.test(code);
+}
+
+function valid_sheet_updated(updated) {
+    // 16e11 ~ 13/09/2020, roughly valid date range.
+    return (typeof updated === "number") && updated > 16e11;
 }
 
 function create_sheet(userid, code, title, sheet, updated, callback) {
@@ -262,13 +277,32 @@ function create_sheet(userid, code, title, sheet, updated, callback) {
     );
 }
 
-function valid_sheet_code(code) {
-    return /^[a-z0-9]{32}$/.test(code);
+function update_sheet(code, sheet, updated, callback) {
+    /* We update based on both userid and code to ensure that only the owner 
+        of a sheet can update it. */
+    update_one(
+        "sheets",
+        {
+            "sheet": sheet,
+            "updated": updated
+        },
+        {
+            "code": code
+        },
+        callback
+    );
 }
 
 function get_sheet(code, callback) {
     select_one("sheets", "*", { "code": code }, callback);
 }
+
+function check_title_exists(userid, title, callback) {
+    select("sheets", "*", {"userid": userid, "title": title}, callback);
+}
+
+/* End sheet related functions */
+/* Begin user session related functions */
 
 function create_user_session(session, callback) {
     insert(
@@ -310,14 +344,19 @@ function get_user_session(session_key, callback) {
     );
 }
 
+/* End user session related functions */
+
 exports.init = init;
 exports.get_user = get_user;
 exports.create_user = create_user;
 exports.change_user_password = change_user_password;
 exports.valid_sheet_title = valid_sheet_title;
-exports.create_sheet = create_sheet;
 exports.valid_sheet_code = valid_sheet_code;
+exports.valid_sheet_updated = valid_sheet_updated;
+exports.create_sheet = create_sheet;
+exports.update_sheet = update_sheet;
 exports.get_sheet = get_sheet;
+exports.check_title_exists = check_title_exists;
 exports.create_user_session = create_user_session;
 exports.end_user_session = end_user_session;
 exports.end_user_sessions = end_user_sessions; 

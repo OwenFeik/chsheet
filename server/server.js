@@ -189,55 +189,183 @@ app.post("/reset", (req, res) => {
     });
 });
 
-app.post("/save", (req, res) => {
-    let session_key = req.body.session_key;
-    let sheet = req.body.sheet;
-    let title = req.body.title;
+function update_sheet(res, userid, code, sheet, updated, overwrite) {
+    db.get_sheet(code, (err, record) => {
+        if (err) {
+            database_error(res);
+            return;
+        }
 
-    if (!(session_key && sheet && title)) {
-        res.writeHead(400);
-        return;
-    }
+        if (record.userid !== userid) {
+            respond(
+                res,
+                401,
+                { success: false, reason: "Sheet belongs to a different user." }
+            );
+            return;
+        }
 
-    if (!db.valid_sheet_title(title)) {
-        respond(res, 200, { success: false, reason: "Invalid sheet title." });
-        return;
-    }
-
-    let userid;
-    let session = auth.get_session(req.body.session_key);
-    if (session) {
-        userid = session.userid;
-    }
-    else {
-        respond(res, 401, { success: false, reason: "Session key invalid." });
-        return;
-    }
-
-    db.create_sheet(
-        userid,
-        auth.create_salt(),
-        title,
-        sheet,
-        new Date().getTime(),
-        (err, record) => {
-            if (err) {
-                database_error(res);
-                return;
+        if (record.updated > updated) {
+            if (overwrite) {
+                // We'll overwrite the newer sheet, so now is the latest update.
+                updated = new Date().getTime();
             }
             else {
                 respond(
                     res,
                     200,
                     {
-                        success: true,
-                        sheet: record.code,
-                        updated: record.updated
+                        success: false,
+                        reason: "Server has more recent version."
+                    }
+                );
+                return;
+            }
+        }
+
+        db.update_sheet(code, sheet, updated, (err, updated_record) => {
+            if (err) {
+                database_error(res);
+                return;
+            }
+
+            if (updated_record) {
+                respond(res, 200, { success: true, updated: updated });
+            }
+            else {
+                respond(
+                    res,
+                    200,
+                    { success: false, reason: "Sheet deleted during update." }
+                );
+            }
+        });
+    });
+}
+
+function create_sheet(res, userid, title, sheet, updated, overwrite) {
+    db.check_title_exists(userid, title, (err, record) => {
+        if (err) {
+            database_error(res);
+            return;
+        }
+
+        if (record) {
+            if (overwrite) {
+                db.update_sheet(
+                    record.code,
+                    sheet,
+                    updated,
+                    (err, record) => {
+                        if (err) {
+                            database_error(res);
+                        }
+                        else {
+                            respond(
+                                res,
+                                200,
+                                {
+                                    success: true,
+                                    code: record.code,
+                                    updated: record.updated
+                                }
+                            );
+                        }
                     }
                 );
             }
+            else {
+                respond(
+                    res,
+                    200,
+                    {
+                        success: false,
+                        reason: "Title in use.",
+                        code: record.code
+                    }
+                );  
+            }
+            return;
         }
-    );
+        
+        db.create_sheet(
+            userid,
+            auth.create_salt(),
+            title,
+            sheet,
+            updated,
+            (err, record) => {
+                if (err) {
+                    database_error(res);
+                }
+                else {
+                    respond(
+                        res,
+                        200,
+                        {
+                            success: true,
+                            code: record.code,
+                            updated: record.updated
+                        }
+                    );
+                }
+            }
+        );    
+    });
+}
+
+app.post("/save", (req, res) => {
+    let session_key = req.body.session_key;
+    let code = req.body.code;
+    let sheet = req.body.sheet;
+    let title = req.body.title;
+    let updated = req.body.updated;
+    let overwrite = req.body.overwrite || false;
+
+    if (!(session_key && sheet && updated && (title || code))) {
+        res.writeHead(400);
+        return;
+    }
+
+    if (title && !db.valid_sheet_title(title)) {
+        respond(res, 200, { success: false, reason: "Invalid sheet title." });
+        return;
+    }
+
+    if (code && !db.valid_sheet_code(code)) {
+        respond(res, 200, { success: false, reason: "Invalid sheet code." });
+        return;
+    }
+
+    if (!db.valid_sheet_updated(updated)) {
+        // If no updated time provided or invalid time provided, assume updated
+        // presently.
+        updated = new Date().getTime();
+    }
+
+    auth.get_session(req.body.session_key, (err, session) => {
+        if (err) {
+            database_error(res);
+        }
+
+        let userid;
+        if (session) {
+            userid = session.userid;
+        }
+        else {
+            respond(
+                res, 401, { success: false, reason: "Session key invalid." }
+            );
+            return;
+        }
+
+        if (code) {
+            update_sheet(res, userid, code, sheet, updated, overwrite);
+        }
+        else {
+            create_sheet(res, userid, title, sheet, updated);
+        }
+    });
 });
 
 app.get("/load", (req, res) => {    
