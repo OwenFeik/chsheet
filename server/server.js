@@ -230,7 +230,7 @@ function update_sheet(res, userid, code, sheet, updated, overwrite) {
             }
 
             if (updated_record) {
-                respond(res, 200, { success: true, updated: updated });
+                respond(res, 200, { success: true, time: updated });
             }
             else {
                 respond(
@@ -267,7 +267,7 @@ function create_sheet(res, userid, title, sheet, updated, overwrite) {
                                 {
                                     success: true,
                                     code: record.code,
-                                    updated: record.updated
+                                    time: record.updated
                                 }
                             );
                         }
@@ -305,7 +305,7 @@ function create_sheet(res, userid, title, sheet, updated, overwrite) {
                         {
                             success: true,
                             code: record.code,
-                            updated: record.updated
+                            time: record.updated
                         }
                     );
                 }
@@ -343,32 +343,19 @@ app.post("/save", (req, res) => {
         updated = new Date().getTime();
     }
 
-    auth.get_session(req.body.session_key, (err, session) => {
-        if (err) {
-            database_error(res);
-        }
-
-        let userid;
-        if (session) {
-            userid = session.userid;
-        }
-        else {
-            respond(
-                res, 401, { success: false, reason: "Session key invalid." }
-            );
-            return;
-        }
-
+    session_handling(res, session_key, session => {
         if (code) {
-            update_sheet(res, userid, code, sheet, updated, overwrite);
+            update_sheet(res, session.userid, code, sheet, updated, overwrite);
         }
         else {
-            create_sheet(res, userid, title, sheet, updated);
+            create_sheet(res, session.userid, title, sheet, updated);
         }
     });
 });
 
 app.get("/load", (req, res) => {    
+    // Allow loading of single sheets without authentication, this allows one
+    // to share their sheet by url.
     let code = req.body.sheet_code;
 
     if (!db.valid_code(code)) {
@@ -388,9 +375,10 @@ app.get("/load", (req, res) => {
                 200,
                 {
                     success: true,
+                    code: record.code,
                     title: record.title,
                     sheet: record.sheet,
-                    updated: record.updated
+                    time: record.updated
                 }
             );
         }
@@ -400,14 +388,69 @@ app.get("/load", (req, res) => {
     });
 });
 
+app.get("/loadall", (req, res) => {
+    session_handling(res, req.body.session_key, session => {
+        db.get_all_sheets(session.userid, (err, records) => {
+            if (err) {
+                database_error(err);
+                return;
+            }
+
+            let sheets = records.map(record => {
+                return {
+                    code: record.code,
+                    title: record.title,
+                    sheet: record.sheet,
+                    time: record.updated
+                };
+            });
+
+            respond(res, 200, { success: true, sheets: sheets });
+        });
+    });
+});
+
 app.listen(8080);
 console.log("Server running on http://localhost:8080");
 
+// Respond to a request with the supplied status code and JSON body.
+function respond(res, code, body) {
+    res.writeHead(code);
+    res.end(Object.assign(JSON.stringify(body), { status: code }));
+}
+
+// Generic response for if a database error occurs.
 function database_error(res) {
     respond(res, 500, { success: false, reason: "Database error." });
 }
 
-function respond(res, code, body) {
-    res.writeHead(code);
-    res.end(JSON.stringify(body));
+// Checks if a session key has the right format, returning true if so or
+// responding to the request as such if not.
+function validate_session_key(res, session_key) {
+    if (auth.valid_session_key(session_key)) {
+        return true;
+    }
+    respond(res, 200, { success: false, reason: "Invalid session key." });
+    return false;
+}
+
+// Attempts to get the session for a given session key, calling callback with
+// the session if successful or responding to the request with an appropriate
+// message if not.
+function session_handling(res, session_key, callback) {
+    if (validate_session_key(res, session_key)) {
+        auth.get_session(session_key, (err, session) => {
+            if (err) {
+                database_error(res);
+            }
+            else if (session) {
+                callback(session);
+            }
+            else {
+                respond(
+                    res, 401, { success: false, reason: "Session expired." }
+                );
+            }
+        });
+    }
 }

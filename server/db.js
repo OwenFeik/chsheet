@@ -297,6 +297,10 @@ function get_sheet(code, callback) {
     select_one("sheets", "*", { "code": code }, callback);
 }
 
+function get_all_sheets(userid, callback) {
+    select("sheets", "*", { "userid": userid }, callback);
+}
+
 function check_title_exists(userid, title, callback) {
     select("sheets", "*", {"userid": userid, "title": title}, callback);
 }
@@ -356,6 +360,7 @@ exports.valid_sheet_updated = valid_sheet_updated;
 exports.create_sheet = create_sheet;
 exports.update_sheet = update_sheet;
 exports.get_sheet = get_sheet;
+exports.get_all_sheets = get_all_sheets;
 exports.check_title_exists = check_title_exists;
 exports.create_user_session = create_user_session;
 exports.end_user_session = end_user_session;

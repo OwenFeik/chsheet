@@ -404,6 +404,7 @@ class TransformableSheetElement extends SheetElement {
         }
     }
 
+    // TODO dragging is wrong when not at default zoom
     start_drag(e) {
         this.transforming = true;
 
@@ -2307,20 +2308,20 @@ class PinnablePreviewGhost extends SizeablePreviewGhost {
 class Sheet extends GridElement {
     static DOCUMENT_TITLE_PREFIX = "chsheet: ";
 
-    constructor(save_title = "untitled") {
+    constructor(save_title = "untitled", code = null) {
         super("div", ["sheet"], {
             width: 0,
             height: 0
         });
 
         this._save_title = null;
-        this.save_title = save_title;
+        this.save_title = save_title || null;
+        this.code = code || null;
 
-        this.element.style.display = "grid";
+        this.elements = [];
 
         this.resize_to_screen();
-    
-        this.elements = [];
+        window.onresize = _ => this.resize_to_screen();
 
         // elements that need their sheet reference updated when this sheet
         // is replaced with another
@@ -2383,13 +2384,39 @@ class Sheet extends GridElement {
             cell.repeat(this.height).slice(0, -1);
     }
 
+    min_size() {
+        let w = 0, h = 0;
+
+        this.elements.forEach(el => {
+            if (el.x + el.w > w) {
+                w = el.x + el.w;
+            }
+
+            if (el.y + el.h > h) {
+                h = el.y + el.h;
+            }
+        });
+
+        return [w, h];
+    }
+
     resize_to_screen() {
-        this.width = Math.floor(
-            window.innerWidth / (GridElement.grid_size + GridElement.grid_gap)
-        ) - 1;
-        this.height = Math.floor(
-            window.innerHeight / (GridElement.grid_size + GridElement.grid_gap)
-        ) - 1;
+        const [min_width, min_height] = this.min_size();
+
+        this.width = Math.max(
+            min_width,
+            Math.floor(
+                window.innerWidth
+                / (GridElement.grid_size + GridElement.grid_gap)
+            ) - 1
+        );
+        this.height = Math.max(
+            min_height,
+            Math.floor(
+                window.innerHeight
+                / (GridElement.grid_size + GridElement.grid_gap)
+            ) - 1
+        );
     }
 
     placement_click_to_grid_coord(e, delta_x = 0, delta_y = 0) {
@@ -2419,7 +2446,7 @@ class Sheet extends GridElement {
     }
 
     to_json() {
-        let json =  {
+        let json = {
             title: this.save_title,
             time: new Date().getTime(),
             data: {
@@ -2431,14 +2458,12 @@ class Sheet extends GridElement {
     }
 
     static from_json(save) {
-        let new_sheet = new Sheet(save.title);
+        let new_sheet = new Sheet(save.title, save.code);
 
         if (save.data.nodes) {
             save.data.nodes.forEach(node_data => {
-                new_sheet.add_element(
-                    SheetNode.from_json(
-                        Object.assign(node_data, { sheet: new_sheet })
-                    )
+                SheetNode.from_json(
+                    Object.assign(node_data, { sheet: new_sheet })
                 );
             });    
         }
@@ -2606,6 +2631,7 @@ class AddNodeTool extends ModeTool {
         if (this.preview_ghost) {
             this.preview_ghost.end_preview();
         }
+        this.sheet.resize_to_screen();
     }
 }
 
@@ -3118,7 +3144,7 @@ class SaveMenu extends PanelMenu {
             this.save_list_loaded = true;
         }
 
-        this.cloud_control = this.session.logged_in;
+        this.cloud_control.visible = this.session.logged_in;
     }
 
     set_active_save(save) {
@@ -3151,6 +3177,7 @@ class SaveMenu extends PanelMenu {
             () => {
                 let saves_to_delete = this.selected();
                 if (saves_to_delete.length) {
+                    // TODO
                     delete_sheets(
                         saves_to_delete.map(save_item => save_item.save.title),
                         this.callback
@@ -3167,7 +3194,6 @@ class SaveMenu extends PanelMenu {
 
         this.controls.add_control(new Control(
             () => {
-                // TODO load example properly
                 fetch("/example.json").then(resp => resp.json()).then(
                     data => this.set_active_save({
                         title: "example",
@@ -3183,8 +3209,6 @@ class SaveMenu extends PanelMenu {
             }
         ));
 
-        // TODO displays wrong cursor on hover, input is slightly
-        // misaligned
         this.controls.add_control(new UploadControl(
             f => upload_sheet(f, this.callback),
             {
@@ -3210,7 +3234,6 @@ class SaveMenu extends PanelMenu {
             }
         ));
 
-        // TODO IMPORTANT saving sheet doubles all nodes up
         this.controls.add_control(new Control(
             () => {
                 if (this.validate_title()) {
@@ -3252,10 +3275,58 @@ class SaveMenu extends PanelMenu {
         );
     }
 
+    get_save(title = null, code = null) {
+        for (save_item in this.save_items) {
+            if (
+                title && save_item.title === title
+                || code && save_item.code === code
+            ) {
+                return save_item;
+            }
+        }
+        return null;
+    }
+
+    // TODO
+    sync_saves(sheets) {
+        sheets.forEach(sheet => {
+            let save = this.get_save(null, sheet.code);
+            if (save) {
+                if (save.updated < sheet.updated) {
+                    save_sheet(sheet, this.callback);
+                }
+                else {
+                    // Prompt to replace cloud save
+                }
+            }
+            else if (save = this.get_save(sheet.title)) {
+                // Prompt to replace local save
+            }
+            else {
+                save_sheet(sheet, this.callback);
+            }
+        });
+    }
+
     set_up() {
         this.set_up_header();
         this.set_up_body();
         this.notifications = new PanelMenuNotificationTray(this);
+
+        if (this.session.logged_in) {
+            this.session.load_all(res => {
+                if (res.success) {
+                    this.sync_saves(res.sheets);
+                }
+                else if (res.status != 500) {
+                    // All non server-error failures are due to a login issue.
+                    this.clear_session();
+                    this.notifications.add(
+                        "Session expired, please log back in and try again."
+                    );
+                }
+            });
+        }
     }
 
     set_all_checkboxes(bool = true) {
@@ -3317,7 +3388,7 @@ class SaveMenu extends PanelMenu {
                     save_item.save.updated = res.updated;
 
                     // Update local save with code.
-                    insert_to_db(save_item.save);
+                    insert_to_db(save_item.save, this.callback);
                 }
                 else {
                     save_item.cloud_control.classList.add(
@@ -3334,8 +3405,8 @@ class SaveMenu extends PanelMenu {
                             () => this.upload_save(save_item, true)
                         );    
                     }
-                    else if (res.reason === "Session key invalid.") {
-                        this.session.invalidate_session();
+                    else if (res.reason === "Session expired.") {
+                        this.clear_session();
                         this.notifications.add(
                             "Session expired, please log back in and try again."
                         );
@@ -3354,8 +3425,20 @@ class SaveMenu extends PanelMenu {
 
         }
         else {
-            this.create_cloud_save(save_item);
+            this.create_cloud_save(save_item, overwrite);
         }
+    }
+
+    clear_session() {
+        // Delete local copies of saves
+        this.save_items.forEach(
+            save_item => {
+                if (save_item.save.code) {
+                    delete_sheet(save_item.save.title);
+                }
+            }
+        );
+        this.session.invalidate_session();
     }
 }
 
@@ -3909,6 +3992,7 @@ class LoginMenu extends PanelMenu {
 
 class Session {
     static RECOVERY_KEY_MAX_AGE = 24 * 60 * 60 * 1000; // 1 day
+    static COOKIE_OPTIONS = "; SameSite=Lax; Secure";
 
     constructor() {
         this.username = null;
@@ -3957,7 +4041,7 @@ class Session {
 
     invalidate_session() {
         this.session_key = null;
-        this.set_cookies({"session_key": null});
+        this.write_cookies({ session_key: null });
     }
 
     login(username, password, callback) {
@@ -4038,6 +4122,14 @@ class Session {
         );
     }
 
+    load_all(callback) {
+        get(
+            "/loadall",
+            { session_key: this.session_key },
+            callback
+        );
+    }
+
     check_cookies() {
         const cookies = this.parse_cookies();
         this.username = cookies.username || null;
@@ -4054,21 +4146,20 @@ class Session {
         return ret;
     }
 
-    set_cookies(cookies) {
-        this.write_cookies(Object.assign(this.parse_cookies(), cookies));
-    }
-
     write_cookies(obj) {
-        let cookie = "";
         Object.entries(obj).forEach(entry => {
             let [key, value] = entry;
 
             // Allow clearing cookies by assigning to falsey value
             if (value) {
-                cookie += key + "=" + value + "; ";
+                document.cookie = (
+                    key + "=" + value + "; " + Session.COOKIE_OPTIONS
+                );
+            }
+            else {
+                document.cookie = key + "=" + Session.COOKIE_OPTIONS;
             }
         });
-        document.cookie = cookie.slice(0, -2);
     }
 }
 
@@ -4161,14 +4252,22 @@ function create_element(tagname, classes, attributes, styles) {
     return el;
 }
 
-function post(endpoint, body, callback) {
+function request(method, endpoint, body, callback) {
     let req = new XMLHttpRequest();
     req.responseType = "json";
     req.onerror = () => alert("Network error. Please try again later.");
     req.onload = () => {
         callback(req.response);
     };
-    req.open("POST", endpoint);
+    req.open(method, endpoint);
     req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
     req.send(JSON.stringify(body));
+}
+
+function post(endpoint, body, callback) {
+    request("POST", endpoint, body, callback);
+}
+
+function get(endpoint, body, callback) {
+    request("GET", endpoint, body, callback);
 }

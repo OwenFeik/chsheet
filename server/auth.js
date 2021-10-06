@@ -30,6 +30,14 @@ function create_salt(length = HASH_SALT_LENGTH) {
     return crypto.randomBytes(length).toString('hex');
 }
 
+function valid_salt(salt, length) {
+    return (
+        typeof salt === "string"
+        && salt.length === length
+        && /^[a-z0-9]+$/.test(salt)
+    );
+}
+
 function hash_password(password, salt) {
     return crypto.pbkdf2Sync(
         password,
@@ -87,6 +95,10 @@ function valid_email(email) {
     // Note: email is not currently a compulsory field, so null is acceptable.
     // However if an email is supplied it must be valid.
     return email === null || EMAIL_REGEX.test(email);
+}
+
+function valid_session_key(session_key) {
+    return valid_salt(session_key, SESSION_KEY_LENGTH);
 }
 
 class Session {
@@ -230,6 +242,7 @@ exports.check_password = check_password;
 exports.valid_username = valid_username;
 exports.valid_password = valid_password;
 exports.valid_email = valid_email;
+exports.valid_session_key = valid_session_key;
 exports.begin_session = userid => session_manager.begin(userid);
 exports.end_session = (session_key, callback) => session_manager.end(
     session_key, callback
