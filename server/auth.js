@@ -98,7 +98,7 @@ function valid_email(email) {
 }
 
 function valid_session_key(session_key) {
-    return valid_salt(session_key, SESSION_KEY_LENGTH);
+    return valid_salt(session_key, SESSION_KEY_LENGTH * 2);
 }
 
 class Session {

@@ -67,7 +67,7 @@ function where_string(where, i = 1) {
         if (string) {
             string += " AND ";
         }
-        string += `${k} = $${i}`;
+        string += `${k} = $${i++}`;
         params.push(v);
     }
 
@@ -89,11 +89,11 @@ function column_string(columns) {
 
 function select(table, columns = "*", where = null, callback) {
     const [string, params] = where_string(where);
-    client.query(
-        `SELECT ${column_string(columns)} FROM ${table}${string};`,
-        params,
-        callback
+    const query_string = (
+        `SELECT ${column_string(columns)} FROM ${table}${string};`
     );
+    
+    client.query(query_string, params, callback);
 }
 
 function select_one(table, columns, where, callback) {
@@ -188,12 +188,7 @@ function update(table, values, where, callback) {
         + " RETURNING *;"
     );
 
-    if (callback) {
-        client.query(query_string, params, callback);
-    }
-    else {
-        client.query(query_string, params);
-    }
+    client.query(query_string, params, callback);
 }
 
 function update_one(table, values, where, callback) {
@@ -205,6 +200,18 @@ function update_one(table, values, where, callback) {
             callback(err, res.rows[0]);
         }
     });
+}
+
+function del(table, where, callback) {
+    const [where_str, where_params] = where_string(where);
+    const query_string = (
+        "DELETE FROM "
+        + table
+        + where_str
+        + ";"
+    );
+
+    client.query(query_string, where_params, callback);
 }
 
 /* End database functionality */
@@ -302,7 +309,11 @@ function get_all_sheets(userid, callback) {
 }
 
 function check_title_exists(userid, title, callback) {
-    select("sheets", "*", {"userid": userid, "title": title}, callback);
+    select_one("sheets", "*", {"userid": userid, "title": title}, callback);
+}
+
+function delete_sheet(code, callback) {
+    del("sheets", { "code": code }, callback);
 }
 
 /* End sheet related functions */
@@ -361,6 +372,7 @@ exports.create_sheet = create_sheet;
 exports.update_sheet = update_sheet;
 exports.get_sheet = get_sheet;
 exports.get_all_sheets = get_all_sheets;
+exports.delete_sheet = delete_sheet;
 exports.check_title_exists = check_title_exists;
 exports.create_user_session = create_user_session;
 exports.end_user_session = end_user_session;

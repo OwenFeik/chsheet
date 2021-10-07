@@ -230,7 +230,7 @@ function update_sheet(res, userid, code, sheet, updated, overwrite) {
             }
 
             if (updated_record) {
-                respond(res, 200, { success: true, time: updated });
+                respond(res, 200, { success: true, code: code, time: updated });
             }
             else {
                 respond(
@@ -315,15 +315,14 @@ function create_sheet(res, userid, title, sheet, updated, overwrite) {
 }
 
 app.post("/save", (req, res) => {
-    let session_key = req.body.session_key;
     let code = req.body.code;
     let sheet = req.body.sheet;
     let title = req.body.title;
     let updated = req.body.updated;
     let overwrite = req.body.overwrite || false;
 
-    if (!(session_key && sheet && updated && (title || code))) {
-        res.writeHead(400);
+    if (!(sheet && updated && (title || code))) {
+        respond(res, 400, { success: false, reason: "Invalid request." });
         return;
     }
 
@@ -332,8 +331,7 @@ app.post("/save", (req, res) => {
         return;
     }
 
-    if (code && !db.valid_sheet_code(code)) {
-        respond(res, 200, { success: false, reason: "Invalid sheet code." });
+    if (code && !validate_sheet_code(res, code)) {
         return;
     }
 
@@ -343,12 +341,12 @@ app.post("/save", (req, res) => {
         updated = new Date().getTime();
     }
 
-    session_handling(res, session_key, session => {
+    session_handling(req, res, session => {
         if (code) {
             update_sheet(res, session.userid, code, sheet, updated, overwrite);
         }
         else {
-            create_sheet(res, session.userid, title, sheet, updated);
+            create_sheet(res, session.userid, title, sheet, updated, overwrite);
         }
     });
 });
@@ -377,7 +375,7 @@ app.get("/load", (req, res) => {
                     success: true,
                     code: record.code,
                     title: record.title,
-                    sheet: record.sheet,
+                    data: record.sheet,
                     time: record.updated
                 }
             );
@@ -389,23 +387,60 @@ app.get("/load", (req, res) => {
 });
 
 app.get("/loadall", (req, res) => {
-    session_handling(res, req.body.session_key, session => {
+    session_handling(req, res, session => {
         db.get_all_sheets(session.userid, (err, records) => {
             if (err) {
                 database_error(err);
                 return;
             }
 
-            let sheets = records.map(record => {
+            let sheets = records.rows.map(record => {
                 return {
                     code: record.code,
                     title: record.title,
-                    sheet: record.sheet,
+                    data: record.sheet,
                     time: record.updated
                 };
             });
 
             respond(res, 200, { success: true, sheets: sheets });
+        });
+    });
+});
+
+app.post("/delete", (req, res) => {
+    let code = req.body.code;
+    if (!validate_sheet_code(res, code)) {
+        return;
+    }
+
+    session_handling(req, res, session => {
+        db.get_sheet(code, (err, record) => {
+            if (err) {
+                database_error(res);
+                return;
+            }
+
+            if (record.userid !== session.userid) {
+                respond(
+                    res,
+                    200,
+                    {
+                        success: false,
+                        reason: "Sheet belongs to a different user."
+                    }
+                );
+                return;
+            }
+
+            db.delete_sheet(code, err => {
+                if (err) {
+                    database_error(res);
+                }
+                else {
+                    respond(res, 200, { success: true });
+                }
+            });
         });
     });
 });
@@ -416,12 +451,20 @@ console.log("Server running on http://localhost:8080");
 // Respond to a request with the supplied status code and JSON body.
 function respond(res, code, body) {
     res.writeHead(code);
-    res.end(Object.assign(JSON.stringify(body), { status: code }));
+    res.end(JSON.stringify(Object.assign(body, { status: code })));
 }
 
 // Generic response for if a database error occurs.
 function database_error(res) {
     respond(res, 500, { success: false, reason: "Database error." });
+}
+
+function validate_sheet_code(res, code) {
+    if (db.valid_sheet_code(code)) {
+        return true;
+    }
+    respond(res, 200, { success: false, reason: "Invalid sheet code." });
+    return false;
 }
 
 // Checks if a session key has the right format, returning true if so or
@@ -437,7 +480,8 @@ function validate_session_key(res, session_key) {
 // Attempts to get the session for a given session key, calling callback with
 // the session if successful or responding to the request with an appropriate
 // message if not.
-function session_handling(res, session_key, callback) {
+function session_handling(req, res, callback) {
+    let session_key = req.cookies.session_key;
     if (validate_session_key(res, session_key)) {
         auth.get_session(session_key, (err, session) => {
             if (err) {

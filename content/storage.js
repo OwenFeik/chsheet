@@ -1,6 +1,6 @@
 var db;
 
-function set_up_db() {
+function set_up_db(callback = null) {
     let request = window.indexedDB.open("sheet_db", 1);
 
     request.onerror = function () {
@@ -8,7 +8,11 @@ function set_up_db() {
     };
 
     request.onsuccess = function () {
-        db = request.result; 
+        db = request.result;
+        
+        if (callback) {
+            callback();
+        } 
     };
 
     request.onupgradeneeded = function (e) {
@@ -119,6 +123,16 @@ function delete_sheets(titles, callback=null) {
 
     titles.forEach(title => {
         sheet_store.delete(title);
+    });
+}
+
+function delete_cloud_saves() {
+    get_all_sheets(sheets => {
+        delete_sheets(
+            sheets.filter(
+                sheet => Boolean(sheet.code)
+            ).map(sheet => sheet.title)
+        );
     });
 }
 

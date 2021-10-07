@@ -2935,6 +2935,76 @@ class SaveListItem extends ElementWrapper {
         this.owner = owner;
         this.save = save;
 
+        this.checkbox = null;
+        this.cloud_control = null;
+        this.title_label = null;
+        this.time_label = null;
+        this.set_up(save);
+
+        this._title = null;
+        this.title = save.title;
+    
+        this._code = null;
+        this.code = save.code;
+        
+        this._time = null;
+        this.time = save.time;
+    }
+
+    get selected() {
+        return this.checkbox.value;
+    }
+
+    set selected(bool) {
+        this.checkbox.value = bool;
+    }
+
+    get title() {
+        return this._title;
+    }
+
+    set title(new_title) {
+        this._title = new_title;
+        this.title_label.innerText = this._title;
+    }
+
+    get code() {
+        return this._code;
+    }
+
+    set code(new_code) {
+        if (new_code) {
+            this.cloud_control.classList.remove("invalid");
+            this.cloud_control.style.display = "";
+            this.cloud_control.title = "Cloud save";
+        }
+        else {
+            this.cloud_control.style.display = "none";
+        }
+        this._code = new_code;
+    }
+
+    get time() {
+        return this._time;
+    }
+
+    set time(new_time) {
+        this._time = new_time;
+        
+        let update = new Date(parseInt(new_time));
+        this.time_label.innerText = update.toLocaleDateString("en-AU");
+        this.time_label.title = (
+            "Last updated: " + update.toLocaleString("en-AU")
+        );
+    }
+
+    show_invalid() {
+        this.cloud_control.style.display = "";
+        this.cloud_control.classList.add("invalid");
+        this.cloud_control.title = "Upload failed";
+    }
+
+    set_up(save) {
         this.checkbox = new Checkbox(false, [], false);
         this.element.appendChild(this.checkbox.element);
 
@@ -2943,10 +3013,11 @@ class SaveListItem extends ElementWrapper {
             {
                 background: false,
                 icon: "cloud.png",
-                title: "Stored in cloud.",
+                title: "Cloud save",
                 visible: save.code !== undefined
             }
         ).element;
+        this.cloud_control.style.cursor = "default";
         this.element.appendChild(this.cloud_control);
 
         this.title_label = create_element(
@@ -2958,12 +3029,15 @@ class SaveListItem extends ElementWrapper {
             }
         );
         this.title_label.onclick = () => {
-            this.owner.sheet.replace(Sheet.from_json(this.save));
+            load_sheet(
+                this.title,
+                data => this.owner.set_active_save(data)
+            );            
         };
         this.element.appendChild(this.title_label);
 
         let update = new Date(save.time);
-        this.element.appendChild(
+        this.time_label = this.element.appendChild(
             create_element(
                 "span",
                 ["label"],
@@ -2989,10 +3063,14 @@ class SaveListItem extends ElementWrapper {
         let controls = new ControlBox({ classes: ["spaced"] });
         controls.add_control(
             new Control(
-                // TODO this assuems that sheets have an id, not just a title
                 () => {
-                    delete_sheet(save.title);
-                    this.owner.remove_save(this);
+                    this.owner.notifications.add(
+                        `Delete "${this.title}"?`,
+                        true,
+                        () => {
+                            this.owner.delete_saves([this]);
+                        }
+                    );
                 },
                 {
                     background: false,
@@ -3012,30 +3090,12 @@ class SaveListItem extends ElementWrapper {
             )
         );
         this.element.appendChild(controls.element);
-
-        this._save_title = null;
-        this.save_title = save.title;
-    }
-
-    get selected() {
-        return this.checkbox.value;
-    }
-
-    set selected(bool) {
-        this.checkbox.value = bool;
-    }
-
-    get save_title() {
-        return this._save_title;
-    }
-
-    set save_title(new_title) {
-        this._save_title = new_title;
-        this.title_label.innerText = this._save_title;
     }
 }
 
 class PanelMenuNotificationTray extends ElementWrapper {
+    static ANIMATION_DURATION = 250;
+
     constructor(parent) {
         super("div", ["notification_tray"]);
 
@@ -3081,7 +3141,16 @@ class PanelMenuNotificationTray extends ElementWrapper {
         }
 
         if (duration) {
-            setTimeout(() => el.remove(), duration);
+            setTimeout(
+                () => {
+                    el.classList.add("fading");
+                    setTimeout(
+                        () => el.remove(),
+                        PanelMenuNotificationTray.ANIMATION_DURATION
+                    );
+                },
+                duration + PanelMenuNotificationTray.ANIMATION_DURATION
+            );
         }
 
         this.element.appendChild(el);
@@ -3104,6 +3173,7 @@ class SaveMenu extends PanelMenu {
     */
 
     static SHEET_TITLE_MAX_LENGTH = 32;
+    static NOTIFICATION_DURATION = 3000;
 
     constructor(sheet, session) {
         super();
@@ -3113,8 +3183,6 @@ class SaveMenu extends PanelMenu {
 
         this.session = session;
 
-        this.save_list_loaded = false;
-
         this.save_items = [];
 
         this.callback = () => this.reload_saves();
@@ -3122,6 +3190,8 @@ class SaveMenu extends PanelMenu {
         this.set_up();
 
         this.save_title = this.sheet.save_title;
+
+        this.loaded_saves_for = null;
     }
 
     get save_title() {
@@ -3132,19 +3202,22 @@ class SaveMenu extends PanelMenu {
         this.header_input.value = new_title;
     }
 
-    get selected() {
+    selected() {
         return this.save_items.filter(i => i.selected);
     }
 
     show() {
         super.show();
+        this.reload_saves();
 
-        if (!this.save_list_loaded) {
-            this.reload_saves();
-            this.save_list_loaded = true;
+        let online = this.session.logged_in;
+        this.cloud_control.visible = online;
+        this.reload_control.visible = online;
+
+        if (this.loaded_saves_for !== this.session.session_key) {
+            this.sync_saves();
+            this.loaded_saves_for = this.session.session_key;
         }
-
-        this.cloud_control.visible = this.session.logged_in;
     }
 
     set_active_save(save) {
@@ -3177,13 +3250,29 @@ class SaveMenu extends PanelMenu {
             () => {
                 let saves_to_delete = this.selected();
                 if (saves_to_delete.length) {
-                    // TODO
-                    delete_sheets(
-                        saves_to_delete.map(save_item => save_item.save.title),
-                        this.callback
+                    let message;
+                    if (saves_to_delete.length === 1) {
+                        message = "Delete 1 save?";
+                    }
+                    else {
+                        message = `Delete ${saves_to_delete.length} saves?`;
+                    }
+
+                    this.notifications.add(
+                        message,
+                        true,
+                        () => this.delete_saves(saves_to_delete)
                     );
-                    this.header_checkbox.value = false;
                 }
+                else {
+                    this.notifications.add(
+                        "No sheets selected.",
+                        true,
+                        null,
+                        SaveMenu.NOTIFICATION_DURATION
+                    );
+                }
+                this.header_checkbox.value = false;
             },
             {
                 background: false,
@@ -3222,15 +3311,32 @@ class SaveMenu extends PanelMenu {
 
         this.cloud_control = this.controls.add_control(new Control(
             () => {
-                let saves_to_upload = this.selected;
+                let saves_to_upload = this.selected();
                 saves_to_upload.forEach(save_item => {
                     this.upload_save(save_item);
                 });
+                this.set_all_checkboxes(false);
             },
             {
                 background: false,
                 icon: "cloud.png",
                 title: "Store selected in cloud"
+            }
+        ));
+
+        this.reload_control = this.controls.add_control(new Control(
+            () => this.sync_saves(() => {
+                this.notifications.add(
+                    "Cloud saves refreshed.",
+                    true,
+                    null,
+                    SaveMenu.NOTIFICATION_DURATION
+                );
+            }),
+            {
+                background: false,
+                icon: "reset.png",
+                title: "Refresh cloud saves"
             }
         ));
 
@@ -3276,7 +3382,7 @@ class SaveMenu extends PanelMenu {
     }
 
     get_save(title = null, code = null) {
-        for (save_item in this.save_items) {
+        for (const save_item in this.save_items) {
             if (
                 title && save_item.title === title
                 || code && save_item.code === code
@@ -3288,45 +3394,55 @@ class SaveMenu extends PanelMenu {
     }
 
     // TODO
-    sync_saves(sheets) {
-        sheets.forEach(sheet => {
-            let save = this.get_save(null, sheet.code);
-            if (save) {
-                if (save.updated < sheet.updated) {
-                    save_sheet(sheet, this.callback);
+    sync_saves(callback = null) {
+        if (this.session.logged_in) {
+            this.session.load_all(res => {
+                if (res.success) {
+                    res.sheets.forEach(sheet => {
+                        let save = this.get_save(null, sheet.code);
+                        if (save) {
+                            if (save.updated < sheet.updated) {
+                                save_sheet(sheet, this.callback);
+                            }
+                            else {
+                                // Prompt to replace cloud save
+                            }
+                        }
+                        else if (save = this.get_save(sheet.title)) {
+                            // Prompt to replace local save
+                        }
+                        else {
+                            insert_to_db(sheet, this.callback);
+                        }
+                    });
                 }
-                else {
-                    // Prompt to replace cloud save
+                else if (res.status != 500) {
+                    // All non server-error failures are due to a login issue.
+                    this.session.invalidate_session();
+                    this.notifications.add(
+                        "Session expired, please log back in and try again."
+                    );
                 }
-            }
-            else if (save = this.get_save(sheet.title)) {
-                // Prompt to replace local save
-            }
-            else {
-                save_sheet(sheet, this.callback);
-            }
-        });
+
+                if (callback) {
+                    callback();
+                }
+            });
+        }
+        else {
+            this.notifications.add(
+                "Not logged in.",
+                true,
+                null,
+                SaveMenu.NOTIFICATION_DURATION
+            );
+        }
     }
 
     set_up() {
         this.set_up_header();
         this.set_up_body();
         this.notifications = new PanelMenuNotificationTray(this);
-
-        if (this.session.logged_in) {
-            this.session.load_all(res => {
-                if (res.success) {
-                    this.sync_saves(res.sheets);
-                }
-                else if (res.status != 500) {
-                    // All non server-error failures are due to a login issue.
-                    this.clear_session();
-                    this.notifications.add(
-                        "Session expired, please log back in and try again."
-                    );
-                }
-            });
-        }
     }
 
     set_all_checkboxes(bool = true) {
@@ -3340,9 +3456,9 @@ class SaveMenu extends PanelMenu {
         this.save_items = [];
     }
 
-    remove_save(save) {
+    remove_save(save_item) {
         this.save_items = this.save_items.filter(i => {
-            if (i === save) {
+            if (i === save_item) {
                 i.remove();
                 return false;
             }
@@ -3366,79 +3482,157 @@ class SaveMenu extends PanelMenu {
         });
     }
 
-    create_cloud_save(save_item, overwrite = false) {
-        this.session.upload_sheet(
-            save_item.save.data,
-            save_item.save.title,
-            overwrite,
-            res => {
-                if (res.success) {
-                    save_item.cloud_control.classList.remove(
-                        "invalid"
-                    );
-                    save_item.cloud_control.title = "Cloud save";
-                    this.notifications.add(
-                        `Successfully saved "${save_item.save.title}" under`
-                        + " your account.",
-                        true,
-                        null,
-                        2000
-                    );
-                    save_item.save.code = res.code;
-                    save_item.save.updated = res.updated;
+    delete_saves(save_items) {
+        delete_sheets(
+            save_items.map(save_item => save_item.title),
+            this.callback
+        );
 
-                    // Update local save with code.
-                    insert_to_db(save_item.save, this.callback);
-                }
-                else {
-                    save_item.cloud_control.classList.add(
-                        "invalid"
-                    );
-                    save_item.cloud_control.title = "Upload failed";
-
-                    if (res.reason === "Title in use.") {
+        if (this.session.logged_in) {
+            save_items.forEach(save_item => {
+                this.session.delete_sheet(save_item.code, res => {
+                    if (!res.success) {
                         this.notifications.add(
-                            "You already have a sheet titled "
-                            + `"${save_item.save.title}"`
-                            + ". Would you like to overwrite it?",
-                            true,
-                            () => this.upload_save(save_item, true)
-                        );    
-                    }
-                    else if (res.reason === "Session expired.") {
-                        this.clear_session();
-                        this.notifications.add(
-                            "Session expired, please log back in and try again."
+                            `Failed to delete "${save_item.title}" on server: `
+                            + res.reason
                         );
                     }
-                    else {
-                        this.notifications.add("Upload failed: " + res.reason);
-                    }
-                }
-                save_item.cloud_control.style.display = "";
-            }
+                });
+            });
+        }
+    }
+
+    handle_successful_cloud_save(save_item, code, time) {
+        this.notifications.add(
+            `Successfully saved "${save_item.title}" under`
+            + " your account.",
+            true,
+            null,
+            SaveMenu.NOTIFICATION_DURATION
+        );
+        save_item.code = code;
+        save_item.time = time;
+
+        // Update existing record with server code
+        get_sheet_from_db(save_item.title, save => {
+            insert_to_db(Object.assign(save, { code: code }));
+        });
+    }
+
+    handle_unsuccessful_cloud_save(save_item, reason) {
+        save_item.show_invalid();
+        if (reason === "Title in use.") {
+            this.notifications.add(
+                "You already have a sheet titled "
+                + `"${save_item.title}"`
+                + ". Would you like to overwrite it?",
+                true,
+                () => this.upload_save(save_item, true)
+            );    
+        }
+        else if (reason === "Server has more recent version.") {
+            this.notifications.add(
+                "The server has a version of "
+                + `"${save_item.title}" updated more recently. `
+                + "Would you like to download the newer version?",
+                true,
+                () => this.download_save(save_item.code)
+            );
+            this.notifications.add(
+                "Or overwrite it with the older local file?",
+                true,
+                () => this.upload_save(save_item, true)
+            );
+        }
+        else if (reason === "Session expired.") {
+            this.session.invalidate_session();
+            this.notifications.add(
+                "Session expired, please log back in and try again."
+            );
+        }
+        else {
+            this.notifications.add("Upload failed: " + reason);
+        }
+    }
+
+    handle_cloud_save_response(save_item, res) {
+        if (res.success) {
+            this.handle_successful_cloud_save(save_item, res.code, res.time);
+        }
+        else {
+            this.handle_unsuccessful_cloud_save(save_item, res.reason);
+        }
+    }
+
+    create_cloud_save(save_item, save, overwrite = false) {
+        this.session.upload_sheet(
+            save.data,
+            save.title,
+            save.time,
+            overwrite,
+            res => this.handle_cloud_save_response(save_item, res)
+        );
+    }
+
+    cloud_save(save_item, save, overwrite = false) {
+        this.session.save_sheet(
+            save.data,
+            save.code,
+            save.time,
+            overwrite,
+            res => this.handle_cloud_save_response(save_item, res)
         );
     }
 
     upload_save(save_item, overwrite = false) {
-        if (save_item.save.code) {
-
-        }
-        else {
-            this.create_cloud_save(save_item, overwrite);
-        }
+        get_sheet_from_db(save_item.title, save => {
+            if (save.code) {
+                this.cloud_save(save_item, save, overwrite);
+            }
+            else {
+                this.create_cloud_save(save_item, save, overwrite);
+            }
+        });
     }
 
-    clear_session() {
-        // Delete local copies of saves
-        this.save_items.forEach(
-            save_item => {
-                if (save_item.save.code) {
-                    delete_sheet(save_item.save.title);
+    download_save(save_item) {
+        this.session.load_sheet(save_item.code, res => {
+            if (res.success) {
+                insert_to_db(
+                    {
+                        code: res.code,
+                        data: res.data,
+                        time: res.time,
+                        title: res.title
+                    },
+                    this.callback
+                );
+                this.notifications.add(
+                    `Successfully downloaded "${save_item.title}".`,
+                    true,
+                    null,
+                    SaveMenu.NOTIFICATION_DURATION
+                );
+            }
+            else {
+                if (res.reason === "Sheet not found.") {
+                    this.notifications.add(
+                        `Failed to download "${save_item.title}".`
+                        + " Sheet was deleted from the server."
+                        + " Would you like to remove it locally as well?",
+                        true,
+                        () => delete_sheet(save_item.title, this.callback)
+                    );
+                    save_item.code = null;
+                }
+                else {
+                    this.notifications.add(
+                        `Failed to download "${save_item.title}". `
+                        + res.reason
+                    );
                 }
             }
-        );
-        this.session.invalidate_session();
+        });
     }
 }
 
@@ -3539,7 +3733,7 @@ class LoginMenu extends PanelMenu {
         this.update_fields();
 
         if (this.session.username && !this.session.logged_in) {
-            this.inputs.login_username = this.session.username;
+            this.inputs.login_username.value = this.session.username;
         }
     }
 
@@ -3891,6 +4085,10 @@ class LoginMenu extends PanelMenu {
             this.show_item(this.entries.not_logged_in);
             this.show_item(this.entries.login);
             this.show_item(this.entries.forgot_password);
+
+            if (!this.inputs.login_username.value && this.session.username) {
+                this.inputs.login_username.value = this.session.username;
+            }
         }
         else if (mode === "register") {
             this.register_mode = true;
@@ -4010,9 +4208,6 @@ class Session {
         else {
             this._recovery_key = localStorage.getItem("recovery_key") || null;
         }
-
-
-        this.check_cookies();
     }
 
     get recovery_key() {
@@ -4042,6 +4237,7 @@ class Session {
     invalidate_session() {
         this.session_key = null;
         this.write_cookies({ session_key: null });
+        delete_cloud_saves();
     }
 
     login(username, password, callback) {
@@ -4109,15 +4305,36 @@ class Session {
         );
     }
 
-    upload_sheet(sheet, title, overwrite, callback) {
+    upload_sheet(sheet, title, updated, overwrite, callback) {
         post(
             "/save",
             {
-                session_key: this.session_key,
                 sheet: sheet,
                 title: title,
+                updated: updated,
                 overwrite: overwrite
             },
+            callback
+        );
+    }
+
+    save_sheet(sheet, code, updated, overwrite, callback) {
+        post(
+            "/save",
+            {
+                sheet: sheet,
+                code: code,
+                updated: updated,
+                overwrite: overwrite
+            },
+            callback
+        );
+    }
+
+    load_sheet(code, callback) {
+        post(
+            "/load",
+            { code: code },
             callback
         );
     }
@@ -4125,7 +4342,15 @@ class Session {
     load_all(callback) {
         get(
             "/loadall",
-            { session_key: this.session_key },
+            {},
+            callback
+        );
+    }
+
+    delete_sheet(code, callback) {
+        post(
+            "/delete",
+            { code: code },
             callback
         );
     }
@@ -4133,7 +4358,13 @@ class Session {
     check_cookies() {
         const cookies = this.parse_cookies();
         this.username = cookies.username || null;
-        this.session_key = cookies.session_key || null;
+
+        if (cookies.session_key) {
+            this.session_key = cookies.session_key;    
+        }
+        else {
+            this.invalidate_session();
+        }
     }
 
     parse_cookies() {
@@ -4163,8 +4394,7 @@ class Session {
     }
 }
 
-function set_up_workspace(sheet) {
-    let session = new Session();
+function set_up_workspace(session, sheet) {
 
     sheet.image_manager = LocalImageManager.instance;
 
