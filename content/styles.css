@@ -112,6 +112,10 @@
     user-select: none;
 }
 
+.node .resize_handle {
+    display: none;
+}
+
 .node.resizing .resize_handle {
     display: block;
 }
