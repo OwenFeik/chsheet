@@ -327,6 +327,13 @@ class SheetElement extends VisibilityManagedWrapper {
         this.element.style.gridColumnEnd = this.x + this.width + 1;
     }
 
+    copy_dimensions(element) {
+        this.x = element.x;
+        this.y = element.y;
+        this.w = element.w;
+        this.h = element.h;
+    }
+
     contains(other) {
         return (
             (this.x <= other.x)
@@ -365,7 +372,6 @@ class TransformableSheetElement extends SheetElement {
         this.drag_valid = options?.drag_valid || (() => true);
 
         this.resize_primed = false;
-        this._resizing = false;
         this.resize_ghost = null;
         this.resize_handles = null;
         this.resize_context_menu_entry = null;
@@ -406,22 +412,37 @@ class TransformableSheetElement extends SheetElement {
 
     // TODO dragging is wrong when not at default zoom
     start_drag(e) {
+        this.element.classList.add("dragging");
+
         this.transforming = true;
 
         this.pos_x = e.screenX;
         this.pos_y = e.screenY;
 
         this.drag_ghost = NodeGhost.from_node(this);
-
+    
+        if (this.resize_ghost) {
+            this.resize_ghost.visible = false;
+        }
     }
 
     end_drag() {
+        this.element.classList.remove("dragging");
+
         this.transforming = false;
 
         this.pos_x = this.pos_y = null;
 
         this.drag_ghost.remove();
         this.drag_ghost = null;
+
+        if (this.resize_ghost) {
+            this.resize_ghost.copy_dimensions(this);
+            
+            if (this.drag_primed) {
+                this.resize_ghost.visible = true;
+            }
+        }
     }
 
     on_target(target) {
@@ -655,9 +676,6 @@ class TransformableSheetElement extends SheetElement {
             this.resize_ghost = NodeGhost.from_node(this);
         }
 
-        Object.values(this.resize_handles).forEach(handle => {
-            handle.element.style.display = "block";
-        });
         this.resize_ghost.visible = true;
     }
 
@@ -666,12 +684,6 @@ class TransformableSheetElement extends SheetElement {
 
         this.resize_primed = false;
         this.element.classList.remove("resizing");
-
-        if (this.resize_handles) {
-            this.resize_handles.forEach(handle => {
-                handle.element.style.display = "none";
-            });    
-        }
 
         if (this.resize_ghost) {
             this.resize_ghost.visible = false;
@@ -4126,6 +4138,7 @@ class LoginMenu extends PanelMenu {
 
     update_fields(mode, reason) {
         this.hide_all();
+        this.hide_item(this.fields.not_logged_in_reason);
         this.fields.not_logged_in_label.innerText = "Not logged in";
 
         if (this.session.username && this.session.session_key) {
@@ -4174,7 +4187,7 @@ class LoginMenu extends PanelMenu {
             else {
                 this.fields.not_logged_in_label.innerText = "Register";
             }
-            this.show_item(this.entries.not_logged_in);    
+            this.show_item(this.entries.not_logged_in);
             this.show_item(this.entries.register_a);
             this.show_item(this.entries.register_b);
         }

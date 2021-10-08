@@ -112,6 +112,14 @@
     user-select: none;
 }
 
+.node.resizing .resize_handle {
+    display: block;
+}
+
+.node.dragging .resize_handle {
+    display: none;
+}
+
 .node_ghost {
     border-radius: var(--border-rad);
     border: dashed 2px var(--bg-secondary);
