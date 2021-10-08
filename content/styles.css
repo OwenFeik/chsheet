@@ -630,14 +630,14 @@
 }
 
 .notification {
-    animation: fadein 0.2s;
+    animation: fadein 0.25s;
     background-color: var(--bg-primary);
     display: flex;
     margin-bottom: 5px;
 }
 
 .notification.fading {
-    animation: fadeout 0.2s;
+    animation: fadeout 0.25s;
 }
 
 @keyframes fadein {

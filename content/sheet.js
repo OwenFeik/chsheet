@@ -2308,7 +2308,7 @@ class PinnablePreviewGhost extends SizeablePreviewGhost {
 class Sheet extends GridElement {
     static DOCUMENT_TITLE_PREFIX = "chsheet: ";
 
-    constructor(save_title = "untitled", code = null) {
+    constructor(save_title = "untitled", code = null, time = null) {
         super("div", ["sheet"], {
             width: 0,
             height: 0
@@ -2317,6 +2317,7 @@ class Sheet extends GridElement {
         this._save_title = null;
         this.save_title = save_title || null;
         this.code = code || null;
+        this.time = time || null;
 
         this.elements = [];
 
@@ -2337,6 +2338,10 @@ class Sheet extends GridElement {
     set save_title(new_title) {
         this._save_title = new_title;
         document.title = Sheet.DOCUMENT_TITLE_PREFIX + this._save_title;
+    }
+
+    is_unsaved() {
+        return Boolean(this.elements.length);
     }
 
     nodes() {
@@ -2447,8 +2452,10 @@ class Sheet extends GridElement {
 
     to_json() {
         let json = {
+            code: this.code,
             title: this.save_title,
-            time: new Date().getTime(),
+            time: this.time || new Date().getTime(),
+            updated: new Date().getTime(),
             data: {
                 nodes: this.nodes().map(node => node.to_json()),
                 groups: this.groups().map(group => group.to_json())    
@@ -2458,7 +2465,7 @@ class Sheet extends GridElement {
     }
 
     static from_json(save) {
-        let new_sheet = new Sheet(save.title, save.code);
+        let new_sheet = new Sheet(save.title, save.code, save.time);
 
         if (save.data.nodes) {
             save.data.nodes.forEach(node_data => {
@@ -2938,7 +2945,7 @@ class SaveListItem extends ElementWrapper {
         this.checkbox = null;
         this.cloud_control = null;
         this.title_label = null;
-        this.time_label = null;
+        this.updated_label = null;
         this.set_up(save);
 
         this._title = null;
@@ -2947,7 +2954,9 @@ class SaveListItem extends ElementWrapper {
         this._code = null;
         this.code = save.code;
         
-        this._time = null;
+        this._updated = null;
+        this.updated = save.updated;
+    
         this.time = save.time;
     }
 
@@ -2984,16 +2993,16 @@ class SaveListItem extends ElementWrapper {
         this._code = new_code;
     }
 
-    get time() {
-        return this._time;
+    get updated() {
+        return this._updated;
     }
 
-    set time(new_time) {
-        this._time = new_time;
+    set updated(new_time) {
+        this._updated = new_time;
         
         let update = new Date(parseInt(new_time));
-        this.time_label.innerText = update.toLocaleDateString("en-AU");
-        this.time_label.title = (
+        this.updated_label.innerText = update.toLocaleDateString("en-AU");
+        this.updated_label.title = (
             "Last updated: " + update.toLocaleString("en-AU")
         );
     }
@@ -3036,8 +3045,8 @@ class SaveListItem extends ElementWrapper {
         };
         this.element.appendChild(this.title_label);
 
-        let update = new Date(save.time);
-        this.time_label = this.element.appendChild(
+        let update = new Date(save.updated);
+        this.updated_label = this.element.appendChild(
             create_element(
                 "span",
                 ["label"],
@@ -3159,19 +3168,6 @@ class PanelMenuNotificationTray extends ElementWrapper {
 }
 
 class SaveMenu extends PanelMenu {
-    /*
-    A save has the form
-    
-    {
-        title: "Sheet title"
-        time: Unix Epoch Timestamp
-        data: {
-            nodes: [],
-            groups: []
-        }
-    }
-    */
-
     static SHEET_TITLE_MAX_LENGTH = 32;
     static NOTIFICATION_DURATION = 3000;
 
@@ -3210,6 +3206,8 @@ class SaveMenu extends PanelMenu {
         super.show();
         this.reload_saves();
 
+        this.save_title = this.sheet.save_title;
+
         let online = this.session.logged_in;
         this.cloud_control.visible = online;
         this.reload_control.visible = online;
@@ -3220,10 +3218,15 @@ class SaveMenu extends PanelMenu {
         }
     }
 
+    set_active_sheet(sheet) {
+        this.sheet.replace(sheet);
+        this.save_title = sheet.save_title;
+        localStorage.setItem("active_sheet", sheet.save_title);
+    }
+
     set_active_save(save) {
         let sheet = Sheet.from_json(save);
-        this.sheet.replace(sheet);
-        this.save_title = save.title;
+        this.set_active_sheet(sheet);
     }
 
     validate_title() {
@@ -3284,11 +3287,15 @@ class SaveMenu extends PanelMenu {
         this.controls.add_control(new Control(
             () => {
                 fetch("/example.json").then(resp => resp.json()).then(
-                    data => this.set_active_save({
-                        title: "example",
-                        data: data,
-                        time: new Date().getTime()
-                    })
+                    data => {
+                        let now = new Date().getTime();
+                        this.set_active_save({
+                            title: "example",
+                            data: data,
+                            time: now,
+                            updated: now
+                        });
+                    }
                 );
             },
             {
@@ -3306,6 +3313,31 @@ class SaveMenu extends PanelMenu {
                 classes: ["input_holder"],
                 icon: "up.png",
                 title: "Upload save"
+            }
+        ));
+
+        this.controls.add_control(new Control(
+            () => {
+                const new_sheet = () => {
+                    let sheet = new Sheet();
+                    this.set_active_sheet(sheet);
+                };
+
+                if (this.sheet.is_unsaved) {
+                    this.notifications.add(
+                        "Overwrite current sheet?",
+                        true,
+                        new_sheet
+                    );
+                }
+                else {
+                    new_sheet();
+                }
+            },
+            {
+                background: false,
+                icon: "add.png",
+                title: "New sheet"
             }
         ));
 
@@ -3344,8 +3376,14 @@ class SaveMenu extends PanelMenu {
             () => {
                 if (this.validate_title()) {
                     this.sheet.save_title = this.header_input.value;
-                    save_sheet(this.sheet, this.callback);
+                    save_sheet(this.sheet, () => this.reload_saves(() => {
+                        let save_item = this.get_save(this.sheet.save_title);
+                        if (this.session.logged_in) {
+                            this.upload_save(save_item);
+                        }
+                    }));
                     this.sheet.save_title = this.save_title;
+                    localStorage.setItem("active_sheet", this.save_title);
                 }
             },
             { background: false, icon: "save.png", title: "Save" }
@@ -3382,7 +3420,7 @@ class SaveMenu extends PanelMenu {
     }
 
     get_save(title = null, code = null) {
-        for (const save_item in this.save_items) {
+        for (const save_item of this.save_items) {
             if (
                 title && save_item.title === title
                 || code && save_item.code === code
@@ -3393,23 +3431,43 @@ class SaveMenu extends PanelMenu {
         return null;
     }
 
-    // TODO
     sync_saves(callback = null) {
         if (this.session.logged_in) {
             this.session.load_all(res => {
                 if (res.success) {
                     res.sheets.forEach(sheet => {
-                        let save = this.get_save(null, sheet.code);
-                        if (save) {
-                            if (save.updated < sheet.updated) {
-                                save_sheet(sheet, this.callback);
+                        let save_item = this.get_save(null, sheet.code);
+                        if (save_item) {
+                            if (save_item.updated < sheet.updated) {
+                                insert_to_db(sheet, this.callback);
                             }
-                            else {
-                                // Prompt to replace cloud save
+                            else if (save_item.updated > sheet.updated) {
+                                get_sheet_from_db(save_item.title, save => {
+                                    this.session.save_sheet(
+                                        save.data,
+                                        save.code,
+                                        save.updated,
+                                        false,
+                                        res => {
+                                            if (res.success) {
+                                                save_item.time = res.time;
+                                            }
+                                        }
+                                    );
+                                });
                             }
                         }
-                        else if (save = this.get_save(sheet.title)) {
-                            // Prompt to replace local save
+                        else if (save_item = this.get_save(sheet.title)) {
+                            this.notifications.add(
+                                `Found a newer sheet titled ${save_item.title} `
+                                + "in the cloud. Replace local save?",
+                                true,
+                                () => {
+                                    delete_sheet(sheet.title, () => {
+                                        insert_to_db(sheet, this.callback);
+                                    });
+                                }
+                            );
                         }
                         else {
                             insert_to_db(sheet, this.callback);
@@ -3472,13 +3530,17 @@ class SaveMenu extends PanelMenu {
         this.save_list.appendChild(save_item.element);
     }
 
-    reload_saves() {
+    reload_saves(callback = null) {
         get_all_sheets(data => {
             this.remove_all_saves();
             this.sheet.image_manager.set_images(update_image_store(data));
-            data.sort((a, b) => b.time - a.time).forEach(
+            data.sort((a, b) => b.updated - a.updated).forEach(
                 save => this.add_save(save)
             );
+
+            if (callback) {
+                callback();
+            }
         });
     }
 
@@ -3502,7 +3564,7 @@ class SaveMenu extends PanelMenu {
         }
     }
 
-    handle_successful_cloud_save(save_item, code, time) {
+    handle_successful_cloud_save(save_item, code, time, updated) {
         this.notifications.add(
             `Successfully saved "${save_item.title}" under`
             + " your account.",
@@ -3512,10 +3574,14 @@ class SaveMenu extends PanelMenu {
         );
         save_item.code = code;
         save_item.time = time;
+        save_item.updated = updated;
 
         // Update existing record with server code
         get_sheet_from_db(save_item.title, save => {
-            insert_to_db(Object.assign(save, { code: code }));
+            insert_to_db(Object.assign(
+                save,
+                { code: code, time: time, updated: updated }
+            ));
         });
     }
 
@@ -3557,7 +3623,12 @@ class SaveMenu extends PanelMenu {
 
     handle_cloud_save_response(save_item, res) {
         if (res.success) {
-            this.handle_successful_cloud_save(save_item, res.code, res.time);
+            this.handle_successful_cloud_save(
+                save_item,
+                res.code,
+                res.time,
+                res.updated
+            );
         }
         else {
             this.handle_unsuccessful_cloud_save(save_item, res.reason);
@@ -3568,7 +3639,7 @@ class SaveMenu extends PanelMenu {
         this.session.upload_sheet(
             save.data,
             save.title,
-            save.time,
+            save.updated,
             overwrite,
             res => this.handle_cloud_save_response(save_item, res)
         );
@@ -3578,7 +3649,7 @@ class SaveMenu extends PanelMenu {
         this.session.save_sheet(
             save.data,
             save.code,
-            save.time,
+            save.updated,
             overwrite,
             res => this.handle_cloud_save_response(save_item, res)
         );
@@ -3603,6 +3674,7 @@ class SaveMenu extends PanelMenu {
                         code: res.code,
                         data: res.data,
                         time: res.time,
+                        updated: res.updated,
                         title: res.title
                     },
                     this.callback

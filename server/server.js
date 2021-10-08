@@ -230,7 +230,16 @@ function update_sheet(res, userid, code, sheet, updated, overwrite) {
             }
 
             if (updated_record) {
-                respond(res, 200, { success: true, code: code, time: updated });
+                respond(
+                    res,
+                    200,
+                    {
+                        success: true,
+                        code: code,
+                        time: new Date().getTime(),
+                        updated: updated
+                    }
+                );
             }
             else {
                 respond(
@@ -267,7 +276,8 @@ function create_sheet(res, userid, title, sheet, updated, overwrite) {
                                 {
                                     success: true,
                                     code: record.code,
-                                    time: record.updated
+                                    time: new Date().getTime(),
+                                    updated: record.updated
                                 }
                             );
                         }
@@ -305,7 +315,8 @@ function create_sheet(res, userid, title, sheet, updated, overwrite) {
                         {
                             success: true,
                             code: record.code,
-                            time: record.updated
+                            time: new Date().getTime(),
+                            updated: record.updated
                         }
                     );
                 }
@@ -376,7 +387,8 @@ app.get("/load", (req, res) => {
                     code: record.code,
                     title: record.title,
                     data: record.sheet,
-                    time: record.updated
+                    time: new Date().getTime(),
+                    updated: record.updated
                 }
             );
         }
@@ -399,7 +411,8 @@ app.get("/loadall", (req, res) => {
                     code: record.code,
                     title: record.title,
                     data: record.sheet,
-                    time: record.updated
+                    time: new Date().getTime(),
+                    updated: record.updated
                 };
             });
 

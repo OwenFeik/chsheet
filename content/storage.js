@@ -23,9 +23,24 @@ function set_up_db(callback = null) {
             { keyPath: "title" }
         );
 
-        sheet_store.createIndex("time", "time");
+
+        /*
+        Actual data of the sheet, JSON with structure
+        {
+            nodes: [],
+            groups: []
+        }
+        */
         sheet_store.createIndex("data", "data");
+
+        // Unique identifying code of the sheet on the server
         sheet_store.createIndex("code", "code");
+
+        // Time at which this sheet was downloaded from the server
+        sheet_store.createIndex("time", "time");
+
+        // Time of most recent update to this sheet
+        sheet_store.createIndex("updated", "updated");
 
         let blob_store = db.createObjectStore(
             "blobs",
