@@ -221,7 +221,7 @@ class SessionManager {
         }
 
         db.get_user_session(session_key, (err, record) => {
-            if (err) {
+            if (err || !record) {
                 callback(err, null);
             }
             else {
