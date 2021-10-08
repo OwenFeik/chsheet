@@ -50,7 +50,7 @@ function set_up_db(callback = null) {
     };
 }
 
-function save_sheet(sheet, callback=null) {
+function save_sheet(sheet, callback = null) {
     insert_to_db(sheet.to_json(), callback);    
 }
 
@@ -115,7 +115,7 @@ function download_sheet(title) {
     });
 }
 
-function delete_sheet(title, callback=null) {
+function delete_sheet(title, callback = null) {
     let store = db.transaction("sheets", "readwrite").objectStore("sheets");
     let request = store.delete(title);
 
@@ -126,7 +126,7 @@ function delete_sheet(title, callback=null) {
     };
 }
 
-function delete_sheets(titles, callback=null) {
+function delete_sheets(titles, callback = null) {
     let transaction = db.transaction("sheets", "readwrite");
     let sheet_store = transaction.objectStore("sheets");
 
@@ -141,12 +141,13 @@ function delete_sheets(titles, callback=null) {
     });
 }
 
-function delete_cloud_saves() {
+function delete_cloud_saves(callback = null) {
     get_all_sheets(sheets => {
         delete_sheets(
             sheets.filter(
                 sheet => Boolean(sheet.code)
-            ).map(sheet => sheet.title)
+            ).map(sheet => sheet.title),
+            callback
         );
     });
 }
@@ -186,7 +187,7 @@ function update_image_store(all_sheets) {
     return image_names;
 }
 
-function insert_to_db(sheet_obj, callback=null) {
+function insert_to_db(sheet_obj, callback = null) {
     let transaction = db.transaction("sheets", "readwrite");
     let sheet_store = transaction.objectStore("sheets");
 
@@ -227,7 +228,7 @@ async function load_image(image_name, doWithImage) {
     };
 }
 
-function insert_blob(blob_obj, callback=null) {
+function insert_blob(blob_obj, callback = null) {
     let transaction = db.transaction("blobs", "readwrite");
     let blob_store = transaction.objectStore("blobs");
 
@@ -245,7 +246,7 @@ function insert_blob(blob_obj, callback=null) {
     blob_store.put(blob_obj);
 }
 
-function upload_sheet(file, callback=null) {
+function upload_sheet(file, callback = null) {
     let file_reader = new FileReader();
     file_reader.onload = function (e) {
         let title = file.name.slice(0, -1 * ".json".length);

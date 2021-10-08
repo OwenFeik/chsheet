@@ -3476,7 +3476,7 @@ class SaveMenu extends PanelMenu {
                 }
                 else if (res.status != 500) {
                     // All non server-error failures are due to a login issue.
-                    this.session.invalidate_session();
+                    this.session.invalidate_session(this.callback);
                     this.notifications.add(
                         "Session expired, please log back in and try again."
                     );
@@ -3611,7 +3611,7 @@ class SaveMenu extends PanelMenu {
             );
         }
         else if (reason === "Session expired.") {
-            this.session.invalidate_session();
+            this.session.invalidate_session(this.callback);
             this.notifications.add(
                 "Session expired, please log back in and try again."
             );
@@ -4306,10 +4306,10 @@ class Session {
         return this.session_key !== null;
     }
 
-    invalidate_session() {
+    invalidate_session(callback = null) {
         this.session_key = null;
         this.write_cookies({ session_key: null });
-        delete_cloud_saves();
+        delete_cloud_saves(callback);
     }
 
     login(username, password, callback) {
@@ -4467,7 +4467,6 @@ class Session {
 }
 
 function set_up_workspace(session, sheet) {
-
     sheet.image_manager = LocalImageManager.instance;
 
     let save_menu = new SaveMenu(sheet, session);
