@@ -128,8 +128,10 @@ class GridElement extends ElementWrapper {
         return px;
     }
 
-    static px_to_grid_size(px) {
-        return Math.round(
+    static px_to_grid_size(px, ceil = false) {
+        let round_func = ceil ? Math.ceil : Math.round
+
+        return round_func(
             parseInt(px)
             / (GridElement.grid_size + GridElement.grid_gap)
         );
@@ -579,15 +581,22 @@ class TransformableSheetElement extends SheetElement {
                         : 0
                     );
 
+                    let new_w = GridElement.px_to_grid_size(new_width);
+                    let new_l = GridElement.px_to_grid_size(new_left);
+
+                    if (
+                        GridElement.grid_size_to_px(
+                            new_w + new_l, false
+                        ) < left + width
+                    ) {
+                        new_w += 1;
+                    }
+
                     no_transition(this.element, () => {
                         this.element.style.width = new_width + "px";
                         this.element.style.left = new_left + "px";
-                        this.resize_ghost.width = GridElement.px_to_grid_size(
-                            new_width
-                        );
-                        this.resize_ghost.x = GridElement.px_to_grid_size(
-                            new_left
-                        );
+                        this.resize_ghost.width = new_w;
+                        this.resize_ghost.x = new_l;
                     });
                 }
 
@@ -601,36 +610,30 @@ class TransformableSheetElement extends SheetElement {
                         ? Math.min(delta_y, height - GridElement.grid_size)
                         : 0
                     );
+
+                    let new_h = GridElement.px_to_grid_size(new_height);
+                    let new_t = GridElement.px_to_grid_size(new_top);
+
+                    if (
+                        GridElement.grid_size_to_px(
+                            new_h + new_t, false
+                        ) < top + height
+                    ) {
+                        new_h += 1;
+                    }
                     
                     no_transition(this.element, () => {
                         this.element.style.height = new_height + "px";
                         this.element.style.top = new_top + "px";
-                        this.resize_ghost.height = GridElement.px_to_grid_size(
-                            new_height
-                        );
-                        this.resize_ghost.y = GridElement.px_to_grid_size(
-                            new_top
-                        );
+                        this.resize_ghost.height = new_h;
+                        this.resize_ghost.y = new_t;
                     });
                 }
             };
 
             let handle_mouse_up = e => {
-                // TODO sometimes jumps a tile when the width rounds down
-                // but the x pos rounds up (or vertically)
-
-                let new_width = GridElement.px_to_grid_size(
-                    this.element.style.width
-                );
-                let new_height = GridElement.px_to_grid_size(
-                    this.element.style.height
-                );
-
                 this.transforming = false;
-                
-                this.width = new_width;
-                this.height = new_height;
-
+                this.copy_dimensions(this.resize_ghost);
                 document.removeEventListener("mousemove", handle_mouse_move);
                 document.removeEventListener("mouseup", handle_mouse_up);
             };
