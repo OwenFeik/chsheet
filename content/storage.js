@@ -258,7 +258,8 @@ function upload_sheet(file, callback = null) {
                 try {
                     insert_to_db({
                         title: title,
-                        time: file.lastModified,
+                        time: 0,
+                        updated: file.lastModified,
                         data: JSON.parse(e.target.result)
                     }, callback);
                 }

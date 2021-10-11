@@ -493,7 +493,7 @@
     border: none;
     height: 1.5em;
     border-radius: var(--border-rad);
-    color: white;
+    color: var(--fg-primary);
 }
 
 .settings .setting .label {
@@ -834,8 +834,16 @@ img {
     user-select: none;
 }
 
+:link {
+    color: var(--fg-secondary)
+}
+
+:visited {
+    color: var(--fg-primary)
+}
+
 #fade {
-    background-color: white;
+    background-color: var(--fg-primary);
     top: 0;
     left: 0;
     position: fixed;

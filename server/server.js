@@ -362,13 +362,18 @@ app.post("/save", (req, res) => {
     });
 });
 
-app.get("/load", (req, res) => {    
+app.post("/load", (req, res) => {    
     // Allow loading of single sheets without authentication, this allows one
     // to share their sheet by url.
-    let code = req.body.sheet_code;
+    let code = req.body.code;
 
-    if (!db.valid_code(code)) {
-        respond(res, 200, { success: false, reason: "Invalid sheet id hash." });
+    if (!code) {
+        respond(res, 200, { success: false , reason: "Missing sheet code." });
+        return;
+    }
+
+    if (!db.valid_sheet_code(code)) {
+        respond(res, 200, { success: false, reason: "Invalid sheet code." });
         return;
     }
 

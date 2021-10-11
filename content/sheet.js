@@ -2959,6 +2959,7 @@ class SaveListItem extends ElementWrapper {
 
         this.checkbox = null;
         this.cloud_control = null;
+        this.link_control = null;
         this.title_label = null;
         this.updated_label = null;
         this.set_up(save);
@@ -3001,9 +3002,11 @@ class SaveListItem extends ElementWrapper {
             this.cloud_control.classList.remove("invalid");
             this.cloud_control.style.display = "";
             this.cloud_control.title = "Cloud save";
+            this.link_control.style.display = "";
         }
         else {
             this.cloud_control.style.display = "none";
+            this.link_control.style.display = "none";
         }
         this._code = new_code;
     }
@@ -3113,6 +3116,19 @@ class SaveListItem extends ElementWrapper {
                 }
             )
         );
+        this.link_control = controls.add_control(
+            new Control(
+                () => this.owner.notifications.add(
+                    `Link to ${this.title}: <a href="${sheet_url(this.code)}">`
+                    + `${sheet_url(this.code, false)}</a>`
+                ),
+                {
+                    background: false,
+                    icon: "clone.png",
+                    title: "Get link"
+                }
+            )
+        ).element;
         this.element.appendChild(controls.element);
     }
 }
@@ -3134,7 +3150,7 @@ class PanelMenuNotificationTray extends ElementWrapper {
     add(text, remove = true, confirm = null, duration = 0) {
         let el = create_element("div", ["notification", "rounded", "padded"]);
         
-        el.appendChild(create_element("span", ["label"], { innerText: text }));
+        el.appendChild(create_element("span", ["label"], { innerHTML: text }));
         
         if (remove || confirm) {
             let controls = new ControlBox({ classes: ["vertical"] });
@@ -3567,6 +3583,10 @@ class SaveMenu extends PanelMenu {
 
         if (this.session.logged_in) {
             save_items.forEach(save_item => {
+                if (!save_item.code) {
+                    return;
+                }
+
                 this.session.delete_sheet(save_item.code, res => {
                     if (!res.success) {
                         this.notifications.add(
@@ -4587,4 +4607,14 @@ function post(endpoint, body, callback) {
 
 function get(endpoint, body, callback) {
     request("GET", endpoint, body, callback);
+}
+
+function sheet_url(code, include_protocol = true) {
+    let url = window.location.href.split("?")[0] + "?sheet=" + code;
+    if (!include_protocol) {
+        return url.split("//")[1];
+    }
+    else {
+        return url;
+    }
 }
