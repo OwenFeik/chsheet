@@ -2092,13 +2092,20 @@ class CheckboxNode extends SheetNode {
         this.checkbox = new Checkbox(true, ["background"]);
         this.content.appendChild(this.checkbox.element);
 
+        // I will concede to having been a little inconsistent in this node's
+        // representation across different versions. Nonetheless, this should
+        // handle all historical cases correctly, falling back on true.
         this.value = (
-            options?.content !== undefined
+            options?.content instanceof Object
             ? options.content.checked
             : (
                 options?.checked !== undefined
                 ? options.checked
-                : true
+                : (
+                    options?.content !== undefined
+                    ? options.content
+                    : true
+                )
             )
         );
     }
@@ -3613,10 +3620,18 @@ class SaveMenu extends PanelMenu {
 
         // Update existing record with server code
         get_sheet_from_db(save_item.title, save => {
+            console.log(save, code);
+
             insert_to_db(Object.assign(
                 save,
                 { code: code, time: time, updated: updated }
             ));
+
+            console.log(this.sheet);
+            if (this.sheet.save_title === save.title) {
+                this.sheet.code = code;
+            }
+            console.log(this.sheet);
         });
     }
 
