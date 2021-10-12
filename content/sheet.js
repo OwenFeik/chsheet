@@ -1390,7 +1390,6 @@ class SheetNode extends TransformableSheetElement {
     set_up_menu() {
         this.menu = new ContextMenu(this);
 
-        // this.menu.add_entry(new ContextMenuEntry("resize.png"))
         this.menu.add_entry(new DeleteContextMenuEntry(this));
         this.menu.add_entry(new ContextMenuEntry(
             this.locked ? "unlock.png" : "lock.png",
@@ -2391,7 +2390,7 @@ class Sheet extends GridElement {
     }
 
     remove_element(sheet_element) {
-        this.elements.filter(e => e !== sheet_element);
+        this.elements = this.elements.filter(e => e !== sheet_element);
         this.element.removeChild(sheet_element.element);
     }
 
