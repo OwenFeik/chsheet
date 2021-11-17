@@ -41,5 +41,6 @@ export PGPASSWORD="password"
 if [ "$1" == "db" ]; then
     psql "postgresql://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE"
 else
+    npm i &> /dev/null
     node server/server.js
 fi
