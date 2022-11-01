@@ -439,6 +439,15 @@ app.post("/delete", (req, res) => {
                 return;
             }
 
+            if (!record) {
+                respond(
+                    res,
+                    200,
+                    { success: false, reason: "Sheet not found." }
+                );
+                return;
+            }
+
             if (record.userid !== session.userid) {
                 respond(
                     res,
